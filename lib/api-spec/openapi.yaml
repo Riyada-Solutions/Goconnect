@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: CareConnect KSA API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: patients
+    description: Patient management
+  - name: scheduler
+    description: Scheduler management
+  - name: visits
+    description: Visit management
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+  /patients:
+    get:
+      operationId: getPatients
+      tags: [patients]
+      summary: Get all patients
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientListResponse"
+  /patients/{id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get a patient
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+  /scheduler/slots:
+    get:
+      operationId: getSchedulerSlots
+      tags: [scheduler]
+      summary: Get schedule slots
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of schedule slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlotListResponse"
+  /visits:
+    get:
+      operationId: getVisits
+      tags: [visits]
+      summary: Get all visits
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: date
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of visits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitListResponse"
+  /visits/{id}:
+    get:
+      operationId: getVisit
+      tags: [visits]
+      summary: Get a visit
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Visit details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Visit"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        avatar:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - role
+    Patient:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        dob:
+          type: string
+        gender:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        address:
+          type: string
+        bloodType:
+          type: string
+        status:
+          type: string
+        lastVisit:
+          type: string
+        diagnosis:
+          type: string
+        avatar:
+          type: string
+      required:
+        - id
+        - name
+        - status
+    PatientListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+        total:
+          type: integer
+        page:
+          type: integer
+      required:
+        - data
+        - total
+    ScheduleSlot:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientName:
+          type: string
+        patientId:
+          type: integer
+        time:
+          type: string
+        endTime:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        provider:
+          type: string
+        notes:
+          type: string
+      required:
+        - id
+        - time
+        - type
+        - status
+    SlotListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleSlot"
+        total:
+          type: integer
+      required:
+        - data
+        - total
+    Visit:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientName:
+          type: string
+        patientId:
+          type: integer
+        date:
+          type: string
+        time:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        provider:
+          type: string
+        notes:
+          type: string
+        diagnosis:
+          type: string
+        address:
+          type: string
+        duration:
+          type: integer
+      required:
+        - id
+        - patientName
+        - date
+        - type
+        - status
+    VisitListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Visit"
+        total:
+          type: integer
+      required:
+        - data
+        - total
