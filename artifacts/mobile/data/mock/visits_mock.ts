@@ -1,0 +1,203 @@
+import type { Visit, DialysisMedication, InventoryItem } from '../../types/visit'
+
+export const MOCK_VISITS: Visit[] = [
+  {
+    id: 1,
+    patientName: 'Ahmed Al-Rashid',
+    patientId: 1,
+    phone: '+966 50 123 4567',
+    date: '2024-12-22',
+    time: '09:00',
+    type: 'Home Visit',
+    status: 'completed',
+    provider: 'Dr. Sarah Johnson',
+    notes: 'Patient stable. Blood sugar levels within target range. Insulin dosage adjusted.',
+    diagnosis: 'Type 2 Diabetes',
+    address: 'Riyadh, Al Olaya District, Villa 45',
+    duration: 45,
+    medicalTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+      { name: 'Nurse Aisha Al-Rashid', role: 'Attending Nurse', phone: '+966509876543' },
+    ],
+  },
+  {
+    id: 2,
+    patientName: 'Fatima Al-Zahra',
+    patientId: 2,
+    phone: '+966 55 987 6543',
+    date: '2024-12-22',
+    time: '11:00',
+    type: 'Clinic Visit',
+    status: 'completed',
+    provider: 'Dr. Sarah Johnson',
+    notes: 'BP 130/85. Medication adjusted. Follow-up in 2 weeks.',
+    diagnosis: 'Hypertension',
+    address: 'Jeddah, Al Hamra Clinic',
+    duration: 30,
+    medicalTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+      { name: 'Nurse Layla Nasser', role: 'Attending Nurse', phone: '+966507654321' },
+      { name: 'Dr. Hani Al-Ghamdi', role: 'Cardiologist', phone: '+966502345678' },
+    ],
+  },
+  {
+    id: 3,
+    patientName: 'Khalid Al-Mansouri',
+    patientId: 3,
+    phone: '+966 54 456 7890',
+    date: '2024-12-23',
+    time: '08:30',
+    type: 'Home Visit',
+    status: 'in_progress',
+    provider: 'Dr. Mohammed Al-Amri',
+    notes: 'Urgent cardiac assessment required.',
+    diagnosis: 'Chronic Heart Failure',
+    address: 'Dammam, Al Faisaliyah, Building 12',
+    duration: 60,
+    medicalTeam: [
+      { name: 'Dr. Mohammed Al-Amri', role: 'Primary Physician', phone: '+966503456789' },
+      { name: 'Nurse Reem Al-Dosari', role: 'Attending Nurse', phone: '+966508765432' },
+      { name: 'Dr. Faisal Al-Harbi', role: 'Cardiologist', phone: '+966504567890' },
+    ],
+  },
+  {
+    id: 4,
+    patientName: 'Nora Al-Qahtani',
+    patientId: 4,
+    phone: '+966 50 234 5678',
+    date: '2024-12-23',
+    time: '10:00',
+    type: 'Follow-up',
+    status: 'start_procedure',
+    provider: 'Dr. Sarah Johnson',
+    notes: 'Inhaler technique improvement noted.',
+    diagnosis: 'Asthma',
+    address: 'Riyadh, Al Nuzha, Apt 203',
+    duration: 30,
+    medicalTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+      { name: 'Nurse Maha Al-Otaibi', role: 'Attending Nurse', phone: '+966506543210' },
+    ],
+  },
+  {
+    id: 5,
+    patientName: 'Tariq Al-Otaibi',
+    patientId: 7,
+    phone: '+966 56 678 9012',
+    date: '2024-12-21',
+    time: '14:00',
+    type: 'Emergency',
+    status: 'completed',
+    provider: 'Dr. Mohammed Al-Amri',
+    notes: 'Breathing difficulties. Nebulizer treatment administered. Transferred to hospital.',
+    diagnosis: 'COPD Exacerbation',
+    address: 'Riyadh, Al Malaz, House 78',
+    duration: 90,
+    medicalTeam: [
+      { name: 'Dr. Mohammed Al-Amri', role: 'Primary Physician', phone: '+966503456789' },
+      { name: 'Nurse Sara Al-Anezi', role: 'Attending Nurse', phone: '+966505432109' },
+    ],
+  },
+  {
+    id: 6,
+    patientName: 'Layla Al-Hassan',
+    patientId: 6,
+    phone: '+966 58 345 6789',
+    date: '2024-12-24',
+    time: '13:30',
+    type: 'Home Visit',
+    status: 'end_procedure',
+    provider: 'Dr. Amira Khalil',
+    notes: 'Joint pain reassessment and physiotherapy guidance.',
+    diagnosis: 'Rheumatoid Arthritis',
+    address: 'Medina, Al Rawabi, Villa 22',
+    duration: 45,
+    medicalTeam: [
+      { name: 'Dr. Amira Khalil', role: 'Primary Physician', phone: '+966507890123' },
+      { name: 'Nurse Nadia Al-Shehri', role: 'Attending Nurse', phone: '+966504321098' },
+    ],
+  },
+  {
+    id: 7,
+    patientName: 'Hessa Al-Shammari',
+    patientId: 8,
+    phone: '+966 53 789 0123',
+    date: '2024-12-20',
+    time: '16:00',
+    type: 'Clinic Visit',
+    status: 'completed',
+    provider: 'Dr. Sarah Johnson',
+    notes: 'Migraine triggers identified. New preventative medication prescribed.',
+    diagnosis: 'Chronic Migraine',
+    address: 'Jeddah, Al Rehab Clinic',
+    duration: 40,
+    medicalTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+      { name: 'Nurse Huda Al-Zahrani', role: 'Attending Nurse', phone: '+966503210987' },
+    ],
+  },
+]
+
+export const MOCK_DIALYSIS_MEDICATIONS: DialysisMedication[] = [
+  {
+    id: 1,
+    drugName: 'ADENOCOR 6MG-2ML VIAL',
+    form: 'Lozenge',
+    dosage: '1',
+    frequency: 'Once monthly',
+    route: 'Intracardiac',
+    duration: 'Until next visit',
+    durationPeriod: '',
+    adminType: '',
+    instructions: '',
+  },
+  {
+    id: 2,
+    drugName: 'ADENOCOR 6MG-2ML VIAL',
+    form: 'Spray',
+    dosage: '1',
+    frequency: 'Three times weekly',
+    route: 'Otic',
+    duration: 'Until cancelled / chronic',
+    durationPeriod: 'During Dialysis',
+    adminType: '',
+    instructions: '1',
+  },
+  {
+    id: 3,
+    drugName: 'ARANESP 40MCG-0.4ML PRE-FILLED SYRINGE',
+    form: 'Injection',
+    dosage: '40MCG',
+    frequency: 'three times a week',
+    route: '',
+    duration: '',
+    durationPeriod: '',
+    adminType: '',
+    instructions: '',
+  },
+]
+
+export const MOCK_INVENTORY: InventoryItem[] = [
+  { id: 1, name: 'Dialysis Kit', itemNumber: 'DK-10234', available: 7 },
+  { id: 2, name: 'Blood Glucose Strips', itemNumber: 'BGS-45678', available: 12 },
+  { id: 3, name: 'Insulin Syringes (10 pack)', itemNumber: 'IS-78901', available: 25 },
+  { id: 4, name: 'Sterile Gauze Pads', itemNumber: 'SGP-23456', available: 50 },
+  { id: 5, name: 'IV Start Kit', itemNumber: 'IV-34567', available: 3 },
+  { id: 6, name: 'BP Cuff (Disposable)', itemNumber: 'BP-56789', available: 15 },
+]
+
+export async function mockGetVisits(): Promise<Visit[]> {
+  return MOCK_VISITS
+}
+
+export async function mockGetVisitById(id: number): Promise<Visit | undefined> {
+  return MOCK_VISITS.find((v) => v.id === id)
+}
+
+export async function mockGetMedications(): Promise<DialysisMedication[]> {
+  return MOCK_DIALYSIS_MEDICATIONS
+}
+
+export async function mockGetInventory(): Promise<InventoryItem[]> {
+  return MOCK_INVENTORY
+}

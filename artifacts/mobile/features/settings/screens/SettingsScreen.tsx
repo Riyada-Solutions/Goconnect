@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -75,6 +75,7 @@ export default function ProfileMainScreen() {
   const { user, logout, t } = useApp();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
@@ -86,27 +87,29 @@ export default function ProfileMainScreen() {
     if (Platform.OS === "web") {
       const confirmed = window.confirm(t("logoutConfirm"));
       if (confirmed) {
-        logout().then(() => {
-          router.replace("/(auth)/login");
-        });
+        logout().then(() => router.replace("/(auth)/login"));
       }
     } else {
-      Alert.alert(t("logout"), t("logoutConfirm"), [
-        { text: t("no"), style: "cancel" },
-        {
-          text: t("yes"),
-          style: "destructive",
+      showDialog({
+        variant: "confirm",
+        title: t("logout"),
+        message: t("logoutConfirm"),
+        primaryAction: {
+          label: t("yes"),
+          destructive: true,
           onPress: async () => {
             await logout();
             router.replace("/(auth)/login");
           },
         },
-      ]);
+        secondaryAction: { label: t("no"), onPress: () => {} },
+      });
     }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <FeedbackDialog {...dialogProps} />
       {/* Header */}
       <Animated.View
         entering={FadeInDown.delay(0).springify()}

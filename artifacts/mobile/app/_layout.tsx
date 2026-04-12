@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setBaseUrl } from "@workspace/api-client-react";
 import * as Font from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -58,8 +57,6 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
   }
 }
 // ─────────────────────────────────────────────────────────────────────────────
-
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 

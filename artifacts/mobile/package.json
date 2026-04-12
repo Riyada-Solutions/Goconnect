@@ -58,8 +58,9 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "expo-local-authentication": "15.0.2",
+    "axios": "^1.15.0",
     "expo": "~54.0.33",
+    "expo-local-authentication": "15.0.2",
     "react": "19.1.0",
     "react-native": "0.81.5"
   }

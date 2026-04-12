@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
 function PasswordField({
   label,
@@ -72,6 +72,7 @@ export default function ChangePasswordScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
@@ -99,9 +100,12 @@ export default function ChangePasswordScreen() {
     await new Promise((r) => setTimeout(r, 1000));
     setLoading(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Success", "Password changed successfully", [
-      { text: "OK", onPress: () => router.back() },
-    ]);
+    showDialog({
+      variant: "success",
+      title: "Password Changed",
+      message: "Your password has been updated successfully.",
+      primaryAction: { label: "OK", onPress: () => router.back() },
+    });
   };
 
   return (
@@ -109,6 +113,7 @@ export default function ChangePasswordScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
+      <FeedbackDialog {...dialogProps} />
       <View
         style={[styles.header, {
           paddingTop: topPad + 12,
