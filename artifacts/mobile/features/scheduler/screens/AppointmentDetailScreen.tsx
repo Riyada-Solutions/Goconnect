@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -20,25 +19,28 @@ import { Card } from "@/components/common/Card";
 import { CareTeamCard } from "@/components/common/CareTeamCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
-import { MOCK_SLOTS } from "@/features/scheduler/services/mockSchedulerData";
-import { MOCK_PATIENTS } from "@/features/patients/services/mockPatientData";
+import { useSlot } from "@/hooks/useScheduler";
+import { usePatient } from "@/hooks/usePatients";
 import { useTheme } from "@/hooks/useTheme";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
 
-  const record = MOCK_SLOTS.find((s) => String(s.id) === id);
+  const { data: record } = useSlot(Number(id));
+  const patientId = (record as any)?.patientId as number | undefined;
+  const { data: patientRecord } = usePatient(patientId ?? 0);
+
   const [status, setStatus] = useState<"pending" | "confirmed" | "checked-in">(
     record?.status === "confirmed" ? "confirmed" : "pending",
   );
-  const patientRecord = record ? MOCK_PATIENTS.find((p) => p.id === (record as any).patientId) : undefined;
-  const patientId = (record as any).patientId as string | undefined;
   const patientBloodType = patientRecord?.bloodType;
   const patientStatus = patientRecord?.status;
   const patientDiagnosis = (record as any)?.diagnosis as string | undefined || patientRecord?.diagnosis;
@@ -54,7 +56,9 @@ export default function AppointmentDetailScreen() {
         </View>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <Feather name="alert-circle" size={48} color={colors.textSecondary} />
-          <Text style={{ color: colors.textSecondary, marginTop: 12, fontFamily: "Inter_500Medium" }}>Appointment not found</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 12, fontFamily: "Inter_500Medium" }}>
+            {id ? "Appointment not found" : "Loading..."}
+          </Text>
         </View>
       </View>
     );
@@ -65,13 +69,13 @@ export default function AppointmentDetailScreen() {
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setStatus("confirmed");
-    Alert.alert("Confirmed", "Appointment has been confirmed successfully.");
+    showDialog({ variant: "success", title: "Confirmed", message: "Appointment confirmed successfully." });
   };
 
   const handleCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setStatus("checked-in");
-    Alert.alert("Checked In", "Patient has been checked in successfully.");
+    showDialog({ variant: "success", title: "Checked In", message: "Patient checked in successfully." });
   };
 
   const typeColor =
@@ -81,6 +85,7 @@ export default function AppointmentDetailScreen() {
 
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
+      <FeedbackDialog {...dialogProps} />
       <View style={[s.headerBar, { paddingTop: topPad }]}>
         <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.text} />

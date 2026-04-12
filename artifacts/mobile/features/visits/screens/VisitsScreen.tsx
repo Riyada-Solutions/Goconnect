@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
@@ -19,7 +20,7 @@ import { Card } from "@/components/common/Card";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { MOCK_VISITS } from "@/features/visits/services/mockVisitData";
+import { useVisits } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 
 type VisitFilter =
@@ -57,11 +58,12 @@ export default function VisitsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<VisitFilter>("all");
+  const { data: visits = [], isLoading, isError, refetch } = useVisits();
 
   const filtered = useMemo(() => {
-    if (activeFilter === "all") return MOCK_VISITS;
-    return MOCK_VISITS.filter((v) => v.status === activeFilter);
-  }, [activeFilter]);
+    if (activeFilter === "all") return visits;
+    return visits.filter((v) => v.status === activeFilter);
+  }, [visits, activeFilter]);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
@@ -124,6 +126,18 @@ export default function VisitsScreen() {
         </ScrollView>
       </View>
 
+      {isLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+        </View>
+      ) : isError ? (
+        <View style={styles.center}>
+          <Text style={{ color: colors.textSecondary, marginBottom: 12 }}>Failed to load visits</Text>
+          <Pressable onPress={() => refetch()} style={{ padding: 10 }}>
+            <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold" }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
@@ -301,6 +315,7 @@ export default function VisitsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,

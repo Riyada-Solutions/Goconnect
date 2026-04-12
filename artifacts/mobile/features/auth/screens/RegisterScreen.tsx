@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { authRepository } from "@/features/auth/services/authApi";
+import { register } from "@/data/auth_repository";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -26,7 +26,7 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setLoading(true);
     try {
-      await authRepository.register({ registerCode, phone, name, email, branch });
+      await register({ registerCode, phone, name, email, branch });
       router.push("/(auth)/otp");
     } catch {
     } finally {

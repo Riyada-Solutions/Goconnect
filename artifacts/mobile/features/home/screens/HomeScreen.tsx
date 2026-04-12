@@ -19,9 +19,9 @@ import { Card } from "@/components/common/Card";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { STATS } from "@/features/home/services/mockHomeData";
-import { MOCK_PATIENTS } from "@/features/patients/services/mockPatientData";
-import { MOCK_VISITS } from "@/features/visits/services/mockVisitData";
+import { useDashboardStats } from "@/hooks/useHome";
+import { usePatients } from "@/hooks/usePatients";
+import { useVisits } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 
 function getGreeting() {
@@ -30,41 +30,6 @@ function getGreeting() {
   if (hour < 17) return "goodAfternoon";
   return "goodEvening";
 }
-
-const STAT_CARDS = [
-  {
-    label: "totalPatients",
-    value: STATS.totalPatients,
-    icon: "users",
-    iconLib: "feather" as const,
-    color: Colors.primary,
-    bg: "#E8F5F7",
-  },
-  {
-    label: "todayVisits",
-    value: STATS.todayVisits,
-    icon: "stethoscope",
-    iconLib: "mci" as const,
-    color: "#6366F1",
-    bg: "#EEF2FF",
-  },
-  {
-    label: "completedVisits",
-    value: STATS.completedVisits,
-    icon: "check-circle",
-    iconLib: "feather" as const,
-    color: "#10B981",
-    bg: "#E8FDF5",
-  },
-  {
-    label: "pendingSchedules",
-    value: STATS.pendingSchedules,
-    icon: "clock",
-    iconLib: "feather" as const,
-    color: "#F59E0B",
-    bg: "#FEF9C3",
-  },
-];
 
 export default function HomeScreen() {
   const { user, t } = useApp();
@@ -75,8 +40,47 @@ export default function HomeScreen() {
     | "goodAfternoon"
     | "goodEvening";
 
-  const todayVisits = MOCK_VISITS.slice(0, 3);
-  const recentPatients = MOCK_PATIENTS.slice(0, 4);
+  const { data: stats } = useDashboardStats();
+  const { data: visits = [] } = useVisits();
+  const { data: patients = [] } = usePatients();
+
+  const todayVisits = visits.slice(0, 3);
+  const recentPatients = patients.slice(0, 4);
+
+  const STAT_CARDS = [
+    {
+      label: "totalPatients",
+      value: stats?.totalPatients ?? 0,
+      icon: "users",
+      iconLib: "feather" as const,
+      color: Colors.primary,
+      bg: "#E8F5F7",
+    },
+    {
+      label: "todayVisits",
+      value: stats?.todayVisits ?? 0,
+      icon: "stethoscope",
+      iconLib: "mci" as const,
+      color: "#6366F1",
+      bg: "#EEF2FF",
+    },
+    {
+      label: "completedVisits",
+      value: stats?.completedVisits ?? 0,
+      icon: "check-circle",
+      iconLib: "feather" as const,
+      color: "#10B981",
+      bg: "#E8FDF5",
+    },
+    {
+      label: "pendingSchedules",
+      value: stats?.pendingSchedules ?? 0,
+      icon: "clock",
+      iconLib: "feather" as const,
+      color: "#F59E0B",
+      bg: "#FEF9C3",
+    },
+  ];
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);

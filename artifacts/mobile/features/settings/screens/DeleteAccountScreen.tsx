@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
 const CONSEQUENCES = [
   { icon: "users", text: "All your patient data will be permanently deleted" },
@@ -36,33 +36,34 @@ export default function DeleteAccountScreen() {
 
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
 
   const canDelete = confirm === "DELETE";
 
   const handleDelete = () => {
     if (!canDelete) return;
-    Alert.alert(
-      "Delete Account",
-      "This action is permanent and cannot be undone. Are you absolutely sure?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setLoading(true);
-            await new Promise((r) => setTimeout(r, 1500));
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await logout();
-            router.replace("/(auth)/login");
-          },
+    showDialog({
+      variant: "confirm",
+      title: "Delete Account",
+      message: "This action is permanent and cannot be undone. Are you absolutely sure?",
+      primaryAction: {
+        label: "Delete",
+        destructive: true,
+        onPress: async () => {
+          setLoading(true);
+          await new Promise((r) => setTimeout(r, 1500));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          await logout();
+          router.replace("/(auth)/login");
         },
-      ],
-    );
+      },
+      secondaryAction: { label: "Cancel", onPress: () => {} },
+    });
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <FeedbackDialog {...dialogProps} />
       <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.background }]}>
         <Pressable
           onPress={() => { Haptics.selectionAsync(); router.back(); }}

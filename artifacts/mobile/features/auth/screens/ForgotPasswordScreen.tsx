@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { authRepository } from "@/features/auth/services/authApi";
+import { sendOtp } from "@/data/auth_repository";
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -21,7 +21,7 @@ export default function ForgotPasswordScreen() {
   const handleSendOtp = async () => {
     setLoading(true);
     try {
-      await authRepository.sendOtp(email);
+      await sendOtp(email);
       router.push("/(auth)/otp");
     } catch {
     } finally {

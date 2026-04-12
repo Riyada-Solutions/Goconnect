@@ -46,7 +46,7 @@
     "react-dom": "catalog:",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
-    "react-native-keyboard-controller": "^1.20.6",
+    "react-native-keyboard-controller": "~1.18.5",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
@@ -60,7 +60,7 @@
   "dependencies": {
     "axios": "^1.15.0",
     "expo": "~54.0.33",
-    "expo-local-authentication": "15.0.2",
+    "expo-local-authentication": "~17.0.8",
     "react": "19.1.0",
     "react-native": "0.81.5"
   }

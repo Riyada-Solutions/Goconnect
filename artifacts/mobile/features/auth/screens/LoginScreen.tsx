@@ -27,7 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { authRepository } from "@/features/auth/services/authApi";
+import { login as authLogin } from "@/data/auth_repository";
 
 export default function LoginScreen() {
   const { login, t } = useApp();
@@ -88,7 +88,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { user, token } = await authRepository.login({ username, password });
+      const { user, token } = await authLogin({ username, password });
       await login(user, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");

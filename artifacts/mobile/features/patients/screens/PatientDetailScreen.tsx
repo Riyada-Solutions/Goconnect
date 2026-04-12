@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -21,8 +20,9 @@ import { Card } from "@/components/common/Card";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { MOCK_PATIENTS } from "@/features/patients/services/mockPatientData";
+import { usePatient } from "@/hooks/usePatients";
 import { useTheme } from "@/hooks/useTheme";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
 interface InfoRowProps {
   icon: string;
@@ -63,8 +63,9 @@ export default function PatientDetailScreen() {
   const { t } = useApp();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
 
-  const patient = MOCK_PATIENTS.find((p) => String(p.id) === id);
+  const { data: patient } = usePatient(Number(id));
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
@@ -88,6 +89,7 @@ export default function PatientDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <FeedbackDialog {...dialogProps} />
       {/* Sticky Top Bar */}
       <View
         style={[
@@ -296,7 +298,7 @@ export default function PatientDetailScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               const url = `tel:${(patient.phone ?? "").replace(/\s/g, "")}`;
               Linking.canOpenURL(url).then((ok) =>
-                ok ? Linking.openURL(url) : Alert.alert("Call", patient.phone),
+                ok ? Linking.openURL(url) : showDialog({ variant: "error", title: "Call", message: patient.phone }),
               );
             }}
           >

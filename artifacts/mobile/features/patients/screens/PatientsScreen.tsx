@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
@@ -19,7 +20,7 @@ import { SearchBar } from "@/components/common/SearchBar";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { MOCK_PATIENTS } from "@/features/patients/services/mockPatientData";
+import { usePatients } from "@/hooks/usePatients";
 import { useTheme } from "@/hooks/useTheme";
 
 type FilterStatus = "all" | "active" | "inactive" | "critical";
@@ -32,9 +33,10 @@ export default function PatientsScreen() {
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
+  const { data: patients = [], isLoading, isError, refetch } = usePatients();
 
   const filtered = useMemo(() => {
-    return MOCK_PATIENTS.filter((p) => {
+    return patients.filter((p) => {
       const matchesSearch =
         !search ||
         p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -43,7 +45,7 @@ export default function PatientsScreen() {
         activeFilter === "all" || p.status === activeFilter;
       return matchesSearch && matchesFilter;
     });
-  }, [search, activeFilter]);
+  }, [patients, search, activeFilter]);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
@@ -110,6 +112,18 @@ export default function PatientsScreen() {
         </View>
       </View>
 
+      {isLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+        </View>
+      ) : isError ? (
+        <View style={styles.center}>
+          <Text style={{ color: colors.textSecondary, marginBottom: 12 }}>Failed to load patients</Text>
+          <Pressable onPress={() => refetch()} style={{ padding: 10 }}>
+            <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold" }}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
@@ -201,6 +215,7 @@ export default function PatientsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,

@@ -18,7 +18,7 @@ import { Card } from "@/components/common/Card";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { MOCK_SLOTS } from "@/features/scheduler/services/mockSchedulerData";
+import { useSlots } from "@/hooks/useScheduler";
 import { useTheme } from "@/hooks/useTheme";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -74,7 +74,7 @@ export default function SchedulerScreen() {
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
 
-  const slots = MOCK_SLOTS;
+  const { data: slots = [] } = useSlots();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

@@ -3,7 +3,6 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   Pressable,
@@ -24,10 +23,12 @@ import { CareTeamCard } from "@/components/common/CareTeamCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { MOCK_PATIENT_ALERTS, MOCK_PATIENTS } from "@/features/patients/services/mockPatientData";
-import { MOCK_SLOTS } from "@/features/scheduler/services/mockSchedulerData";
-import { MOCK_DIALYSIS_MEDICATIONS, MOCK_INVENTORY, MOCK_VISITS } from "@/features/visits/services/mockVisitData";
+import { usePatient, usePatientAlerts } from "@/hooks/usePatients";
+import { useSlot } from "@/hooks/useScheduler";
+import { useVisit, useMedications, useInventory } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
+import type { InventoryItem } from "@/types/visit";
 
 
 
@@ -181,7 +182,7 @@ function UseItemsModal({
   colors,
 }: {
   visible: boolean;
-  item: (typeof MOCK_INVENTORY)[0] | null;
+  item: (InventoryItem[])[0] | null;
   onClose: () => void;
   onUse: (qty: number, notes: string) => void;
   colors: any;
@@ -320,11 +321,11 @@ function UseItemsModal({
               onPress={() => {
                 const n = parseInt(qty, 10);
                 if (!n || n <= 0) {
-                  Alert.alert("Invalid", "Enter a valid quantity.");
+                  showDialog({ variant: "error", title: "Invalid", message: "Enter a valid quantity." });
                   return;
                 }
                 if (n > item.available) {
-                  Alert.alert("Exceeded", "Quantity exceeds available stock.");
+                  showDialog({ variant: "error", title: "Exceeded", message: "Quantity exceeds available stock." });
                   return;
                 }
                 onUse(n, notes);
@@ -350,14 +351,16 @@ export default function VisitDetailScreen() {
   const { t } = useApp();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 32);
 
   const isSlot = mode === "slot";
-  const record = isSlot
-    ? MOCK_SLOTS.find((sl) => String(sl.id) === id)
-    : MOCK_VISITS.find((v) => String(v.id) === id);
+  const numId = Number(id);
+  const { data: slotRecord } = useSlot(isSlot ? numId : 0);
+  const { data: visitRecord } = useVisit(!isSlot ? numId : 0);
+  const record = isSlot ? slotRecord : visitRecord;
 
   type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
   const recordStatus = record?.status as string | undefined;
@@ -566,13 +569,8 @@ export default function VisitDetailScreen() {
   const [medAdmin, setMedAdmin] = useState<Record<number, { status: "yes" | "no" | null; timestamp: string; reason: string }>>({});
   const handleMedAction = useCallback((medId: number, action: "yes" | "no") => {
     if (action === "no") {
-      Alert.prompt
-        ? Alert.prompt("Reason", "Enter reason for not administering:", (reason) => {
-            setMedAdmin((prev) => ({ ...prev, [medId]: { status: "no", timestamp: new Date().toLocaleString(), reason: reason || "" } }));
-          })
-        : Alert.alert("Not Administered", "Medication marked as not administered.", [
-            { text: "OK", onPress: () => setMedAdmin((prev) => ({ ...prev, [medId]: { status: "no", timestamp: new Date().toLocaleString(), reason: "Declined" } })) },
-          ]);
+      setMedAdmin((prev) => ({ ...prev, [medId]: { status: "no", timestamp: new Date().toLocaleString(), reason: "Declined" } }));
+      showDialog({ variant: "success", title: "Not Administered", message: "Medication marked as not administered." });
     } else {
       setMedAdmin((prev) => ({ ...prev, [medId]: { status: "yes", timestamp: new Date().toLocaleString(), reason: "" } }));
     }
@@ -581,8 +579,21 @@ export default function VisitDetailScreen() {
 
   // Inventory modal
   const [useModalVisible, setUseModalVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<(typeof MOCK_INVENTORY)[0] | null>(null);
-  const [inventoryItems, setInventoryItems] = useState(MOCK_INVENTORY.map((i) => ({ ...i })));
+  const { data: medications = [] } = useMedications();
+  const { data: inventoryData = [] } = useInventory();
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+
+  // Must call hooks before any early return (Rules of Hooks)
+  const patientId = (record as any)?.patientId as number | undefined;
+  const { data: patientRecord } = usePatient(patientId ?? 0);
+  const { data: patientAlertsData } = usePatientAlerts(patientId ?? 0);
+
+  useEffect(() => {
+    if (inventoryData.length > 0 && inventoryItems.length === 0) {
+      setInventoryItems(inventoryData.map((i) => ({ ...i })));
+    }
+  }, [inventoryData]);
 
   if (!record) {
     return (
@@ -592,7 +603,7 @@ export default function VisitDetailScreen() {
           { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" },
         ]}
       >
-        <Text style={{ color: colors.text }}>Visit not found</Text>
+        <Text style={{ color: colors.text }}>{numId ? "Visit not found" : "Loading..."}</Text>
       </View>
     );
   }
@@ -600,10 +611,8 @@ export default function VisitDetailScreen() {
   const phone = (record as any).phone as string | undefined;
   const address = (record as any).address as string | undefined;
   const medicalTeam = (record as any).medicalTeam as { name: string; role: string; phone?: string }[] | undefined;
-  const patientId = (record as any).patientId as number | undefined;
   const patientName = (record as any).patientName as string | undefined;
-  const alerts = patientId ? MOCK_PATIENT_ALERTS[patientId] : undefined;
-  const patientRecord = patientId ? MOCK_PATIENTS.find((p) => p.id === patientId) : undefined;
+  const alerts = patientAlertsData;
   const patientBloodType = patientRecord?.bloodType;
   const patientStatus = patientRecord?.status;
   const patientDiagnosis = (record as any).diagnosis as string | undefined || patientRecord?.diagnosis;
@@ -646,6 +655,7 @@ export default function VisitDetailScreen() {
 
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
+      <FeedbackDialog {...dialogProps} />
       {/* Top Bar */}
       <View
         style={[
@@ -1195,12 +1205,12 @@ export default function VisitDetailScreen() {
                 </Acc>
 
                 <Acc id="fs_meds" title="Dialysis Medications" color="#0891B2" done={Object.keys(medAdmin).length > 0}>
-                  {MOCK_DIALYSIS_MEDICATIONS.length === 0 ? (
+                  {medications.length === 0 ? (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 10, backgroundColor: "#0891B218", borderRadius: 6 }}>
                       <Feather name="info" size={14} color="#0891B2" />
                       <Text style={{ color: "#0891B2", fontSize: 12, fontFamily: "Inter_500Medium" }}>No dialysis medications found for this patient.</Text>
                     </View>
-                  ) : MOCK_DIALYSIS_MEDICATIONS.map((med) => {
+                  ) : medications.map((med) => {
                     const admin = medAdmin[med.id];
                     return (
                       <View key={med.id} style={[s.medCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
@@ -1304,7 +1314,7 @@ export default function VisitDetailScreen() {
                       style={{ paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.primary, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 6 }}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        Alert.alert("Signature", "Digital signature capture coming soon.");
+                        showDialog({ variant: "success", title: "Signature", message: "Digital signature capture coming soon." });
                       }}
                     >
                       <Feather name="edit-3" size={14} color="#fff" />
@@ -1319,7 +1329,7 @@ export default function VisitDetailScreen() {
                     style={[s.saveFlowBtn, { backgroundColor: Colors.primary, flex: 1 }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      Alert.alert("Saved", "Flow sheet data saved successfully.");
+                      showDialog({ variant: "success", title: "Saved", message: "Flow sheet data saved successfully." });
                     }}
                   >
                     <Feather name="save" size={16} color="#fff" />
@@ -1347,7 +1357,7 @@ export default function VisitDetailScreen() {
                     style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      Alert.alert("Print", "Print functionality coming soon.");
+                      showDialog({ variant: "success", title: "Print", message: "Print functionality coming soon." });
                     }}
                   >
                     <Feather name="printer" size={16} color="#fff" />
@@ -1661,13 +1671,13 @@ export default function VisitDetailScreen() {
                 </Acc>
 
                 <Acc id="meds" title="Dialysis Medications" color="#0891B2" done={medsComplete}>
-                  {MOCK_DIALYSIS_MEDICATIONS.length === 0 ? (
+                  {medications.length === 0 ? (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 10, backgroundColor: "#E0F2FE", borderRadius: 6 }}>
                       <Feather name="info" size={14} color="#0284C7" />
                       <Text style={{ color: "#0284C7", fontSize: 12, fontFamily: "Inter_500Medium" }}>No dialysis medications found for this patient.</Text>
                     </View>
                   ) : (
-                    MOCK_DIALYSIS_MEDICATIONS.map((med) => {
+                    medications.map((med) => {
                       const admin = medAdmin[med.id];
                       return (
                         <View key={med.id} style={[s.dynRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
@@ -1742,7 +1752,7 @@ export default function VisitDetailScreen() {
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
                   <Pressable
                     style={[s.saveFlowBtn, { backgroundColor: Colors.primary, flex: 1 }]}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert("Saved", "Flow sheet mobile data saved successfully."); }}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); showDialog({ variant: "success", title: "Saved", message: "Flow sheet mobile data saved successfully." }); }}
                   >
                     <Feather name="save" size={16} color="#fff" />
                     <Text style={s.mainBtnText}>Save</Text>
@@ -2096,13 +2106,13 @@ export default function VisitDetailScreen() {
                 {/* Page 13: Dialysis Medications */}
                 {fsPage === 13 && (
                   <View style={{ gap: 10 }}>
-                    {MOCK_DIALYSIS_MEDICATIONS.length === 0 ? (
+                    {medications.length === 0 ? (
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 10, backgroundColor: "#E0F2FE", borderRadius: 6 }}>
                         <Feather name="info" size={14} color="#0284C7" />
                         <Text style={{ color: "#0284C7", fontSize: 12, fontFamily: "Inter_500Medium" }}>No dialysis medications found for this patient.</Text>
                       </View>
                     ) : (
-                      MOCK_DIALYSIS_MEDICATIONS.map((med) => {
+                      medications.map((med) => {
                         const admin = medAdmin[med.id];
                         return (
                           <View key={med.id} style={[s.dynRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
@@ -2145,7 +2155,7 @@ export default function VisitDetailScreen() {
                     </View>
                     <FormField label="Notes" value={mPostTx.notes} onChangeText={(v) => setMPostTx({ ...mPostTx, notes: v })} colors={colors} placeholder="Post treatment notes..." />
                     <Pressable
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); Alert.alert("Signature", "Electronic signature captured successfully."); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); showDialog({ variant: "success", title: "Signature", message: "Electronic signature captured successfully." }); }}
                       style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 8, borderStyle: "dashed", marginTop: 4 }}
                     >
                       <Feather name="edit-3" size={16} color={Colors.primary} />
@@ -2177,7 +2187,7 @@ export default function VisitDetailScreen() {
                     </Pressable>
                   ) : (
                     <Pressable
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); Alert.alert("Saved", "Flow sheet data saved successfully."); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); showDialog({ variant: "success", title: "Saved", message: "Flow sheet data saved successfully." }); }}
                       style={[s.saveFlowBtn, { backgroundColor: "#22C55E", flex: 1 }]}
                     >
                       <Feather name="check-circle" size={16} color="#fff" />
@@ -2648,7 +2658,7 @@ export default function VisitDetailScreen() {
             ),
           );
           setUseModalVisible(false);
-          Alert.alert("Success", `Used ${qty} × ${selectedItem?.name}. Inventory updated.`);
+          showDialog({ variant: "success", title: "Success", message: `Used ${qty} × ${selectedItem?.name}. Inventory updated.` });
         }}
         colors={colors}
       />

@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { authRepository } from "@/features/auth/services/authApi";
+import { resetPassword } from "@/data/auth_repository";
 
 export default function NewPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -48,7 +48,7 @@ export default function NewPasswordScreen() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await authRepository.resetPassword(newPassword);
+      await resetPassword(newPassword);
       setSuccess(true);
       Animated.spring(successScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }).start();
     } catch {
