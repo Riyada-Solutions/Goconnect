@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "695023650711",
+    "project_id": "careconnect-nurse",
+    "storage_bucket": "careconnect-nurse.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:695023650711:android:37a0c38fea6f1d9f5366d2",
+        "android_client_info": {
+          "package_name": "com.careconnectksa.nurse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2c9VhlO-FvuRdOw0YRPwXDfVZY8wtBI8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

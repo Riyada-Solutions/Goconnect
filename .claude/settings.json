@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/work/React/waleed/codeconnect/V1/codeconnect/data/**)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

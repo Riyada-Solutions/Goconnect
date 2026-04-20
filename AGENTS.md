@@ -13,7 +13,7 @@
 3. [Architecture](#3-architecture)
 4. [Mock ↔ Real API Switching](#4-mock--real-api-switching)
 5. [How to Add a New Feature (Workflow)](#5-how-to-add-a-new-feature-workflow)
-6. [Data Layer — Patterns & Templates](#6-data-layer--patterns--templates)
+6. [Data Layer — Patterns & Templates](#6-data-layer--patterns--templates )
 7. [State Management Decision Tree](#7-state-management-decision-tree)
 8. [Naming Conventions](#8-naming-conventions)
 9. [Component Rules](#9-component-rules)
