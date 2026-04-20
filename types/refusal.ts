@@ -13,6 +13,7 @@ export interface PartyInfo {
   relationship?: string
   signed: boolean
   signedAt?: string // ISO datetime
+  signatureData?: string // SVG path data
   address?: string
 }
 

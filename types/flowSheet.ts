@@ -133,62 +133,37 @@ export interface MorseFallScale {
   actions: Record<string, boolean>
 }
 
+export interface SavedSignature {
+  dataUrl: string // base64 PNG data URI
+  signedAt: string // ISO 8601
+}
+
+/**
+ * Flow Sheet submission — contains the full mobile form payload plus the
+ * optional patient/nurse signatures captured in Post Treatment Assessment.
+ */
 export interface FlowSheet {
   visitId: number
-  // Shared
-  painScore: string
-  fallRisk: string
-  intake: string
-  output: string
-  accessType: string
-  outsideDialysis: boolean
-  alarmsTestPassed: boolean
+  vitals: FlowSheetMobileVitals
+  bpSite: string
+  method: string
   machine: string
-  highRisk: boolean
-  physicianNotified: boolean
+  pain: string
   painDetails: FlowSheetPainDetails
-
-  // Desktop flow sheet
-  vitals: FlowSheetVitals
+  fallRisk: string
+  highFallRisk: boolean
+  outsideDialysis: boolean
+  alarmsTest: boolean
   nursingActions: FlowSheetNursingAction[]
   dialysisParams: FlowSheetDialysisParam[]
+  intake: string
+  output: string
   car: FlowSheetCar
   dialysate: FlowSheetDialysate
+  access: string
   anticoagType: string
-  postTx: FlowSheetPostTx
-
-  // Mobile flow sheet
-  mobile: {
-    vitals: FlowSheetMobileVitals
-    pain: string
-    fallRisk: string
-    intake: string
-    output: string
-    access: string
-    outsideDialysis: boolean
-    alarmsTest: boolean
-    highFallRisk: boolean
-    bpSite: string
-    method: string
-    machine: string
-    nursingActions: FlowSheetNursingAction[]
-    dialysisParams: FlowSheetDialysisParam[]
-    car: FlowSheetCar
-    dialysate: FlowSheetDialysate
-    anticoagType: string
-    postTx: FlowSheetMobilePostTx
-    painDetails: FlowSheetPainDetails
-  }
-
-  morse: MorseFallScale
-
-  medAdmin: Record<number, { status: 'yes' | 'no' | null; timestamp: string; reason: string }>
-
-  signatures: {
-    patientSigned: boolean
-    nurseSigned: boolean
-  }
-
-  procedureStartTime: string
-  procedureEndTime: string
+  postTx: FlowSheetMobilePostTx
+  patientSignature?: SavedSignature
+  nurseSignature?: SavedSignature
+  submittedAt: string // ISO 8601
 }

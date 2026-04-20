@@ -3,8 +3,10 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { type SignatureValue } from "@/components/ui/SignatureField";
 import { Colors } from "@/theme/colors";
 import type {
+  FlowSheet,
   FlowSheetCar,
   FlowSheetDialysate,
   FlowSheetDialysisParam,
@@ -87,6 +89,8 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
+  /** Previously-saved Flow Sheet to pre-fill the form. */
+  initial?: FlowSheet;
   medications: DialysisMedication[];
   medAdmin: MedAdminMap;
   onMedAction: (medId: number, action: "yes" | "no") => void;
@@ -94,41 +98,53 @@ interface Props {
   morseComplete: boolean;
   morseValues: { a: number | null; b: number | null; c: number | null; d: number | null; e: number | null; f: number | null };
   physicianCalled: "yes" | "no" | null;
-  patientSigned: boolean;
-  nurseSigned: boolean;
   onOpenMorseSheet: () => void;
-  onOpenPatientSignature: () => void;
-  onOpenNurseSignature: () => void;
   onRequestPhysicianCall: () => void;
-  onSave: (data: FlowSheetFormData) => void;
+  onSignatureSaved?: (kind: "patient" | "nurse", value: SignatureValue) => void;
+  onSave: (data: FlowSheetFormData & { patientSignature: SignatureValue; nurseSignature: SignatureValue }) => void;
 }
 
 export function FlowSheetForm(props: Props) {
+  const init = props.initial;
   const [open, setOpen] = useState(props.initialExpanded ?? false);
   const [sections, setSections] = useState<Record<string, boolean>>(
     props.initialExpanded ? ALL_SECTIONS_OPEN : {},
   );
   const toggle = useCallback((key: string) => setSections((p) => ({ ...p, [key]: !p[key] })), []);
 
-  const [vitals, setVitals] = useState<FlowSheetFormVitals>(EMPTY_VITALS);
-  const [bpSite, setBpSite] = useState("");
-  const [method, setMethod] = useState("");
-  const [machine, setMachine] = useState("");
-  const [pain, setPain] = useState("");
-  const [painDetails, setPainDetails] = useState<FlowSheetPainDetails>(EMPTY_PAIN);
-  const [fallRisk, setFallRisk] = useState("");
-  const [highFallRisk, setHighFallRisk] = useState(false);
-  const [outsideDialysis, setOutsideDialysis] = useState(false);
-  const [alarmsTest, setAlarmsTest] = useState(false);
-  const [nursingActions, setNursingActions] = useState<FlowSheetNursingAction[]>([{ ...EMPTY_NURSING }]);
-  const [dialysisParams, setDialysisParams] = useState<FlowSheetDialysisParam[]>([{ ...EMPTY_DIALYSIS }]);
-  const [intake, setIntake] = useState("");
-  const [output, setOutput] = useState("");
-  const [car, setCar] = useState<FlowSheetCar>(EMPTY_CAR);
-  const [dialysate, setDialysate] = useState<FlowSheetDialysate>(EMPTY_DIALYSATE);
-  const [access, setAccess] = useState("");
-  const [anticoagType, setAnticoagType] = useState("");
-  const [postTx, setPostTx] = useState<FlowSheetFormPostTx>(EMPTY_POST);
+  const [vitals, setVitals] = useState<FlowSheetFormVitals>(init?.vitals ?? EMPTY_VITALS);
+  const [bpSite, setBpSite] = useState(init?.bpSite ?? "");
+  const [method, setMethod] = useState(init?.method ?? "");
+  const [machine, setMachine] = useState(init?.machine ?? "");
+  const [pain, setPain] = useState(init?.pain ?? "");
+  const [painDetails, setPainDetails] = useState<FlowSheetPainDetails>(init?.painDetails ?? EMPTY_PAIN);
+  const [fallRisk, setFallRisk] = useState(init?.fallRisk ?? "");
+  const [highFallRisk, setHighFallRisk] = useState(init?.highFallRisk ?? false);
+  const [outsideDialysis, setOutsideDialysis] = useState(init?.outsideDialysis ?? false);
+  const [alarmsTest, setAlarmsTest] = useState(init?.alarmsTest ?? false);
+  const [nursingActions, setNursingActions] = useState<FlowSheetNursingAction[]>(
+    init?.nursingActions && init.nursingActions.length > 0 ? init.nursingActions : [{ ...EMPTY_NURSING }],
+  );
+  const [dialysisParams, setDialysisParams] = useState<FlowSheetDialysisParam[]>(
+    init?.dialysisParams && init.dialysisParams.length > 0 ? init.dialysisParams : [{ ...EMPTY_DIALYSIS }],
+  );
+  const [intake, setIntake] = useState(init?.intake ?? "");
+  const [output, setOutput] = useState(init?.output ?? "");
+  const [car, setCar] = useState<FlowSheetCar>(init?.car ?? EMPTY_CAR);
+  const [dialysate, setDialysate] = useState<FlowSheetDialysate>(init?.dialysate ?? EMPTY_DIALYSATE);
+  const [access, setAccess] = useState(init?.access ?? "");
+  const [anticoagType, setAnticoagType] = useState(init?.anticoagType ?? "");
+  const [postTx, setPostTx] = useState<FlowSheetFormPostTx>(init?.postTx ?? EMPTY_POST);
+  const [patientSignature, setPatientSignature] = useState<SignatureValue>(
+    init?.patientSignature
+      ? { signed: true, dataUrl: init.patientSignature.dataUrl, signedAt: init.patientSignature.signedAt }
+      : { signed: false },
+  );
+  const [nurseSignature, setNurseSignature] = useState<SignatureValue>(
+    init?.nurseSignature
+      ? { signed: true, dataUrl: init.nurseSignature.dataUrl, signedAt: init.nurseSignature.signedAt }
+      : { signed: false },
+  );
 
   const updateVital = useCallback(
     (key: keyof FlowSheetFormVitals, v: string) => setVitals((p) => ({ ...p, [key]: v })),
@@ -167,6 +183,8 @@ export function FlowSheetForm(props: Props) {
     setAnticoagType("");
     setPostTx(EMPTY_POST);
     setPainDetails(EMPTY_PAIN);
+    setPatientSignature({ signed: false });
+    setNurseSignature({ signed: false });
   };
 
   const handleSave = () => {
@@ -175,6 +193,7 @@ export function FlowSheetForm(props: Props) {
       vitals, bpSite, method, machine, pain, painDetails, fallRisk, highFallRisk,
       outsideDialysis, alarmsTest, nursingActions, dialysisParams,
       intake, output, car, dialysate, access, anticoagType, postTx,
+      patientSignature, nurseSignature,
     });
   };
 
@@ -263,11 +282,12 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly}>
             <PostTreatmentForm
               postTx={postTx}
-              patientSigned={props.patientSigned}
-              nurseSigned={props.nurseSigned}
+              patientSignature={patientSignature}
+              nurseSignature={nurseSignature}
               onChange={setPostTx}
-              onOpenPatientSignature={props.onOpenPatientSignature}
-              onOpenNurseSignature={props.onOpenNurseSignature}
+              onPatientSignatureChange={setPatientSignature}
+              onNurseSignatureChange={setNurseSignature}
+              onSignatureSaved={props.onSignatureSaved}
               colors={colors}
             />
           </Acc>

@@ -10,12 +10,14 @@ import {
   submitReferral,
   submitRefusal,
   submitSocialWorkerProgressNote,
+  submitVisitSignature,
 } from '../data/visit_repository'
 import type { DoctorProgressNoteInput } from '../types/doctorProgressNote'
 import type { FlowSheet } from '../types/flowSheet'
 import type { ReferralInput } from '../types/referral'
 import type { RefusalInput } from '../types/refusal'
 import type { SocialWorkerLocation } from '../types/socialWorkerProgressNote'
+import type { VisitSignatureKind } from '../types/visitSignature'
 
 export function useVisits() {
   return useQuery({
@@ -67,6 +69,22 @@ export function useSubmitNursingProgressNote(visitId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
       queryClient.invalidateQueries({ queryKey: ['visits'] })
+    },
+  })
+}
+
+export function useSubmitVisitSignature(visitId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { kind: VisitSignatureKind; dataUrl: string; signedAt?: string }) =>
+      submitVisitSignature({
+        visitId,
+        kind: input.kind,
+        dataUrl: input.dataUrl,
+        signedAt: input.signedAt ?? new Date().toISOString(),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
     },
   })
 }

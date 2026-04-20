@@ -8,6 +8,7 @@ import type {
 import type { Referral, ReferralInput } from '../../types/referral'
 import type { DoctorProgressNote, DoctorProgressNoteInput } from '../../types/doctorProgressNote'
 import type { Refusal, RefusalInput } from '../../types/refusal'
+import type { VisitSignature, VisitSignatureInput } from '../../types/visitSignature'
 
 export const MOCK_VISITS: Visit[] = [
   {
@@ -387,7 +388,15 @@ export async function mockGetInventory(): Promise<InventoryItem[]> {
 
 export async function mockSubmitFlowSheet(payload: FlowSheet): Promise<void> {
   await new Promise((r) => setTimeout(r, 500))
-  console.log('[mockSubmitFlowSheet]', JSON.stringify(payload, null, 2))
+  const idx = findVisitIndex(payload.visitId)
+  if (idx >= 0) {
+    MOCK_VISITS[idx] = { ...MOCK_VISITS[idx], flowSheet: payload }
+  }
+  const patientBytes = payload.patientSignature?.dataUrl.length ?? 0
+  const nurseBytes = payload.nurseSignature?.dataUrl.length ?? 0
+  console.log(
+    `[mockSubmitFlowSheet] saved flow sheet for visit ${payload.visitId} — patient signature: ${patientBytes}b, nurse signature: ${nurseBytes}b`,
+  )
 }
 
 let nextNursingNoteId = 100
@@ -395,6 +404,7 @@ let nextSocialWorkerNoteId = 200
 let nextReferralId = 300
 let nextDoctorNoteId = 400
 let nextRefusalId = 500
+let nextSignatureId = 600
 
 function findVisitIndex(visitId: number): number {
   return MOCK_VISITS.findIndex((v) => v.id === visitId)
@@ -437,6 +447,21 @@ export async function mockSubmitDoctorProgressNote(
     const existing = MOCK_VISITS[idx].doctorProgressNotes ?? []
     MOCK_VISITS[idx] = { ...MOCK_VISITS[idx], doctorProgressNotes: [record, ...existing] }
   }
+  return record
+}
+
+export async function mockSubmitVisitSignature(
+  payload: VisitSignatureInput,
+): Promise<VisitSignature> {
+  await new Promise((r) => setTimeout(r, 300))
+  const record: VisitSignature = {
+    id: nextSignatureId++,
+    visitId: payload.visitId,
+    kind: payload.kind,
+    dataUrl: payload.dataUrl,
+    signedAt: payload.signedAt,
+  }
+  console.log(`[mockSubmitVisitSignature] saved ${record.kind} signature for visit ${record.visitId} (${record.dataUrl.length} bytes)`)
   return record
 }
 

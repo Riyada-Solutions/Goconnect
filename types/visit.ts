@@ -1,4 +1,5 @@
 import type { DoctorProgressNote, DoctorProgressNoteVitals } from './doctorProgressNote'
+import type { FlowSheet } from './flowSheet'
 import type { NursingProgressNote } from './nursingProgressNote'
 import type { Referral } from './referral'
 import type { Refusal } from './refusal'
@@ -31,6 +32,7 @@ export interface Visit {
   doctorProgressNotes?: DoctorProgressNote[]
   preTreatmentVitals?: DoctorProgressNoteVitals
   refusals?: Refusal[]
+  flowSheet?: FlowSheet
 }
 
 export interface DialysisMedication {

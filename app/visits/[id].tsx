@@ -10,7 +10,7 @@ import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { usePatient, usePatientAlerts } from "@/hooks/usePatients";
 import { useSlot } from "@/hooks/useScheduler";
-import { useVisit, useMedications, useInventory, useSubmitDoctorProgressNote, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSocialWorkerProgressNote } from "@/hooks/useVisits";
+import { useVisit, useMedications, useInventory, useSubmitDoctorProgressNote, useSubmitFlowSheet, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSocialWorkerProgressNote } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import type { InventoryItem } from "@/types/visit";
@@ -175,6 +175,7 @@ function VisitDetailScreenInner() {
   const submitReferral = useSubmitReferral(numId);
   const submitDoctorProgressNote = useSubmitDoctorProgressNote(numId);
   const submitRefusal = useSubmitRefusal(numId);
+  const submitFlowSheet = useSubmitFlowSheet(numId);
   const doctorProgressNotes = (record as any)?.doctorProgressNotes ?? [];
   const preTreatmentVitals = (record as any)?.preTreatmentVitals;
 
@@ -296,6 +297,8 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             initialExpanded={initialPhase === "completed"}
+            initial={(record as any)?.flowSheet}
+            key={(record as any)?.flowSheet?.submittedAt ?? "new"}
             medications={medications}
             medAdmin={medAdmin}
             onMedAction={handleMedAction}
@@ -303,13 +306,45 @@ function VisitDetailScreenInner() {
             morseComplete={morseComplete}
             morseValues={{ a: morseA, b: morseB, c: morseC, d: morseD, e: morseE, f: morseF }}
             physicianCalled={physicianCalled}
-            patientSigned={patientSigned}
-            nurseSigned={nurseSigned}
             onOpenMorseSheet={() => setMorseSheetOpen(true)}
-            onOpenPatientSignature={() => { setSignatureConfirmed(patientSigned); setSignatureSheetOpen(true); }}
-            onOpenNurseSignature={() => { setNurseSignatureConfirmed(nurseSigned); setNurseSignatureSheetOpen(true); }}
             onRequestPhysicianCall={() => { setPhysicianCalled(null); setTimeout(() => setPhysicianModalOpen(true), 150); }}
-            onSave={() => showDialog({ variant: "success", title: t("save"), message: t("nursingProgressNote") })}
+            onSave={(data) => {
+              const payload = {
+                vitals: data.vitals,
+                bpSite: data.bpSite,
+                method: data.method,
+                machine: data.machine,
+                pain: data.pain,
+                painDetails: data.painDetails,
+                fallRisk: data.fallRisk,
+                highFallRisk: data.highFallRisk,
+                outsideDialysis: data.outsideDialysis,
+                alarmsTest: data.alarmsTest,
+                nursingActions: data.nursingActions,
+                dialysisParams: data.dialysisParams,
+                intake: data.intake,
+                output: data.output,
+                car: data.car,
+                dialysate: data.dialysate,
+                access: data.access,
+                anticoagType: data.anticoagType,
+                postTx: data.postTx,
+                patientSignature:
+                  data.patientSignature.signed && data.patientSignature.dataUrl
+                    ? { dataUrl: data.patientSignature.dataUrl, signedAt: data.patientSignature.signedAt ?? new Date().toISOString() }
+                    : undefined,
+                nurseSignature:
+                  data.nurseSignature.signed && data.nurseSignature.dataUrl
+                    ? { dataUrl: data.nurseSignature.dataUrl, signedAt: data.nurseSignature.signedAt ?? new Date().toISOString() }
+                    : undefined,
+                submittedAt: new Date().toISOString(),
+              };
+              submitFlowSheet.mutate(payload, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: "Flow sheet saved." }),
+                onError: (err: unknown) =>
+                  showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
           />
         </Animated.View>
 

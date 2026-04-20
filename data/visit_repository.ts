@@ -11,6 +11,7 @@ import {
   mockSubmitReferral,
   mockSubmitDoctorProgressNote,
   mockSubmitRefusal,
+  mockSubmitVisitSignature,
 } from './mock/visits_mock'
 import type { Visit, DialysisMedication, InventoryItem } from '../types/visit'
 import type { FlowSheet } from '../types/flowSheet'
@@ -22,6 +23,7 @@ import type {
 import type { Referral, ReferralInput } from '../types/referral'
 import type { DoctorProgressNote, DoctorProgressNoteInput } from '../types/doctorProgressNote'
 import type { Refusal, RefusalInput } from '../types/refusal'
+import type { VisitSignature, VisitSignatureInput } from '../types/visitSignature'
 
 export async function getVisits(): Promise<Visit[]> {
   if (ENV.USE_MOCK_DATA) return mockGetVisits()
@@ -69,6 +71,16 @@ export async function submitDoctorProgressNote(
     `/visits/${payload.visitId}/doctor-progress-notes`,
     { note: payload.note, isAddendum: payload.isAddendum, parentNoteId: payload.parentNoteId },
   )
+  return data
+}
+
+export async function submitVisitSignature(payload: VisitSignatureInput): Promise<VisitSignature> {
+  if (ENV.USE_MOCK_DATA) return mockSubmitVisitSignature(payload)
+  const { data } = await apiClient.post<VisitSignature>(`/visits/${payload.visitId}/signatures`, {
+    kind: payload.kind,
+    dataUrl: payload.dataUrl,
+    signedAt: payload.signedAt,
+  })
   return data
 }
 

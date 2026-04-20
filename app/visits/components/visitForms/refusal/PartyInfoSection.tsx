@@ -109,8 +109,13 @@ export function PartyInfoSection({
         title={title}
         subtitle={value.name || undefined}
         statement={signatureStatement}
-        onConfirm={() => {
-          onChange({ ...value, signed: true, signedAt: new Date().toISOString() });
+        onConfirm={(signatureData) => {
+          onChange({
+            ...value,
+            signed: true,
+            signedAt: new Date().toISOString(),
+            signatureData,
+          });
           setSignatureOpen(false);
         }}
         onClose={() => setSignatureOpen(false)}
