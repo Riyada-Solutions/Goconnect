@@ -5,45 +5,67 @@ import React, { useState } from "react";
 import {
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ActionButton } from "@/components/common/ActionButton";
-import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
-import { CareTeamCard } from "@/components/common/CareTeamCard";
+import { CareTeamView } from "@/components/common/CareTeamView";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { PatientCard } from "@/components/common/PatientCard";
+import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { AppointmentDetailSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
+import { useApp } from "@/context/AppContext";
 import { useSlot } from "@/hooks/useScheduler";
 import { usePatient } from "@/hooks/usePatients";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { t } = useApp();
+  const { colors } = useTheme();
+  const { topPad, botPad, horizontal, gap, insets } = useScreenPadding({
+    hasActionBar: true,
+  });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
-
-  const { data: record } = useSlot(Number(id));
+  const { data: record, isLoading, isError, refetch } = useSlot(Number(id));
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const patientId = (record as any)?.patientId as number | undefined;
   const { data: patientRecord } = usePatient(patientId ?? 0);
 
   const [status, setStatus] = useState<"pending" | "confirmed" | "checked-in">(
     record?.status === "confirmed" ? "confirmed" : "pending",
   );
-  const patientBloodType = patientRecord?.bloodType;
-  const patientStatus = patientRecord?.status;
-  const patientDiagnosis = (record as any)?.diagnosis as string | undefined || patientRecord?.diagnosis;
+
+  if (isLoading || refreshing) {
+    return <AppointmentDetailSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <View style={[s.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
+        <View style={s.headerBar}>
+          <Pressable onPress={() => router.back()} style={s.backBtn}>
+            <Feather name="arrow-left" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
+        </View>
+        <ErrorState onRetry={() => refetch()} />
+      </View>
+    );
+  }
 
   if (!record) {
     return (
@@ -52,30 +74,31 @@ export default function AppointmentDetailScreen() {
           <Pressable onPress={() => router.back()} style={s.backBtn}>
             <Feather name="arrow-left" size={22} color={colors.text} />
           </Pressable>
-          <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>Appointment Details</Text>
+          <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
         </View>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Feather name="alert-circle" size={48} color={colors.textSecondary} />
-          <Text style={{ color: colors.textSecondary, marginTop: 12, fontFamily: "Inter_500Medium" }}>
-            {id ? "Appointment not found" : "Loading..."}
-          </Text>
-        </View>
+        <EmptyState
+          icon="calendar"
+          title={t("appointmentNotFound")}
+          description={t("appointmentNotFoundDescription")}
+          actionLabel={t("goBack")}
+          onAction={() => router.back()}
+        />
       </View>
     );
   }
 
-  const medicalTeam = (record as any).medicalTeam as { name: string; role: string; phone?: string }[] | undefined;
+  const careTeam = record.careTeam ?? [];
 
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setStatus("confirmed");
-    showDialog({ variant: "success", title: "Confirmed", message: "Appointment confirmed successfully." });
+    showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") });
   };
 
   const handleCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setStatus("checked-in");
-    showDialog({ variant: "success", title: "Checked In", message: "Patient checked in successfully." });
+    showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") });
   };
 
   const typeColor =
@@ -90,55 +113,28 @@ export default function AppointmentDetailScreen() {
         <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
-        <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>Appointment Details</Text>
+        <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: botPad + 80, gap: 16 }}
+        contentContainerStyle={{ padding: horizontal, paddingBottom: botPad, gap }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         {/* ─── Patient Hero ───────────────────────────────────────────── */}
-        {record.patientName && (
+        {patientRecord && (
           <Animated.View entering={FadeInDown.delay(30).springify()}>
-            <View style={[s.heroCard, { backgroundColor: isDark ? Colors.dark.card : "#fff" }]}>
-              <Pressable
-                onPress={() => {
-                  if (patientId) { Haptics.selectionAsync(); router.push({ pathname: "/patients/[id]", params: { id: patientId } }); }
-                }}
-                style={s.heroTop}
-              >
-                <Avatar name={record.patientName} size={54} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.heroName, { color: colors.text }]}>{record.patientName}</Text>
-                  {patientDiagnosis ? (
-                    <Text style={[s.heroType, { color: colors.textSecondary }]}>{patientDiagnosis}</Text>
-                  ) : null}
-                  <View style={s.heroBadges}>
-                    {patientStatus === "critical" && (
-                      <View style={s.criticalBadge}>
-                        <View style={s.criticalDot} />
-                        <Text style={s.criticalText}>Critical</Text>
-                      </View>
-                    )}
-                    {patientBloodType && (
-                      <View style={s.bloodBadge}>
-                        <Feather name="database" size={11} color="#6B7280" />
-                        <Text style={[s.bloodText, { color: colors.textSecondary }]}>{patientBloodType}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <Feather name="chevron-right" size={20} color={colors.textTertiary} />
-              </Pressable>
-              {(record.phone || record.address) && (
-                <View style={[s.heroActions, { borderTopColor: colors.borderLight }]}>
-                  {record.phone && <ActionButton type="call" value={record.phone} />}
-                  {record.address && <ActionButton type="location" value={record.address} />}
-                </View>
-              )}
-            </View>
+            <PatientCard patient={patientRecord} />
           </Animated.View>
         )}
+        
 
         {/* ─── Appointment Summary ────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(50).springify()}>
@@ -147,7 +143,7 @@ export default function AppointmentDetailScreen() {
               <View style={[s.typeDot, { backgroundColor: typeColor }]} />
               <Text style={[s.typeText, { color: typeColor }]}>{record.type}</Text>
             </View>
-            <Text style={[s.patientNameLarge, { color: colors.text }]}>{record.patientName}</Text>
+            {/* <Text style={[s.patientNameLarge, { color: colors.text }]}>{record.patientName}</Text> */}
             {record.notes && (
               <Text style={[s.notesText, { color: colors.textSecondary }]}>{record.notes}</Text>
             )}
@@ -155,15 +151,15 @@ export default function AppointmentDetailScreen() {
             <View style={s.infoGrid}>
               <View style={s.infoItem}>
                 <Feather name="clock" size={14} color={Colors.primary} />
-                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>Time</Text>
+                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{t("time")}</Text>
                 <Text style={[s.infoValue, { color: colors.text }]}>{record.time} - {record.endTime}</Text>
               </View>
               <View style={s.infoItem}>
                 <Feather name="calendar" size={14} color={Colors.primary} />
-                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>Date</Text>
-                <Text style={[s.infoValue, { color: colors.text }]}>{record.visitDate || "Today"}</Text>
+                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{t("date")}</Text>
+                <Text style={[s.infoValue, { color: colors.text }]}>{record.visitDate || t("today")}</Text>
               </View>
-              <View style={s.infoItem}>
+              {/* <View style={s.infoItem}>
                 <Feather name="home" size={14} color={Colors.primary} />
                 <Text style={[s.infoLabel, { color: colors.textSecondary }]}>Hospital</Text>
                 <Text style={[s.infoValue, { color: colors.text }]} numberOfLines={2}>{record.hospital || "—"}</Text>
@@ -172,14 +168,14 @@ export default function AppointmentDetailScreen() {
                 <Feather name="shield" size={14} color={Colors.primary} />
                 <Text style={[s.infoLabel, { color: colors.textSecondary }]}>Insurance</Text>
                 <Text style={[s.infoValue, { color: colors.text }]}>{record.insurance || "N/A"}</Text>
-              </View>
+              </View> */}
             </View>
 
             {/* Status */}
             <View style={[s.statusRow, { borderTopColor: colors.borderLight }]}>
-              <Text style={[s.statusLabel, { color: colors.textSecondary }]}>Status</Text>
+              <Text style={[s.statusLabel, { color: colors.textSecondary }]}>{t("status")}</Text>
               <StatusBadge
-                status={status === "checked-in" ? "Checked In" : status === "confirmed" ? "Confirmed" : "Pending"}
+                status={status === "checked-in" ? t("checkedIn") : status === "confirmed" ? t("confirmed") : t("pending")}
               />
             </View>
           </Card>
@@ -187,36 +183,31 @@ export default function AppointmentDetailScreen() {
 
 
         {/* ─── Care Team ─────────────────────────────────────────────── */}
-        <CareTeamCard
-          provider={(record as any).provider}
-          medicalTeam={medicalTeam}
-          colors={colors}
-          animDelay={150}
-        />
+        <CareTeamView animDelay={150} members={careTeam} />
 
         {/* ─── Additional Info ────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(200).springify()}>
-          <Text style={[s.sectionTitle, { color: colors.text }]}>Appointment Info</Text>
+        {/* <Animated.View entering={FadeInDown.delay(200).springify()}>
+          <SectionHeader title={t("appointmentInfo")} />
           <Card>
             <View style={s.detailRow}>
               <Feather name="user" size={16} color={Colors.primary} />
-              <Text style={[s.detailLabel, { color: colors.textSecondary }]}>Provider</Text>
+              <Text style={[s.detailLabel, { color: colors.textSecondary }]}>{t("provider")}</Text>
               <Text style={[s.detailValue, { color: colors.text }]}>{(record as any).provider || "—"}</Text>
             </View>
             <View style={[s.thinDivider, { backgroundColor: colors.borderLight }]} />
             <View style={s.detailRow}>
               <Feather name="watch" size={16} color={Colors.primary} />
-              <Text style={[s.detailLabel, { color: colors.textSecondary }]}>Visit Time</Text>
+              <Text style={[s.detailLabel, { color: colors.textSecondary }]}>{t("visitTimeLabel")}</Text>
               <Text style={[s.detailValue, { color: colors.text }]}>{record.visitTime || "—"}</Text>
             </View>
             <View style={[s.thinDivider, { backgroundColor: colors.borderLight }]} />
             <View style={s.detailRow}>
               <Feather name="clock" size={16} color={Colors.primary} />
-              <Text style={[s.detailLabel, { color: colors.textSecondary }]}>Doctor Time</Text>
+              <Text style={[s.detailLabel, { color: colors.textSecondary }]}>{t("doctorTime")}</Text>
               <Text style={[s.detailValue, { color: colors.text }]}>{record.doctorTime || "—"}</Text>
             </View>
           </Card>
-        </Animated.View>
+        </Animated.View> */}
       </ScrollView>
 
       {/* ─── Bottom Action Button ─────────────────────────────────────── */}
@@ -224,19 +215,19 @@ export default function AppointmentDetailScreen() {
         {status === "pending" && (
           <Pressable onPress={handleConfirm} style={[s.actionBtn, { backgroundColor: Colors.primary }]}>
             <Feather name="check" size={20} color="#fff" />
-            <Text style={s.actionBtnText}>Confirm Appointment</Text>
+            <Text style={s.actionBtnText}>{t("confirmAppointment")}</Text>
           </Pressable>
         )}
         {status === "confirmed" && (
           <Pressable onPress={handleCheckIn} style={[s.actionBtn, { backgroundColor: "#22C55E" }]}>
             <Feather name="log-in" size={20} color="#fff" />
-            <Text style={s.actionBtnText}>Check In Patient</Text>
+            <Text style={s.actionBtnText}>{t("checkInPatient")}</Text>
           </Pressable>
         )}
         {status === "checked-in" && (
           <View style={[s.actionBtn, { backgroundColor: "#E0E7FF" }]}>
             <Feather name="check-circle" size={20} color="#6366F1" />
-            <Text style={[s.actionBtnText, { color: "#6366F1" }]}>Patient Checked In</Text>
+            <Text style={[s.actionBtnText, { color: "#6366F1" }]}>{t("patientCheckedIn")}</Text>
           </View>
         )}
       </View>

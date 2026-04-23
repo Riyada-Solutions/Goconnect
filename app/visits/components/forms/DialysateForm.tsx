@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, View } from "react-native";
 
-import type { FlowSheetDialysate } from "@/types/flowSheet";
+import type { FlowSheetDialysate } from "@/data/models/flowSheet";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
 

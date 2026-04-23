@@ -12,8 +12,12 @@ export const apiClient = axios.create({
 })
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('@careconnect/token')
+  const token = await AsyncStorage.getItem('access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+
+  const lang = (await AsyncStorage.getItem('@goconnect/language')) || 'en'
+  config.headers['Accept-Language'] = lang
+  config.headers['X-Lang'] = lang
 
   log(
     TAG,

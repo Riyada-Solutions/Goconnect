@@ -26,7 +26,8 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setLoading(true);
     try {
-      await register({ registerCode, phone, name, email, branch });
+      await register({ registerCode, phone, fullName: name, email });
+      void branch; // captured in UI; not sent to API
       router.push("/(auth)/otp");
     } catch {
     } finally {
@@ -48,7 +49,7 @@ export default function RegisterScreen() {
 
       <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: botPad + 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={s.card}>
-          <Text style={s.cardTag}>{t("joinCareConnect")}</Text>
+          <Text style={s.cardTag}>{t("joinGoConnect")}</Text>
           <Text style={s.cardTitle}>{t("createYourAccount")}</Text>
           <Text style={s.cardSub}>{t("registerDesc")}</Text>
         </View>

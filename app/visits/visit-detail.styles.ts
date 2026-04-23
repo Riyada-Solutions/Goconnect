@@ -39,7 +39,8 @@ export const visitDetailStyles = StyleSheet.create({
   checkoutCancelBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   checkoutBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold", letterSpacing: 0.2 },
 
-  section: { paddingHorizontal: 16, marginTop: 16 },
+  section: { paddingHorizontal: 16, marginTop: 0,marginBottom: 14 },
+  sectionHeader: { paddingHorizontal: 16, marginTop: 12 },
   sectionTitle: { fontSize: 15, fontFamily: "Inter_700Bold", marginBottom: 8 },
   sectionCard: { padding: 14 },
 

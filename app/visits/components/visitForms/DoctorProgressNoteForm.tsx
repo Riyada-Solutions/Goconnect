@@ -8,7 +8,7 @@ import { Colors } from "@/theme/colors";
 import type {
   DoctorProgressNote,
   DoctorProgressNoteVitals,
-} from "@/types/doctorProgressNote";
+} from "@/data/models/doctorProgressNote";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleHeader } from "../CollapsibleHeader";
@@ -18,10 +18,11 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
+  /** When true, render without the outer Card + CollapsibleHeader. */
+  embedded?: boolean;
   vitals?: DoctorProgressNoteVitals;
   previousNotes: DoctorProgressNote[];
   onSave: (input: { note: string; isAddendum: boolean; parentNoteId?: number }) => void;
-  onPrint: (note: string) => void;
   t: (key: any) => string;
 }
 
@@ -29,10 +30,10 @@ export function DoctorProgressNoteForm({
   colors,
   isReadOnly,
   initialExpanded,
+  embedded,
   vitals,
   previousNotes,
   onSave,
-  onPrint,
   t,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
@@ -54,26 +55,10 @@ export function DoctorProgressNoteForm({
     setIsAddendum(false);
   };
 
-  const handlePrint = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPrint(currentNote);
-  };
-
   const done = previousNotes.length > 0 || currentNote.trim() !== "";
 
-  return (
-    <Card style={{ padding: 0, overflow: "hidden" }}>
-      <CollapsibleHeader
-        title={t("doctorProgressNote")}
-        icon="activity"
-        iconColor="#DC2626"
-        badges={done ? [{ text: String(previousNotes.length), bg: "#FEE2E2", fg: "#DC2626" }] : undefined}
-        expanded={open}
-        onToggle={() => setOpen(!open)}
-        colors={colors}
-      />
-      {open && (
-        <View style={{ padding: 14, gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+  const body = (
+    <View style={{  gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
           <PreTreatmentVitalsSection vitals={vitals} colors={colors} t={t} />
 
           <View>
@@ -157,25 +142,31 @@ export function DoctorProgressNoteForm({
             </Pressable>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              style={[
-                s.saveFlowBtn,
-                { backgroundColor: currentNote.trim() ? Colors.primary : colors.border, flex: 1 },
-              ]}
-              onPress={handleSave}
-              disabled={!currentNote.trim()}
-            >
-              <Feather name="save" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("save")}</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#F59E0B", flex: 1 }]} onPress={handlePrint}>
-              <Feather name="printer" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("print")}</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
+          <Pressable
+            style={[s.saveFlowBtn, { backgroundColor: currentNote.trim() ? Colors.primary : colors.border }]}
+            onPress={handleSave}
+            disabled={!currentNote.trim()}
+          >
+            <Feather name="save" size={16} color="#fff" />
+            <Text style={s.mainBtnText}>{t("save")}</Text>
+          </Pressable>
+    </View>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <CollapsibleHeader
+        title={t("doctorProgressNote")}
+        icon="activity"
+        iconColor="#DC2626"
+        badges={done ? [{ text: String(previousNotes.length), bg: "#FEE2E2", fg: "#DC2626" }] : undefined}
+        expanded={open}
+        onToggle={() => setOpen(!open)}
+        colors={colors}
+      />
+      {open && body}
     </Card>
   );
 }

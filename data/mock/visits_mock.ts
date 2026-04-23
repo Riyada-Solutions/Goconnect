@@ -9,6 +9,7 @@ import type { Referral, ReferralInput } from '../../types/referral'
 import type { DoctorProgressNote, DoctorProgressNoteInput } from '../../types/doctorProgressNote'
 import type { Refusal, RefusalInput } from '../../types/refusal'
 import type { VisitSignature, VisitSignatureInput } from '../../types/visitSignature'
+import type { SariScreening, SariScreeningInput } from '../../types/sariScreening'
 
 export const MOCK_VISITS: Visit[] = [
   {
@@ -25,7 +26,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'Type 2 Diabetes',
     address: 'Riyadh, Al Olaya District, Villa 45',
     duration: 45,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
       { name: 'Nurse Aisha Al-Rashid', role: 'Attending Nurse', phone: '+966509876543' },
     ],
@@ -91,7 +92,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'Hypertension',
     address: 'Jeddah, Al Hamra Clinic',
     duration: 30,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
       { name: 'Nurse Layla Nasser', role: 'Attending Nurse', phone: '+966507654321' },
       { name: 'Dr. Hani Al-Ghamdi', role: 'Cardiologist', phone: '+966502345678' },
@@ -130,7 +131,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'Chronic Heart Failure',
     address: 'Dammam, Al Faisaliyah, Building 12',
     duration: 60,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Mohammed Al-Amri', role: 'Primary Physician', phone: '+966503456789' },
       { name: 'Nurse Reem Al-Dosari', role: 'Attending Nurse', phone: '+966508765432' },
       { name: 'Dr. Faisal Al-Harbi', role: 'Cardiologist', phone: '+966504567890' },
@@ -169,7 +170,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'Asthma',
     address: 'Riyadh, Al Nuzha, Apt 203',
     duration: 30,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
       { name: 'Nurse Maha Al-Otaibi', role: 'Attending Nurse', phone: '+966506543210' },
     ],
@@ -207,7 +208,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'COPD Exacerbation',
     address: 'Riyadh, Al Malaz, House 78',
     duration: 90,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Mohammed Al-Amri', role: 'Primary Physician', phone: '+966503456789' },
       { name: 'Nurse Sara Al-Anezi', role: 'Attending Nurse', phone: '+966505432109' },
     ],
@@ -252,7 +253,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'Rheumatoid Arthritis',
     address: 'Medina, Al Rawabi, Villa 22',
     duration: 45,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Amira Khalil', role: 'Primary Physician', phone: '+966507890123' },
       { name: 'Nurse Nadia Al-Shehri', role: 'Attending Nurse', phone: '+966504321098' },
     ],
@@ -290,7 +291,7 @@ export const MOCK_VISITS: Visit[] = [
     diagnosis: 'Chronic Migraine',
     address: 'Jeddah, Al Rehab Clinic',
     duration: 40,
-    medicalTeam: [
+    careTeam: [
       { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
       { name: 'Nurse Huda Al-Zahrani', role: 'Attending Nurse', phone: '+966503210987' },
     ],
@@ -367,22 +368,22 @@ export const MOCK_INVENTORY: InventoryItem[] = [
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function mockGetVisits(): Promise<Visit[]> {
-  await delay(500)
+  await delay(2000)
   return MOCK_VISITS
 }
 
 export async function mockGetVisitById(id: number): Promise<Visit | undefined> {
-  await delay(700)
+  await delay(2000)
   return MOCK_VISITS.find((v) => v.id === id)
 }
 
 export async function mockGetMedications(): Promise<DialysisMedication[]> {
-  await delay(400)
+  await delay(2000)
   return MOCK_DIALYSIS_MEDICATIONS
 }
 
 export async function mockGetInventory(): Promise<InventoryItem[]> {
-  await delay(400)
+  await delay(2000)
   return MOCK_INVENTORY
 }
 
@@ -405,6 +406,7 @@ let nextReferralId = 300
 let nextDoctorNoteId = 400
 let nextRefusalId = 500
 let nextSignatureId = 600
+let nextSariId = 700
 
 function findVisitIndex(visitId: number): number {
   return MOCK_VISITS.findIndex((v) => v.id === visitId)
@@ -462,6 +464,29 @@ export async function mockSubmitVisitSignature(
     signedAt: payload.signedAt,
   }
   console.log(`[mockSubmitVisitSignature] saved ${record.kind} signature for visit ${record.visitId} (${record.dataUrl.length} bytes)`)
+  return record
+}
+
+export async function mockSubmitSariScreening(
+  payload: SariScreeningInput,
+): Promise<SariScreening> {
+  await new Promise((r) => setTimeout(r, 500))
+  const record: SariScreening = {
+    id: nextSariId++,
+    visitId: payload.visitId,
+    addressographPatientName: payload.addressographPatientName,
+    dateTime: payload.dateTime,
+    sariFeatures: payload.sariFeatures,
+    exposureCriteria: payload.exposureCriteria,
+    actions: payload.actions,
+    author: 'Physician (mock)',
+    createdAt: new Date().toISOString(),
+  }
+  const idx = findVisitIndex(payload.visitId)
+  if (idx >= 0) {
+    const existing = MOCK_VISITS[idx].sariScreenings ?? []
+    MOCK_VISITS[idx] = { ...MOCK_VISITS[idx], sariScreenings: [record, ...existing] }
+  }
   return record
 }
 

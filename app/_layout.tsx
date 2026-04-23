@@ -117,9 +117,10 @@ function RootLayoutNav() {
           name="(settings)"
           options={{ presentation: "modal", headerShown: false }}
         />
-        <Stack.Screen name="notifications"  options={{ headerShown: false }} />
-        <Stack.Screen name="patients/[id]"  options={{ headerShown: false }} />
-        <Stack.Screen name="visits/[id]"    options={{ headerShown: false }} />
+        <Stack.Screen name="notifications"           options={{ headerShown: false }} />
+        <Stack.Screen name="patients/[id]"            options={{ headerShown: false }} />
+        <Stack.Screen name="visits/[id]"              options={{ headerShown: false }} />
+        <Stack.Screen name="lab-results/[patientId]" options={{ headerShown: false }} />
       </Stack>
       {showSplash && <SplashView onFinish={() => setShowSplash(false)} />}
     </>
@@ -159,15 +160,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <AppProvider>
-          <QueryClientProvider client={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AppProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <RootLayoutNav />
               </KeyboardProvider>
             </GestureHandlerRootView>
-          </QueryClientProvider>
-        </AppProvider>
+          </AppProvider>
+        </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

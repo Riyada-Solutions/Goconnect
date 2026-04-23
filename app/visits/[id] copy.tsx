@@ -28,7 +28,7 @@
 // import { useVisit, useMedications, useInventory } from "@/hooks/useVisits";
 // import { useTheme } from "@/hooks/useTheme";
 // import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
-// import type { InventoryItem } from "@/types/visit";
+// import type { InventoryItem } from "@/data/models/visit";
 
 
 
@@ -988,7 +988,7 @@
 //                   </View>
 //                 </Acc>
 
-//                 <Acc id="fs_vitals" title="Pre-Treatment Vitals" color="#13A8BD" done={Object.values(flowVitals).some((v) => v !== "")}>
+//                 <Acc id="fs_vitals" title="Pre-Treatment Vitals" color="#2DAAAE" done={Object.values(flowVitals).some((v) => v !== "")}>
 //                   <View style={s.formRow}>
 //                     <FormField label="Height (Cm)" value={flowVitals.height} onChangeText={(v) => updateVital("height", v)} colors={colors} half keyboardType="numeric" />
 //                     <FormField label="Pre Weight (Kg)" value={flowVitals.preWeight} onChangeText={(v) => updateVital("preWeight", v)} colors={colors} half keyboardType="numeric" />
@@ -1413,7 +1413,7 @@
 //                   </View>
 //                 </Acc>
 
-//                 <Acc id="vitals" title="Pre-Treatment Vitals" color="#13A8BD" done={vitalsComplete}>
+//                 <Acc id="vitals" title="Pre-Treatment Vitals" color="#2DAAAE" done={vitalsComplete}>
 //                   <View style={s.formRow}>
 //                     <FormField label="Height (Cm)" value={mVitals.height} onChangeText={(v) => updateMVital("height", v)} colors={colors} half keyboardType="numeric" />
 //                     <FormField label="Pre Weight (Kg)" value={mVitals.preWeight} onChangeText={(v) => updateMVital("preWeight", v)} colors={colors} half keyboardType="numeric" />
@@ -1806,7 +1806,7 @@
 //             {flowPageOpen && (() => {
 //               const pages = [
 //                 { title: "Outside Dialysis", color: "#0EA5E9", done: mOutsideDialysis },
-//                 { title: "Pre-Treatment Vitals", color: "#13A8BD", done: Object.values(mVitals).some((v) => v !== "") },
+//                 { title: "Pre-Treatment Vitals", color: "#2DAAAE", done: Object.values(mVitals).some((v) => v !== "") },
 //                 { title: "Machines", color: "#8B5CF6", done: mMachine !== "" },
 //                 { title: "Pain Assessment", color: "#EF4444", done: mPain !== "" || Object.values(mPainDetails).some((v) => v !== "") },
 //                 { title: "Fall Risk Assessment", color: "#F59E0B", done: mFallRisk !== "" },

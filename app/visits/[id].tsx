@@ -1,32 +1,33 @@
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { Platform, RefreshControl, ScrollView, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { CareTeamCard } from "@/components/common/CareTeamCard";
+import { CareTeamView } from "@/components/common/CareTeamView";
+import { SectionHeader } from "@/components/common/SectionHeader";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { usePatient, usePatientAlerts } from "@/hooks/usePatients";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useVisit, useMedications, useInventory, useSubmitDoctorProgressNote, useSubmitFlowSheet, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSocialWorkerProgressNote } from "@/hooks/useVisits";
+import { useVisit, useMedications, useInventory, useSubmitDoctorProgressNote, useSubmitFlowSheet, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
-import type { InventoryItem } from "@/types/visit";
+import type { InventoryItem } from "@/data/models/visit";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useVisitTimers } from "@/hooks/useVisitTimers";
 import { formatClockTime } from "@/utils/time";
-import { PatientHero } from "./components/visitForms/PatientHero";
+import { PatientCard } from "@/components/common/PatientCard";
 import { VisitDetailTopBar } from "./components/VisitDetailTopBar";
 import { CheckOutConfirmModal } from "./components/visitForms/CheckOutConfirmModal";
 import { FlowSheetForm } from "./components/visitForms/FlowSheetForm";
-import { DoctorProgressNoteForm } from "./components/visitForms/DoctorProgressNoteForm";
-import { NursingProgressNoteForm } from "./components/visitForms/NursingProgressNoteForm";
+import { ProgressNoteGroup } from "./components/visitForms/ProgressNoteGroup";
 import { ReferralForm } from "./components/visitForms/ReferralForm";
 import { RefusalForm } from "./components/visitForms/RefusalForm";
-import { SocialWorkerProgressNoteForm } from "./components/visitForms/SocialWorkerProgressNoteForm";
+import { SariScreeningForm } from "./components/visitForms/SariScreeningForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
 import { NurseSignatureSheet } from "./components/NurseSignatureSheet";
 import { ReadOnlyBanner } from "./components/visitForms/ReadOnlyBanner";
@@ -55,12 +56,9 @@ export default function VisitDetailScreen() {
 function VisitDetailScreenInner() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
   const { t } = useApp();
-  const { colors, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const { topPad, botPad } = useScreenPadding({ hasActionBar: true });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
-
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 32);
 
   const isSlot = mode === "slot";
   const numId = Number(id);
@@ -71,7 +69,8 @@ function VisitDetailScreenInner() {
   const isLoading = activeQuery.isLoading || activeQuery.isFetching;
   const isError = activeQuery.isError;
   const errorMessage = activeQuery.error instanceof Error ? activeQuery.error.message : "Something went wrong.";
-  const refetch = () => { activeQuery.refetch(); };
+  const refetch = () => activeQuery.refetch();
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
   type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
   const recordStatus = record?.status as string | undefined;
@@ -115,8 +114,8 @@ function VisitDetailScreenInner() {
   }, [stopProcedureTimer]);
 
   // Collapsible states
-  const [alertsOpen, setAlertsOpen] = useState(true);
-  const [inventoryOpen, setInventoryOpen] = useState(true);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   // ── Morse Fall Scale state ──────────────────────────────────────────────────
   const [morseSheetOpen, setMorseSheetOpen] = useState(false);
@@ -176,6 +175,7 @@ function VisitDetailScreenInner() {
   const submitDoctorProgressNote = useSubmitDoctorProgressNote(numId);
   const submitRefusal = useSubmitRefusal(numId);
   const submitFlowSheet = useSubmitFlowSheet(numId);
+  const submitSariScreening = useSubmitSariScreening(numId);
   const doctorProgressNotes = (record as any)?.doctorProgressNotes ?? [];
   const preTreatmentVitals = (record as any)?.preTreatmentVitals;
 
@@ -190,18 +190,13 @@ function VisitDetailScreenInner() {
     }
   }, [inventoryData]);
 
-  if (isLoading && !record) return <VisitDetailSkeleton colors={colors} />;
+  if ((isLoading && !record) || refreshing) return <VisitDetailSkeleton colors={colors} />;
   if (isError) return <VisitDetailError colors={colors} message={errorMessage} onRetry={refetch} />;
   if (!record) return <VisitDetailEmpty colors={colors} onRetry={refetch} />;
 
-  const phone = (record as any).phone as string | undefined;
-  const address = (record as any).address as string | undefined;
-  const medicalTeam = (record as any).medicalTeam as { name: string; role: string; phone?: string }[] | undefined;
+  const careTeam = (record as any).careTeam ?? [];
   const patientName = (record as any).patientName as string | undefined;
   const alerts = patientAlertsData;
-  const patientBloodType = patientRecord?.bloodType;
-  const patientStatus = patientRecord?.status;
-  const patientDiagnosis = (record as any).diagnosis as string | undefined || patientRecord?.diagnosis;
 
   const visitDate = (record as any).visitDate as string | undefined;
   const procedureTime = (record as any).procedureTime as string | undefined;
@@ -222,31 +217,28 @@ function VisitDetailScreenInner() {
       <VisitDetailTopBar topPad={topPad} colors={colors} />
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: botPad + 16 }}
+        contentContainerStyle={{ paddingBottom: botPad }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={activeQuery.isRefetching}
-            onRefresh={refetch}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={Colors.primary}
             colors={[Colors.primary]}
           />
         }
-      >
-        {patientName && (
-          <PatientHero
-            patientName={patientName}
-            patientId={patientId}
-            patientDiagnosis={patientDiagnosis}
-            patientStatus={patientStatus}
-            patientBloodType={patientBloodType}
-            phone={phone}
-            address={address}
-            isDark={isDark}
-            colors={colors}
-          />
+      > 
+        {/* ─── Patient Hero ───────────────────────────────────────────── */}
+        {patientRecord && (
+          <Animated.View entering={FadeInDown.delay(30).springify()} style={s.section}>
+            <PatientCard patient={patientRecord} />
+          </Animated.View>
         )}
 
+        <View style={s.sectionHeader}>
+          <SectionHeader title={t("visitInfo")} />
+        </View>
+        
         <VisitInfoCard
           visitDate={visitDate || (record as any).date}
           visitTime={visitTime || (record as any).time}
@@ -282,21 +274,18 @@ function VisitDetailScreenInner() {
         )}
         {/* ─── Care Team ─────────────────────────────────────────────────── */}
         <View style={s.section}>
-          <CareTeamCard
-            provider={(record as any).provider}
-            medicalTeam={medicalTeam}
-            colors={colors}
-            animDelay={140}
-          />
+          <CareTeamView animDelay={140} members={careTeam} />
         </View>
 
-
+        <View style={s.sectionHeader}>
+          <SectionHeader title="Forms" />
+        </View>
         {/* ─── Flow Sheet Mobile ──────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(215).springify()} style={s.section}>
           <FlowSheetForm
             colors={colors}
             isReadOnly={isReadOnly}
-            initialExpanded={initialPhase === "completed"}
+            // initialExpanded={initialPhase === "completed"}
             initial={(record as any)?.flowSheet}
             key={(record as any)?.flowSheet?.submittedAt ?? "new"}
             medications={medications}
@@ -348,39 +337,34 @@ function VisitDetailScreenInner() {
           />
         </Animated.View>
 
-        {/* ─── Doctor's Progress Note ──────────────────────────────────────── */}
+        {/* ─── Progress Note (Doctor / Nursing / Social Worker) ───────────── */}
         <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>
-          <DoctorProgressNoteForm
+          <ProgressNoteGroup
             colors={colors}
             isReadOnly={isReadOnly}
-            initialExpanded={initialPhase === "completed"}
-            vitals={preTreatmentVitals}
-            previousNotes={doctorProgressNotes}
-            onSave={(input) => {
+            // initialExpanded={initialPhase === "completed"}
+            doctorVitals={preTreatmentVitals}
+            doctorNotes={doctorProgressNotes}
+            onSaveDoctor={(input) => {
               submitDoctorProgressNote.mutate(input, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("doctorProgressNote") }),
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });
             }}
-            onPrint={() => showDialog({ variant: "success", title: t("print"), message: t("print") })}
-            t={t}
-          />
-        </Animated.View>
-
-        {/* ─── Nursing Progress Note ───────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(225).springify()} style={s.section}>
-          <NursingProgressNoteForm
-            colors={colors}
-            isReadOnly={isReadOnly}
-            initialExpanded={initialPhase === "completed"}
-            previousNotes={nursingProgressNotes}
-            onSave={(note) => {
+            nursingNotes={nursingProgressNotes}
+            onSaveNursing={(note) => {
               submitNursingProgressNote.mutate(note, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("nursingProgressNote") }),
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });
             }}
-            onPrint={() => showDialog({ variant: "success", title: t("print"), message: t("print") })}
+            socialWorkerNotes={socialWorkerProgressNotes}
+            onSaveSocialWorker={(input) => {
+              submitSocialWorkerProgressNote.mutate(input, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialWorkerProgressNote") }),
+                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
             t={t}
           />
         </Animated.View>
@@ -390,7 +374,7 @@ function VisitDetailScreenInner() {
           <ReferralForm
             colors={colors}
             isReadOnly={isReadOnly}
-            initialExpanded={initialPhase === "completed"}
+            // initialExpanded={initialPhase === "completed"}
             primaryPhysician={(record as any)?.provider ?? "Physician"}
             referralBy="Waleed abdelrahman"
             onSave={(data) => {
@@ -399,7 +383,6 @@ function VisitDetailScreenInner() {
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });
             }}
-            onPrint={() => showDialog({ variant: "success", title: t("print"), message: t("print") })}
             t={t}
           />
         </Animated.View>
@@ -416,28 +399,27 @@ function VisitDetailScreenInner() {
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });
             }}
-            onPrint={() => showDialog({ variant: "success", title: t("print"), message: t("print") })}
             t={t}
           />
         </Animated.View>
 
-        {/* ─── Social Worker Progress Note ─────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(232).springify()} style={s.section}>
-          <SocialWorkerProgressNoteForm
+        {/* ─── SARI Screening Tool ─────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(238).springify()} style={s.section}>
+          <SariScreeningForm
             colors={colors}
             isReadOnly={isReadOnly}
-            initialExpanded={initialPhase === "completed"}
-            previousNotes={socialWorkerProgressNotes}
-            onSave={(input) => {
-              submitSocialWorkerProgressNote.mutate(input, {
-                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialWorkerProgressNote") }),
+            initialExpanded={false}
+            defaultPatientName={(record as any)?.patientName}
+            onSave={(data) => {
+              submitSariScreening.mutate(data, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("sariScreeningTool") }),
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });
             }}
-            onPrint={() => showDialog({ variant: "success", title: t("print"), message: t("print") })}
             t={t}
           />
         </Animated.View>
+
         <PatientInventorySection
           items={inventoryItems}
           expanded={inventoryOpen}

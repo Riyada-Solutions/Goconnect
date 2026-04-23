@@ -1,35 +1,35 @@
 {
   "expo": {
-    "name": "CareConnect KSA",
+    "name": "Goconnect",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "careconnectksa",
+    "scheme": "goconnect",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#13A8BD"
+      "backgroundColor": "#2DAAAE"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.careconnectksa.nurse",
+      "bundleIdentifier": "com.goconnect.nurse",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "NSCameraUsageDescription": "CareConnect needs camera access to capture patient documents.",
-        "NSPhotoLibraryUsageDescription": "CareConnect needs photo library access to upload patient documents.",
-        "NSLocationWhenInUseUsageDescription": "CareConnect needs your location to verify visit check-in."
+        "NSCameraUsageDescription": "Goconnect needs camera access to capture patient documents.",
+        "NSPhotoLibraryUsageDescription": "Goconnect needs photo library access to upload patient documents.",
+        "NSLocationWhenInUseUsageDescription": "Goconnect needs your location to verify visit check-in."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#13A8BD"
+        "backgroundColor": "#2DAAAE"
       },
-      "package": "com.careconnectksa.nurse",
+      "package": "com.goconnect.nurse",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

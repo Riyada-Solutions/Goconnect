@@ -9,6 +9,7 @@ import {
   submitNursingProgressNote,
   submitReferral,
   submitRefusal,
+  submitSariScreening,
   submitSocialWorkerProgressNote,
   submitVisitSignature,
 } from '../data/visit_repository'
@@ -16,6 +17,7 @@ import type { DoctorProgressNoteInput } from '../types/doctorProgressNote'
 import type { FlowSheet } from '../types/flowSheet'
 import type { ReferralInput } from '../types/referral'
 import type { RefusalInput } from '../types/refusal'
+import type { SariScreeningInput } from '../types/sariScreening'
 import type { SocialWorkerLocation } from '../types/socialWorkerProgressNote'
 import type { VisitSignatureKind } from '../types/visitSignature'
 
@@ -85,6 +87,18 @@ export function useSubmitVisitSignature(visitId: number) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
+    },
+  })
+}
+
+export function useSubmitSariScreening(visitId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Omit<SariScreeningInput, 'visitId'>) =>
+      submitSariScreening({ visitId, ...input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
+      queryClient.invalidateQueries({ queryKey: ['visits'] })
     },
   })
 }

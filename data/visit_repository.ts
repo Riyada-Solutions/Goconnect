@@ -11,6 +11,7 @@ import {
   mockSubmitReferral,
   mockSubmitDoctorProgressNote,
   mockSubmitRefusal,
+  mockSubmitSariScreening,
   mockSubmitVisitSignature,
 } from './mock/visits_mock'
 import type { Visit, DialysisMedication, InventoryItem } from '../types/visit'
@@ -23,6 +24,7 @@ import type {
 import type { Referral, ReferralInput } from '../types/referral'
 import type { DoctorProgressNote, DoctorProgressNoteInput } from '../types/doctorProgressNote'
 import type { Refusal, RefusalInput } from '../types/refusal'
+import type { SariScreening, SariScreeningInput } from '../types/sariScreening'
 import type { VisitSignature, VisitSignatureInput } from '../types/visitSignature'
 
 export async function getVisits(): Promise<Visit[]> {
@@ -81,6 +83,12 @@ export async function submitVisitSignature(payload: VisitSignatureInput): Promis
     dataUrl: payload.dataUrl,
     signedAt: payload.signedAt,
   })
+  return data
+}
+
+export async function submitSariScreening(payload: SariScreeningInput): Promise<SariScreening> {
+  if (ENV.USE_MOCK_DATA) return mockSubmitSariScreening(payload)
+  const { data } = await apiClient.post<SariScreening>(`/visits/${payload.visitId}/sari-screenings`, payload)
   return data
 }
 

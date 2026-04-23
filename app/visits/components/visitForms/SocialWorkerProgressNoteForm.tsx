@@ -8,7 +8,7 @@ import { Colors } from "@/theme/colors";
 import type {
   SocialWorkerLocation,
   SocialWorkerProgressNote,
-} from "@/types/socialWorkerProgressNote";
+} from "@/data/models/socialWorkerProgressNote";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleHeader } from "../CollapsibleHeader";
@@ -18,9 +18,10 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
+  /** When true, render without the outer Card + CollapsibleHeader. */
+  embedded?: boolean;
   previousNotes: SocialWorkerProgressNote[];
   onSave: (input: { note: string; location: SocialWorkerLocation }) => void;
-  onPrint: (note: string) => void;
   t: (key: any) => string;
 }
 
@@ -28,9 +29,9 @@ export function SocialWorkerProgressNoteForm({
   colors,
   isReadOnly,
   initialExpanded,
+  embedded,
   previousNotes,
   onSave,
-  onPrint,
   t,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
@@ -44,27 +45,11 @@ export function SocialWorkerProgressNoteForm({
     setCurrentNote("");
   };
 
-  const handlePrint = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPrint(currentNote);
-  };
-
   const done = previousNotes.length > 0 || currentNote.trim() !== "";
   const locationLabel = (loc: SocialWorkerLocation) => (loc === "on_call" ? t("onCall") : t("inCenter"));
 
-  return (
-    <Card style={{ padding: 0, overflow: "hidden" }}>
-      <CollapsibleHeader
-        title={t("socialWorkerProgressNote")}
-        icon="file-text"
-        iconColor="#7C3AED"
-        badges={done ? [{ text: String(previousNotes.length), bg: "#EDE9FE", fg: "#7C3AED" }] : undefined}
-        expanded={open}
-        onToggle={() => setOpen(!open)}
-        colors={colors}
-      />
-      {open && (
-        <View style={{ padding: 14, gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+  const body = (
+    <View style={{gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
           <View>
             <Text style={[s.formLabel, { color: colors.text, marginBottom: 8 }]}>{t("previousProgressNotes")}</Text>
             {previousNotes.length === 0 ? (
@@ -134,25 +119,31 @@ export function SocialWorkerProgressNoteForm({
             />
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              style={[
-                s.saveFlowBtn,
-                { backgroundColor: currentNote.trim() ? Colors.primary : colors.border, flex: 1 },
-              ]}
-              onPress={handleSave}
-              disabled={!currentNote.trim()}
-            >
-              <Feather name="save" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("save")}</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#F59E0B", flex: 1 }]} onPress={handlePrint}>
-              <Feather name="printer" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("print")}</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
+          <Pressable
+            style={[s.saveFlowBtn, { backgroundColor: currentNote.trim() ? Colors.primary : colors.border }]}
+            onPress={handleSave}
+            disabled={!currentNote.trim()}
+          >
+            <Feather name="save" size={16} color="#fff" />
+            <Text style={s.mainBtnText}>{t("save")}</Text>
+          </Pressable>
+    </View>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <CollapsibleHeader
+        title={t("socialWorkerProgressNote")}
+        icon="file-text"
+        iconColor="#7C3AED"
+        badges={done ? [{ text: String(previousNotes.length), bg: "#EDE9FE", fg: "#7C3AED" }] : undefined}
+        expanded={open}
+        onToggle={() => setOpen(!open)}
+        colors={colors}
+      />
+      {open && body}
     </Card>
   );
 }

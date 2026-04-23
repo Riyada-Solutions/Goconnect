@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
-import type { FlowSheetPainDetails } from "@/types/flowSheet";
+import type { FlowSheetPainDetails } from "@/data/models/flowSheet";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
 

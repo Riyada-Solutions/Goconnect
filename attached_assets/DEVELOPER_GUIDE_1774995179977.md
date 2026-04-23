@@ -1,14 +1,14 @@
-# CareConnect KSA — Developer Guide
+# GoConnect — Developer Guide
 
 ## Overview
 
-CareConnect KSA is a healthcare management mobile application built with **Expo React Native** (SDK 54) and **Expo Router v6** (file-based routing). It targets iOS, Android, and Web platforms.
+GoConnect is a healthcare management mobile application built with **Expo React Native** (SDK 54) and **Expo Router v6** (file-based routing). It targets iOS, Android, and Web platforms.
 
-- **Backend API**: `staging.careconnectksa.com`
-- **Bundle ID (iOS)**: `com.riyadasolutions.careconnectksa`
-- **Package (Android)**: `com.riyadasolutions.careconnectksa`
+- **Backend API**: `staging.goconnect.com`
+- **Bundle ID (iOS)**: `com.riyadasolutions.goconnect`
+- **Package (Android)**: `com.riyadasolutions.goconnect`
 - **Apple Team ID**: `N3R8MF955Y`
-- **Design System**: Light gray background (`#F5F6FA`), teal primary (`#13A8BD`), Inter font family, white rounded cards.
+- **Design System**: Light gray background (`#F5F6FA`), teal primary (`#2DAAAE`), Inter font family, white rounded cards.
 
 ---
 
@@ -29,8 +29,8 @@ CareConnect KSA is a healthcare management mobile application built with **Expo 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Riyada-Solutions/careconnect_nurse.git
-cd careconnect_nurse
+git clone https://github.com/Riyada-Solutions/goconnect_nurse.git
+cd goconnect_nurse
 ```
 
 ### 2. Install Dependencies
@@ -45,7 +45,7 @@ Set the following environment variables (or create an `.env` file at the project
 
 | Variable | Description | Example |
 | -------- | ----------- | ------- |
-| `EXPO_PUBLIC_DOMAIN` | API domain for the app | `staging.careconnectksa.com` |
+| `EXPO_PUBLIC_DOMAIN` | API domain for the app | `staging.goconnect.com` |
 
 On Replit these are set automatically via the workflow command.
 
@@ -70,7 +70,7 @@ This starts the Expo development server. The app is accessible via:
 ## Project Structure
 
 ```
-careconnect_nurse/
+goconnect_nurse/
 ├── app/                          # Expo Router pages (thin wrappers)
 │   ├── _layout.tsx               # Root layout (providers, fonts, splash)
 │   ├── index.tsx                 # Entry redirect
@@ -179,7 +179,7 @@ import { useApp } from "@/context/AppContext";
 
 - Light and dark themes defined in `src/theme/colors.ts`
 - `useTheme()` hook provides current colors based on user preference
-- Design follows HR-Mobile style: `#F5F6FA` background, `#13A8BD` primary teal, white rounded cards
+- Design follows HR-Mobile style: `#F5F6FA` background, `#2DAAAE` primary teal, white rounded cards
 
 ### Internationalization
 
@@ -324,6 +324,6 @@ The following version mismatches are known and non-blocking:
 ## Git Workflow
 
 - **Main branch**: `main`
-- **Remote**: `https://github.com/Riyada-Solutions/careconnect_nurse.git`
+- **Remote**: `https://github.com/Riyada-Solutions/goconnect_nurse.git`
 - Always use `pnpm` for dependency changes (never `npm` or `yarn`)
 - Run `pnpm run typecheck` before pushing

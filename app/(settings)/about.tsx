@@ -66,7 +66,7 @@ export default function AboutScreen() {
           <View style={styles.logoCircle}>
             <Feather name="activity" size={40} color="#fff" />
           </View>
-          <Text style={styles.appName}>CareConnect KSA</Text>
+          <Text style={styles.appName}>GoConnect</Text>
           <Text style={styles.appVersion}>
             {t("version")} {t("appVersion")}
           </Text>
@@ -117,7 +117,7 @@ export default function AboutScreen() {
           </Card>
 
           <Text style={[styles.copyright, { color: colors.textTertiary }]}>
-            © 2025 CareConnect KSA. All rights reserved.
+            © 2025 GoConnect. All rights reserved.
           </Text>
         </View>
       </ScrollView>

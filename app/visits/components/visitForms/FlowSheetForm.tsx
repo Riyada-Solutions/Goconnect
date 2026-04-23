@@ -14,8 +14,8 @@ import type {
   FlowSheetMobileVitals as FlowSheetFormVitals,
   FlowSheetNursingAction,
   FlowSheetPainDetails,
-} from "@/types/flowSheet";
-import type { DialysisMedication } from "@/types/visit";
+} from "@/data/models/flowSheet";
+import type { DialysisMedication } from "@/data/models/visit";
 
 import { Card } from "@/components/common/Card";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
@@ -58,9 +58,9 @@ const EMPTY_DIALYSATE: FlowSheetDialysate = { na: "", hco3: "", k: "", glucose: 
 const EMPTY_POST: FlowSheetFormPostTx = { postWeight: "", lastBp: "", lastPulse: "", condition: "", notes: "" };
 
 const ALL_SECTIONS_OPEN: Record<string, boolean> = {
-  outside: true, vitals: true, machines: true, pain: true, fall: true,
-  nursing: true, dialysis: true, alarms: true, intake: true, car: true,
-  access: true, dialysate: true, anticoag: true, meds: true, post: true,
+  outside: false, vitals: false, machines: false, pain: false, fall: false,
+  nursing: false, dialysis: false, alarms: false, intake: false, car: false,
+  access: false, dialysate: false, anticoag: false, meds: false, post: false,
 };
 
 export interface FlowSheetFormData {
@@ -216,7 +216,7 @@ export function FlowSheetForm(props: Props) {
             <OutsideDialysisForm value={outsideDialysis} onChange={setOutsideDialysis} colors={colors} />
           </Acc>
 
-          <Acc title="Pre-Treatment Vitals" color="#13A8BD" done={vitalsDone} isOpen={!!sections.vitals} onToggle={() => toggle("vitals")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Pre-Treatment Vitals" color="#2DAAAE" done={vitalsDone} isOpen={!!sections.vitals} onToggle={() => toggle("vitals")} colors={colors} isReadOnly={isReadOnly}>
             <VitalsForm vitals={vitals} bpSite={bpSite} method={method} onVitalChange={updateVital} onBpSiteChange={setBpSite} onMethodChange={setMethod} colors={colors} />
           </Acc>
 

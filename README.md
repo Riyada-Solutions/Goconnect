@@ -1,3 +1,3 @@
-# CareConnect Nurse
+# GoConnect
 
 KSA Healthcare Platform — Expo React Native

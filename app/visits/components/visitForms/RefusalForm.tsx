@@ -11,7 +11,7 @@ import {
   type PartyInfo,
   type RefusalRisks,
   type RefusalType,
-} from "@/types/refusal";
+} from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleHeader } from "../CollapsibleHeader";
@@ -34,11 +34,10 @@ interface Props {
   isReadOnly: boolean;
   initialExpanded?: boolean;
   onSave: (data: RefusalFormData) => void;
-  onPrint: (data: RefusalFormData) => void;
   t: (key: any) => string;
 }
 
-export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, onPrint, t }: Props) {
+export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, t }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [types, setTypes] = useState<RefusalType[]>([]);
   const [reason, setReason] = useState("");
@@ -71,11 +70,6 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, onPri
     setRelative({ ...EMPTY_PARTY });
     setDoctor({ ...EMPTY_PARTY, relationship: undefined, address: undefined });
     setInterpreter({ ...EMPTY_PARTY, relationship: undefined, address: undefined });
-  };
-
-  const handlePrint = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPrint(buildData());
   };
 
   return (
@@ -202,10 +196,6 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, onPri
             <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
               <Feather name="trash-2" size={16} color="#fff" />
               <Text style={s.mainBtnText}>{t("clear")}</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#F59E0B", flex: 1 }]} onPress={handlePrint}>
-              <Feather name="printer" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("print")}</Text>
             </Pressable>
           </View>
         </View>

@@ -3,7 +3,7 @@ import { View } from "react-native";
 
 import { SignatureField, type SignatureValue } from "@/components/ui/SignatureField";
 import { Colors } from "@/theme/colors";
-import type { FlowSheetMobilePostTx } from "@/types/flowSheet";
+import type { FlowSheetMobilePostTx } from "@/data/models/flowSheet";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";

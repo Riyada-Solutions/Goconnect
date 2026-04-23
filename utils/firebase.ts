@@ -12,18 +12,18 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 
 const iosConfig = {
   apiKey: "AIzaSyA1OZTZ_7bmuZKI46bbaUqAI_L8nGrflfM",
-  authDomain: "careconnect-nurse.firebaseapp.com",
-  projectId: "careconnect-nurse",
-  storageBucket: "careconnect-nurse.firebasestorage.app",
+  authDomain: "goconnect-nurse.firebaseapp.com",
+  projectId: "goconnect-nurse",
+  storageBucket: "goconnect-nurse.firebasestorage.app",
   messagingSenderId: "695023650711",
   appId: "1:695023650711:ios:37cd745d7bf50f8e5366d2",
 };
 
 const androidConfig = {
   apiKey: "AIzaSyC2c9VhlO-FvuRdOw0YRPwXDfVZY8wtBI8",
-  authDomain: "careconnect-nurse.firebaseapp.com",
-  projectId: "careconnect-nurse",
-  storageBucket: "careconnect-nurse.firebasestorage.app",
+  authDomain: "goconnect-nurse.firebaseapp.com",
+  projectId: "goconnect-nurse",
+  storageBucket: "goconnect-nurse.firebasestorage.app",
   messagingSenderId: "695023650711",
   appId: "1:695023650711:android:37a0c38fea6f1d9f5366d2",
 };

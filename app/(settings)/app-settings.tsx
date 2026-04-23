@@ -114,7 +114,7 @@ export default function AppSettingsScreen() {
         const compatible = await LocalAuthentication.hasHardwareAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
         setBiometricAvailable(compatible && enrolled);
-        const stored = await AsyncStorage.getItem("@careconnect/biometric");
+        const stored = await AsyncStorage.getItem("@goconnect/biometric");
         if (stored === "true") setBiometricEnabled(true);
       } catch {}
     })();
@@ -131,7 +131,7 @@ export default function AppSettingsScreen() {
       if (!result.success) return;
     }
     setBiometricEnabled(next);
-    await AsyncStorage.setItem("@careconnect/biometric", String(next));
+    await AsyncStorage.setItem("@goconnect/biometric", String(next));
   };
 
   const bd = colors.borderLight;

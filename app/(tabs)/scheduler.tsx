@@ -3,21 +3,25 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
-  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ListSkeleton, SlotCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlots } from "@/hooks/useScheduler";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -65,16 +69,20 @@ const DAY_CELL_WIDTH = 52;
 export default function SchedulerScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [selectedGlobal, setSelectedGlobal] = useState(
     TODAY_GLOBAL >= 0 ? TODAY_GLOBAL : 2 * 7 + TODAY_INDEX,
   );
   const calendarRef = useRef<ScrollView>(null);
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
-
-  const { data: slots = [] } = useSlots();
+  const {
+    data: slots = [],
+    isLoading: slotsLoading,
+    isError: slotsError,
+    refetch: refetchSlots,
+  } = useSlots();
+  const { refreshing, onRefresh } = usePullToRefresh(refetchSlots);
+  const showSkeleton = slotsLoading || refreshing;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -176,12 +184,29 @@ export default function SchedulerScreen() {
       </View>
 
       {/* Slots list */}
+      {showSkeleton ? (
+        <ListSkeleton
+          count={10}
+          renderItem={() => <SlotCardSkeleton />}
+          style={{ paddingBottom: botPad }}
+        />
+      ) : slotsError ? (
+        <ErrorState onRetry={() => refetchSlots()} />
+      ) : (
       <ScrollView
         contentContainerStyle={{
-          padding: 16,
+          padding: horizontal,
           paddingBottom: botPad,
-          gap: 10,
+          gap: listGap,
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
@@ -313,14 +338,14 @@ export default function SchedulerScreen() {
         })}
 
         {slots.length === 0 && (
-          <View style={styles.empty}>
-            <Feather name="calendar" size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              {t("noSlots")}
-            </Text>
-          </View>
+          <EmptyState
+            icon="calendar"
+            title={t("noAppointments")}
+            description={t("noAppointmentsDescription")}
+          />
         )}
       </ScrollView>
+      )}
     </View>
   );
 }

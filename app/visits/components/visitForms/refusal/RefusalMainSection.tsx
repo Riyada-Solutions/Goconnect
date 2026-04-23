@@ -2,7 +2,7 @@ import React from "react";
 import { Text, TextInput, View } from "react-native";
 
 import { CheckboxField } from "@/components/ui/CheckboxField";
-import type { RefusalRisks, RefusalType } from "@/types/refusal";
+import type { RefusalRisks, RefusalType } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../../visit-detail.styles";
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 
-import type { FlowSheetCar } from "@/types/flowSheet";
+import type { FlowSheetCar } from "@/data/models/flowSheet";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
 

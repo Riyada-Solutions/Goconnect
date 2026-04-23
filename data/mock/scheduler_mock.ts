@@ -12,15 +12,15 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Follow-up',
     status: 'confirmed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Diabetes management review',
+    notes: 'Diabetes management review with Dr. Sarah Johnson this is a note',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '08:00 AM',
     hospital: 'King Abdulaziz Medical City',
     insurance: 'N/A',
     doctorTime: 'Not started',
-    medicalTeam: [
-      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+    careTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567', isPrimary: true },
       { name: 'Nurse Aisha Al-Rashid', role: 'Attending Nurse', phone: '+966509876543' },
     ],
   },
@@ -42,8 +42,8 @@ export const MOCK_SLOTS: Slot[] = [
     hospital: 'Al Hamra Clinic',
     insurance: 'Bupa Arabia',
     doctorTime: 'Not started',
-    medicalTeam: [
-      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+    careTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567', isPrimary: true },
       { name: 'Nurse Layla Nasser', role: 'Attending Nurse', phone: '+966507654321' },
     ],
   },
@@ -65,8 +65,8 @@ export const MOCK_SLOTS: Slot[] = [
     hospital: 'Dammam Central Hospital',
     insurance: 'Tawuniya',
     doctorTime: 'Not started',
-    medicalTeam: [
-      { name: 'Dr. Mohammed Al-Amri', role: 'Cardiologist', phone: '+966502345678' },
+    careTeam: [
+      { name: 'Dr. Mohammed Al-Amri', role: 'Cardiologist', phone: '+966502345678', isPrimary: true },
       { name: 'Dr. Sarah Johnson', role: 'Supporting Physician', phone: '+966501234567' },
       { name: 'Nurse Omar Khalid', role: 'Emergency Nurse', phone: '+966508765432' },
     ],
@@ -85,7 +85,7 @@ export const MOCK_SLOTS: Slot[] = [
     hospital: '',
     insurance: 'N/A',
     doctorTime: '',
-    medicalTeam: [],
+    careTeam: [],
   },
   {
     id: 5,
@@ -105,8 +105,8 @@ export const MOCK_SLOTS: Slot[] = [
     hospital: 'King Faisal Specialist Hospital',
     insurance: 'MedGulf',
     doctorTime: 'Not started',
-    medicalTeam: [
-      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+    careTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567', isPrimary: true },
       { name: 'Nurse Fatima Al-Harbi', role: 'Attending Nurse', phone: '+966503456789' },
     ],
   },
@@ -128,8 +128,8 @@ export const MOCK_SLOTS: Slot[] = [
     hospital: 'Medina General Hospital',
     insurance: 'N/A',
     doctorTime: 'Not started',
-    medicalTeam: [
-      { name: 'Dr. Amira Khalil', role: 'Rheumatologist', phone: '+966504567890' },
+    careTeam: [
+      { name: 'Dr. Amira Khalil', role: 'Rheumatologist', phone: '+966504567890', isPrimary: true },
       { name: 'Nurse Hana Al-Dosari', role: 'Attending Nurse', phone: '+966505678901' },
     ],
   },
@@ -151,8 +151,8 @@ export const MOCK_SLOTS: Slot[] = [
     hospital: 'Al Rehab Clinic',
     insurance: 'Bupa Arabia',
     doctorTime: 'Not started',
-    medicalTeam: [
-      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567' },
+    careTeam: [
+      { name: 'Dr. Sarah Johnson', role: 'Primary Physician', phone: '+966501234567', isPrimary: true },
       { name: 'Nurse Sara Al-Zahrani', role: 'Attending Nurse', phone: '+966506789012' },
     ],
   },
@@ -161,11 +161,11 @@ export const MOCK_SLOTS: Slot[] = [
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function mockGetSlots(): Promise<Slot[]> {
-  await delay(500)
+  await delay(2000)
   return MOCK_SLOTS
 }
 
 export async function mockGetSlotById(id: number): Promise<Slot | undefined> {
-  await delay(700)
+  await delay(2000)
   return MOCK_SLOTS.find((s) => s.id === id)
 }

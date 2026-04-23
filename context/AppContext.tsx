@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import React, {
   createContext,
   useCallback,
@@ -7,11 +9,15 @@ import React, {
   useState,
 } from "react";
 import { I18nManager, useColorScheme } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Language, translations } from "@/config/i18n";
-import type { User } from "@/features/auth/entities";
-import { tokenStorage } from "@/features/auth/services/tokenStorage";
+import {
+  ACCESS_TOKEN_KEY,
+  getMe,
+  logout as logoutApi,
+  updateMe,
+} from "@/data/auth_repository";
+import type { User } from "@/data/models/auth";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -33,11 +39,12 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 const STORAGE_KEYS = {
-  LANGUAGE: "@careconnect/language",
-  THEME: "@careconnect/theme",
+  LANGUAGE: "@goconnect/language",
+  THEME: "@goconnect/theme",
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -50,25 +57,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let done = false;
     const load = async () => {
       try {
-        const [authData, storedLang, storedTheme] = await Promise.all([
-          tokenStorage.getAuth(),
+        const [storedToken, storedLang, storedTheme] = await Promise.all([
+          AsyncStorage.getItem(ACCESS_TOKEN_KEY),
           AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
         ]);
-
-        if (authData) {
-          setUser(authData.user);
-          setToken(authData.token);
-        }
         if (storedLang) setLanguageState(storedLang as Language);
         if (storedTheme) setThemeState(storedTheme as Theme);
+
+        if (storedToken) {
+          setToken(storedToken);
+          try {
+            const me = await getMe();
+            setUser(me);
+            queryClient.setQueryData(["me"], me);
+          } catch (error: any) {
+            const status = error?.response?.status;
+            if (status === 401 || status === 403 || status === 404) {
+              await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+              setToken(null);
+              setUser(null);
+              queryClient.clear();
+            }
+          }
+        }
       } catch (_e) {}
-      if (!done) { done = true; setIsReady(true); }
+      if (!done) {
+        done = true;
+        setIsReady(true);
+      }
     };
-    const safety = setTimeout(() => { if (!done) { done = true; setIsReady(true); } }, 3000);
+    const safety = setTimeout(() => {
+      if (!done) {
+        done = true;
+        setIsReady(true);
+      }
+    }, 3000);
     load();
     return () => clearTimeout(safety);
-  }, []);
+  }, [queryClient]);
 
   const isDark =
     theme === "system" ? systemDark : theme === "dark" ? true : false;
@@ -81,17 +108,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [language],
   );
 
-  const login = useCallback(async (userData: User, authToken: string) => {
-    await tokenStorage.saveAuth(userData, authToken);
-    setUser(userData);
-    setToken(authToken);
-  }, []);
+  const login = useCallback(
+    async (userData: User, authToken: string) => {
+      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, authToken);
+      setUser(userData);
+      setToken(authToken);
+      queryClient.setQueryData(["me"], userData);
+    },
+    [queryClient],
+  );
 
   const logout = useCallback(async () => {
-    await tokenStorage.clearAuth();
+    await logoutApi();
     setUser(null);
     setToken(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const setLanguage = useCallback(async (lang: Language) => {
     await AsyncStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
@@ -100,18 +132,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     I18nManager.forceRTL(isRTL);
   }, []);
 
-  const setTheme = useCallback(async (t: Theme) => {
-    await AsyncStorage.setItem(STORAGE_KEYS.THEME, t);
-    setThemeState(t);
+  const setTheme = useCallback(async (next: Theme) => {
+    await AsyncStorage.setItem(STORAGE_KEYS.THEME, next);
+    setThemeState(next);
   }, []);
 
   const updateProfile = useCallback(
     async (data: Partial<User>) => {
-      const updated = { ...user, ...data } as User;
-      await tokenStorage.saveAuth(updated, token ?? updated.token);
+      if (!user) return;
+      const updated = await updateMe({
+        name: data.name ?? user.name,
+        phone: data.phone ?? user.phone ?? "",
+      });
       setUser(updated);
+      queryClient.setQueryData(["me"], updated);
     },
-    [user, token],
+    [user, queryClient],
   );
 
   const value = useMemo(

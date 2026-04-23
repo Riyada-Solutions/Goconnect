@@ -1,8 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { Colors } from "@/theme/colors";
-
 type Status =
   | "active"
   | "inactive"
@@ -24,8 +22,11 @@ const STATUS_CONFIG: Record<
   inactive: { bg: "#F1F5F9", text: "#64748B", dot: "#94A3B8" },
   cancelled: { bg: "#FEE2E2", text: "#B91C1C", dot: "#EF4444" },
   critical: { bg: "#FFF1F1", text: "#DC2626", dot: "#EF4444" },
-  in_progress: { bg: "#E0F2FE", text: "#0369A1", dot: "#13A8BD", label: "In Progress" },
-  "in progress": { bg: "#E0F2FE", text: "#0369A1", dot: "#13A8BD", label: "In Progress" },
+  in_progress: { bg: "#E0F2FE", text: "#0369A1", dot: "#2DAAAE", label: "In Progress" },
+  "in progress": { bg: "#E0F2FE", text: "#0369A1", dot: "#2DAAAE", label: "In Progress" },
+  result_ready: { bg: "#E6F9F2", text: "#00A67E", dot: "#00A67E", label: "Result ready" },
+  "result ready": { bg: "#E6F9F2", text: "#00A67E", dot: "#00A67E", label: "Result ready" },
+  acknowledged: { bg: "#EEF2FF", text: "#4F46E5", dot: "#4F46E5", label: "Acknowledged" },
   start_procedure: { bg: "#FFF7ED", text: "#C2410C", dot: "#F97316", label: "Start Procedure" },
   "start procedure": { bg: "#FFF7ED", text: "#C2410C", dot: "#F97316", label: "Start Procedure" },
   end_procedure: { bg: "#FEF3C7", text: "#92400E", dot: "#F59E0B", label: "End Procedure" },

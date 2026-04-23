@@ -3,7 +3,7 @@ import { Text, TextInput, View } from "react-native";
 
 import { ClickToSignButton } from "@/components/ui/ClickToSignButton";
 import { SelectField } from "@/components/ui/SelectField";
-import { RELATIONSHIP_OPTIONS, type PartyInfo } from "@/types/refusal";
+import { RELATIONSHIP_OPTIONS, type PartyInfo } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../../visit-detail.styles";
 import { SignatureConfirmSheet } from "./SignatureConfirmSheet";

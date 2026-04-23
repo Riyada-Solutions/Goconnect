@@ -3,54 +3,50 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import {
-  Linking,
-  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ActionButton } from "@/components/common/ActionButton";
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
+import { CareTeamView } from "@/components/common/CareTeamView";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { PatientDetailSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { usePatient } from "@/hooks/usePatients";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
-import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
-interface InfoRowProps {
+interface GridItemProps {
   icon: string;
   label: string;
   value?: string;
-  isDark: boolean;
   textColor: string;
   secondaryColor: string;
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-  isDark,
-  textColor,
-  secondaryColor,
-}: InfoRowProps) {
+function GridItem({ icon, label, value, textColor, secondaryColor }: GridItemProps) {
   return (
-    <View style={styles.infoRow}>
-      <View style={styles.infoIcon}>
-        <Feather name={icon as any} size={16} color={Colors.primary} />
+    <View style={styles.gridItem}>
+      <View style={styles.gridIcon}>
+        <Feather name={icon as any} size={14} color={Colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.infoLabel, { color: secondaryColor }]}>
+        <Text style={[styles.gridLabel, { color: secondaryColor }]} numberOfLines={1}>
           {label}
         </Text>
-        <Text style={[styles.infoValue, { color: textColor }]}>
+        <Text style={[styles.gridValue, { color: textColor }]} numberOfLines={1}>
           {value ?? "—"}
         </Text>
       </View>
@@ -62,34 +58,39 @@ export default function PatientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useApp();
   const { colors, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { dialogProps, show: showDialog } = useFeedbackDialog();
+  const { topPad, botPad } = useScreenPadding();
 
-  const { data: patient } = usePatient(Number(id));
+  const { data: patient, isLoading, isError, refetch } = usePatient(Number(id));
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
+  if (isLoading || refreshing) {
+    return <PatientDetailSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState onRetry={() => refetch()} />
+      </View>
+    );
+  }
 
   if (!patient) {
     return (
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            alignItems: "center",
-            justifyContent: "center",
-          },
-        ]}
-      >
-        <Text style={{ color: colors.text }}>Patient not found</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="user-x"
+          title={t("patientNotFound")}
+          description={t("patientNotFoundDescription")}
+          actionLabel={t("goBack")}
+          onAction={() => router.back()}
+        />
       </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FeedbackDialog {...dialogProps} />
       {/* Sticky Top Bar */}
       <View
         style={[
@@ -119,6 +120,14 @@ export default function PatientDetailScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: botPad }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         {/* Hero Card */}
         <Animated.View entering={FadeInDown.delay(50).springify()}>
@@ -128,14 +137,20 @@ export default function PatientDetailScreen() {
               { backgroundColor: isDark ? Colors.dark.card : "#fff" },
             ]}
           >
-            <Avatar name={patient.name} size={72} />
+            <Avatar name={patient.name} imageUrl={patient.avatarUrl} size={72} />
             <View style={styles.heroInfo}>
               <Text style={[styles.heroName, { color: colors.text }]}>
                 {patient.name}
               </Text>
-              <Text style={[styles.heroDiagnosis, { color: colors.textSecondary }]}>
-                {patient.diagnosis}
-              </Text>
+              <View style={styles.heroIdRow}>
+                <Feather name="hash" size={12} color={colors.textTertiary} />
+                <Text
+                  style={[styles.heroIdText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {patient.patientId}
+                </Text>
+              </View>
               <View style={styles.heroBadgeRow}>
                 <StatusBadge status={patient.status} />
                 {patient.bloodType && (
@@ -160,152 +175,82 @@ export default function PatientDetailScreen() {
           </View>
         </Animated.View>
 
-        {/* Personal Info */}
+        {/* Patient Demographics */}
         <Animated.View
           entering={FadeInDown.delay(100).springify()}
           style={{ paddingHorizontal: 16, marginTop: 16 }}
         >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {t("personalInfo")}
-          </Text>
-          <Card style={{ marginTop: 8 }}>
-            <InfoRow
-              icon="calendar"
-              label={t("dob")}
-              value={patient.dob}
-              isDark={isDark}
-              textColor={colors.text}
-              secondaryColor={colors.textSecondary}
-            />
-            <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
-            <InfoRow
-              icon="user"
-              label={t("gender")}
-              value={patient.gender}
-              isDark={isDark}
-              textColor={colors.text}
-              secondaryColor={colors.textSecondary}
-            />
-          </Card>
-        </Animated.View>
-
-        {/* Contact Info */}
-        <Animated.View
-          entering={FadeInDown.delay(150).springify()}
-          style={{ paddingHorizontal: 16, marginTop: 16 }}
-        >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {t("contactInfo")}
-          </Text>
-          <Card style={{ marginTop: 8 }}>
-            <View style={styles.contactActionRow}>
-              <View style={{ flex: 1 }}>
-                <InfoRow
-                  icon="phone"
-                  label={t("phone")}
-                  value={patient.phone}
-                  isDark={isDark}
-                  textColor={colors.text}
-                  secondaryColor={colors.textSecondary}
-                />
-              </View>
-              {patient.phone && <ActionButton type="call" value={patient.phone} />}
-            </View>
-            <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
-            <InfoRow
-              icon="mail"
-              label={t("email")}
-              value={patient.email}
-              isDark={isDark}
-              textColor={colors.text}
-              secondaryColor={colors.textSecondary}
-            />
-            <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
-            <View style={styles.contactActionRow}>
-              <View style={{ flex: 1 }}>
-                <InfoRow
-                  icon="map-pin"
-                  label={t("address")}
-                  value={patient.address}
-                  isDark={isDark}
-                  textColor={colors.text}
-                  secondaryColor={colors.textSecondary}
-                />
-              </View>
-              {patient.address && <ActionButton type="location" value={patient.address} />}
+          <SectionHeader
+            title={t("patientDemographics")}
+            trailing={
+              <>
+                {patient.phone ? (
+                  <ActionButton type="call" value={patient.phone} />
+                ) : null}
+                {patient.address ? (
+                  <ActionButton type="location" value={patient.address} />
+                ) : null}
+                <ActionButton type="labResults" value={patient.id} />
+              </>
+            }
+          />
+          <Card style={styles.sectionCard}>
+            <View style={styles.grid}>
+              <GridItem
+                icon="hash"
+                label={t("patientId")}
+                value={patient.patientId}
+                textColor={colors.text}
+                secondaryColor={colors.textSecondary}
+              />
+              <GridItem
+                icon="file-text"
+                label={t("mrn")}
+                value={patient.mrn}
+                textColor={colors.text}
+                secondaryColor={colors.textSecondary}
+              />
+              <GridItem
+                icon="calendar"
+                label={t("dob")}
+                value={patient.dob}
+                textColor={colors.text}
+                secondaryColor={colors.textSecondary}
+              />
+              <GridItem
+                icon="user"
+                label={t("gender")}
+                value={patient.gender}
+                textColor={colors.text}
+                secondaryColor={colors.textSecondary}
+              />
+              <GridItem
+                icon="shield"
+                label={t("codeStatus")}
+                value={patient.codeStatus}
+                textColor={colors.text}
+                secondaryColor={colors.textSecondary}
+              />
+              <GridItem
+                icon="pause-circle"
+                label={t("treatmentHoliday")}
+                value={patient.treatmentHoliday ? t("yes") : t("no")}
+                textColor={colors.text}
+                secondaryColor={colors.textSecondary}
+              />
             </View>
           </Card>
         </Animated.View>
 
-        {/* Medical Info */}
-        <Animated.View
-          entering={FadeInDown.delay(200).springify()}
-          style={{ paddingHorizontal: 16, marginTop: 16 }}
-        >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {t("medicalInfo")}
-          </Text>
-          <Card style={{ marginTop: 8 }}>
-            <InfoRow
-              icon="activity"
-              label={t("diagnosis")}
-              value={patient.diagnosis}
-              isDark={isDark}
-              textColor={colors.text}
-              secondaryColor={colors.textSecondary}
-            />
-            <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
-            <InfoRow
-              icon="calendar"
-              label={t("lastVisit")}
-              value={patient.lastVisit}
-              isDark={isDark}
-              textColor={colors.text}
-              secondaryColor={colors.textSecondary}
-            />
-          </Card>
-        </Animated.View>
+        {/* Care Team */}
+        <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+          <CareTeamView
+            title={t("careTeam")}
+            animDelay={150}
+            members={patient.careTeam ?? []}
+          />
+        </View>
 
-        {/* Action Buttons */}
-        <Animated.View
-          entering={FadeInDown.delay(250).springify()}
-          style={styles.actions}
-        >
-          <Pressable
-            style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const query = encodeURIComponent(patient.address ?? "");
-              const url = Platform.select({
-                ios: `maps:?q=${query}`,
-                android: `geo:0,0?q=${query}`,
-                default: `https://maps.google.com/?q=${query}`,
-              })!;
-              Linking.canOpenURL(url).then((ok) =>
-                ok
-                  ? Linking.openURL(url)
-                  : Linking.openURL(`https://maps.google.com/?q=${query}`),
-              );
-            }}
-          >
-            <Feather name="map-pin" size={16} color="#fff" />
-            <Text style={styles.actionBtnText}>Location</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.actionBtn, { backgroundColor: Colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              const url = `tel:${(patient.phone ?? "").replace(/\s/g, "")}`;
-              Linking.canOpenURL(url).then((ok) =>
-                ok ? Linking.openURL(url) : showDialog({ variant: "error", title: "Call", message: patient.phone }),
-              );
-            }}
-          >
-            <Feather name="phone-call" size={16} color="#fff" />
-            <Text style={styles.actionBtnText}>Call</Text>
-          </Pressable>
-        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -349,9 +294,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: "Inter_700Bold",
   },
-  heroDiagnosis: {
+  heroIdRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  heroIdText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Inter_500Medium",
   },
   heroBadgeRow: {
     flexDirection: "row",
@@ -372,41 +322,53 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: "#DC2626",
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   sectionTitle: {
     fontSize: 16,
     fontFamily: "Inter_700Bold",
   },
-  infoRow: {
+  headerActions: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    paddingVertical: 12,
+    gap: 8,
   },
-  infoIcon: {
-    width: 32,
-    height: 32,
+  sectionCard: {
+    marginTop: 8,
+    padding: 12,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: 14,
+    columnGap: 8,
+  },
+  gridItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexBasis: "48%",
+    flexGrow: 1,
+  },
+  gridIcon: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
     backgroundColor: Colors.accentLight,
     alignItems: "center",
     justifyContent: "center",
   },
-  infoLabel: {
-    fontSize: 12,
+  gridLabel: {
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
     marginBottom: 2,
   },
-  infoValue: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  contactActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  divider: {
-    height: 1,
-    marginLeft: 44,
+  gridValue: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
   },
   actions: {
     paddingHorizontal: 16,

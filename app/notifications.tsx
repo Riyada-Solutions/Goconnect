@@ -131,7 +131,7 @@ const INITIAL_NOTIFICATIONS: Notification[] = [
     id: 10,
     type: "system",
     title: "App Update Available",
-    body: "CareConnect v1.1.0 brings faster scheduling, offline access, and bug fixes.",
+    body: "GoConnect v1.1.0 brings faster scheduling, offline access, and bug fixes.",
     time: "Yesterday 8:00 AM",
     read: true,
     group: "yesterday",

@@ -1,8 +1,9 @@
 import React from "react";
-import { Platform, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View } from "react-native";
 
 import { Shimmer } from "@/components/ui/Shimmer";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
+import { Spacing } from "@/theme/spacing";
 
 import { visitDetailStyles as s } from "../visit-detail.styles";
 
@@ -11,8 +12,7 @@ interface Props {
 }
 
 export function VisitDetailSkeleton({ colors }: Props) {
-  const insets = useSafeAreaInsets();
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
+  const { topPad } = useScreenPadding({ hasActionBar: true });
   const baseColor = colors.border;
   const highlightColor = colors.card;
 
@@ -28,7 +28,7 @@ export function VisitDetailSkeleton({ colors }: Props) {
         <Shimmer width={140} height={20} baseColor={baseColor} highlightColor={highlightColor} style={{ marginLeft: 8 }} />
       </View>
 
-      <View style={{ padding: 16, gap: 16 }}>
+      <View style={{ padding: Spacing.screen.horizontal, gap: Spacing.screen.gap }}>
         {/* Hero */}
         <View style={[s.heroCard, { backgroundColor: colors.card, gap: 10 }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>

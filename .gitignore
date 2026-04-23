@@ -27,6 +27,10 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Environment (local overrides; do not commit secrets)
+.env
+.env.*.local
+
 # misc
 /.sass-cache
 /connect.lock

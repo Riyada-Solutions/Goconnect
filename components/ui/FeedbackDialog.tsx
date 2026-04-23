@@ -79,7 +79,7 @@ export function FeedbackDialog({
           <View style={styles.actions}>
             {secondaryAction && (
               <Pressable
-                style={[styles.btn, styles.secondaryBtn, { borderColor: colors.border }]}
+                style={[styles.btn, styles.secondaryBtn, { borderColor: colors.border , flex: 1 }]}
                 onPress={handleSecondary}
               >
                 <Text style={[styles.btnText, { color: colors.text }]}>
@@ -95,8 +95,8 @@ export function FeedbackDialog({
                   backgroundColor: primaryAction?.destructive
                     ? "#EF4444"
                     : Colors.primary,
-                  flex: secondaryAction ? 1 : undefined,
-                  minWidth: secondaryAction ? undefined : 120,
+                  flex:  1,
+                  // minWidth: secondaryAction ? undefined : 120,
                 },
               ]}
               onPress={handlePrimary}

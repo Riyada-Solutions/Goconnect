@@ -125,7 +125,7 @@ export function SplashView({ onFinish }: SplashViewProps) {
 
           {/* App name */}
           <Animated.View entering={FadeInDown.delay(400).duration(600)}>
-            <Text style={styles.appName}>CareConnect</Text>
+            <Text style={styles.appName}>GoConnect</Text>
             <Text style={styles.appSub}>KSA Healthcare Platform</Text>
           </Animated.View>
         </View>

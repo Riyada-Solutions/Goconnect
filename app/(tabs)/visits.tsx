@@ -3,23 +3,26 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ListSkeleton, VisitCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useVisits } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -56,17 +59,17 @@ const VISIT_TYPE_ICONS: Record<string, string> = {
 export default function VisitsScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [activeFilter, setActiveFilter] = useState<VisitFilter>("all");
   const { data: visits = [], isLoading, isError, refetch } = useVisits();
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
+  const showSkeleton = isLoading || refreshing;
 
   const filtered = useMemo(() => {
     if (activeFilter === "all") return visits;
     return visits.filter((v) => v.status === activeFilter);
   }, [visits, activeFilter]);
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -126,27 +129,32 @@ export default function VisitsScreen() {
         </ScrollView>
       </View>
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.primary} size="large" />
-        </View>
+      {showSkeleton ? (
+        <ListSkeleton
+          count={10}
+          renderItem={() => <VisitCardSkeleton />}
+          style={{ paddingBottom: botPad }}
+        />
       ) : isError ? (
-        <View style={styles.center}>
-          <Text style={{ color: colors.textSecondary, marginBottom: 12 }}>Failed to load visits</Text>
-          <Pressable onPress={() => refetch()} style={{ padding: 10 }}>
-            <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold" }}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : null}
+        <ErrorState onRetry={() => refetch()} />
+      ) : (
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: botPad,
-          gap: 10,
-        }}
+        contentContainerStyle={
+          filtered.length === 0
+            ? { flexGrow: 1 }
+            : { padding: horizontal, paddingBottom: botPad, gap: listGap }
+        }
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
         renderItem={({ item, index }) => {
           const icon =
             (VISIT_TYPE_ICONS[item.type] as any) ?? "activity";
@@ -297,18 +305,14 @@ export default function VisitsScreen() {
           );
         }}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <MaterialCommunityIcons
-              name="stethoscope"
-              size={48}
-              color={colors.textTertiary}
-            />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              {t("noResults")}
-            </Text>
-          </View>
+          <EmptyState
+            icon="activity"
+            title={t("noVisits")}
+            description={t("noVisitsDescription")}
+          />
         }
       />
+      )}
     </View>
   );
 }

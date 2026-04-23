@@ -4,7 +4,7 @@ import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-nativ
 
 import { Colors } from "@/theme/colors";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
-import type { InventoryItem } from "@/types/visit";
+import type { InventoryItem } from "@/data/models/visit";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 

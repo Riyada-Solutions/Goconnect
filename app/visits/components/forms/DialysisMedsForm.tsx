@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 
-import type { DialysisMedication } from "@/types/visit";
+import type { DialysisMedication } from "@/data/models/visit";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 
 export type MedAdminEntry = { status: "yes" | "no" | null; timestamp: string; reason: string };

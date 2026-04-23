@@ -3,7 +3,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
-import type { FlowSheetNursingAction } from "@/types/flowSheet";
+import type { FlowSheetNursingAction } from "@/data/models/flowSheet";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
 

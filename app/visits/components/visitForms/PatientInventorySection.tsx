@@ -5,7 +5,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { Card } from "@/components/common/Card";
 import { Colors } from "@/theme/colors";
-import type { InventoryItem } from "@/types/visit";
+import type { InventoryItem } from "@/data/models/visit";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleHeader } from "../CollapsibleHeader";

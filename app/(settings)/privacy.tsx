@@ -49,7 +49,7 @@ const PRIVACY_SECTIONS = [
   {
     title: "Contact Us",
     content:
-      "If you have questions about this Privacy Policy or our privacy practices, please contact us at privacy@careconnect.sa or through the support section in the app.",
+      "If you have questions about this Privacy Policy or our privacy practices, please contact us at privacy@goconnect.sa or through the support section in the app.",
   },
 ];
 

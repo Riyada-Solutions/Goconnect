@@ -23,7 +23,7 @@ const CONSEQUENCES = [
   { icon: "users", text: "All your patient data will be permanently deleted" },
   { icon: "calendar", text: "All scheduled visits and history will be lost" },
   { icon: "settings", text: "Your account settings and preferences will be removed" },
-  { icon: "shield-off", text: "You will lose access to all CareConnect services" },
+  { icon: "shield-off", text: "You will lose access to all GoConnect services" },
 ];
 
 export default function DeleteAccountScreen() {

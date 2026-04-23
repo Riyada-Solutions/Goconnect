@@ -17,6 +17,7 @@ interface Props {
   patientDiagnosis?: string;
   patientStatus?: string;
   patientBloodType?: string;
+  patientAvatarUrl?: string | null;
   phone?: string;
   address?: string;
   isDark: boolean;
@@ -29,6 +30,7 @@ export function PatientHero({
   patientDiagnosis,
   patientStatus,
   patientBloodType,
+  patientAvatarUrl,
   phone,
   address,
   isDark,
@@ -46,7 +48,7 @@ export function PatientHero({
           }}
           style={s.heroTop}
         >
-          <Avatar name={patientName} size={54} />
+          <Avatar name={patientName} imageUrl={patientAvatarUrl} size={54} />
           <View style={{ flex: 1 }}>
             <Text style={[s.heroName, { color: colors.text }]}>{patientName}</Text>
             {patientDiagnosis ? (

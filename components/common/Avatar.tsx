@@ -1,11 +1,12 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
 
 interface AvatarProps {
   name?: string;
+  imageUrl?: string | null;
   size?: number;
   color?: string;
 }
@@ -38,10 +39,12 @@ function getAvatarColor(name: string) {
   return BG_COLORS[Math.abs(hash) % BG_COLORS.length];
 }
 
-export function Avatar({ name, size = 44, color }: AvatarProps) {
+export function Avatar({ name, imageUrl, size = 44, color }: AvatarProps) {
+  const [imageFailed, setImageFailed] = useState(false);
   const bg = name ? (color ?? getAvatarColor(name)) : Colors.primary;
   const initials = name ? getInitials(name) : null;
   const fontSize = size * 0.36;
+  const showImage = !!imageUrl && !imageFailed;
 
   return (
     <View
@@ -51,11 +54,17 @@ export function Avatar({ name, size = 44, color }: AvatarProps) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: bg,
+          backgroundColor: showImage ? "transparent" : bg,
         },
       ]}
     >
-      {initials ? (
+      {showImage ? (
+        <Image
+          source={{ uri: imageUrl as string }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          onError={() => setImageFailed(true)}
+        />
+      ) : initials ? (
         <Text style={[styles.initials, { fontSize }]}>{initials}</Text>
       ) : (
         <MaterialIcons name="person" size={size * 0.55} color="#fff" />
@@ -68,6 +77,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   initials: {
     color: "#fff",

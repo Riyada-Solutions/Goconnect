@@ -1,54 +1,56 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Avatar } from "@/components/common/Avatar";
-import { Card } from "@/components/common/Card";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { PatientCard } from "@/components/common/PatientCard";
 import { SearchBar } from "@/components/common/SearchBar";
-import { StatusBadge } from "@/components/common/StatusBadge";
+import { ListSkeleton, PatientCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { usePatients } from "@/hooks/usePatients";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
 
-type FilterStatus = "all" | "active" | "inactive" | "critical";
+type FilterStatus = "all" | "active" | "inactive";
 
-const FILTERS: FilterStatus[] = ["all", "active", "critical", "inactive"];
+const FILTERS: FilterStatus[] = ["all", "active", "inactive"];
 
 export default function PatientsScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
   const { data: patients = [], isLoading, isError, refetch } = usePatients();
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
+  const showSkeleton = isLoading || refreshing;
 
   const filtered = useMemo(() => {
     return patients.filter((p) => {
+      const q = search.toLowerCase();
       const matchesSearch =
         !search ||
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.diagnosis?.toLowerCase().includes(search.toLowerCase()) ?? false);
+        p.name.toLowerCase().includes(q) ||
+        (p.diagnosis?.toLowerCase().includes(q) ?? false) ||
+        (p.patientId?.toLowerCase().includes(q) ?? false) ||
+        (p.mrn?.toLowerCase().includes(q) ?? false);
       const matchesFilter =
         activeFilter === "all" || p.status === activeFilter;
       return matchesSearch && matchesFilter;
     });
   }, [patients, search, activeFilter]);
 
-  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -112,103 +114,61 @@ export default function PatientsScreen() {
         </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.primary} size="large" />
-        </View>
+      {showSkeleton ? (
+        <ListSkeleton
+          count={10}
+          renderItem={() => <PatientCardSkeleton />}
+          style={{ paddingBottom: botPad }}
+        />
       ) : isError ? (
-        <View style={styles.center}>
-          <Text style={{ color: colors.textSecondary, marginBottom: 12 }}>Failed to load patients</Text>
-          <Pressable onPress={() => refetch()} style={{ padding: 10 }}>
-            <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold" }}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : null}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: botPad,
-          gap: 10,
-        }}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
-            <Pressable
-              onPress={() => {
-                Haptics.selectionAsync();
-                router.push({
-                  pathname: "/patients/[id]",
-                  params: { id: item.id },
-                });
-              }}
-            >
-              <Card style={styles.patientCard}>
-                <View style={styles.patientRow}>
-                  <Avatar name={item.name} size={50} />
-                  <View style={styles.patientInfo}>
-                    <Text
-                      style={[styles.patientName, { color: colors.text }]}
-                    >
-                      {item.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.patientDiagnosis,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {item.diagnosis}
-                    </Text>
-                    <View style={styles.patientMeta}>
-                      <Feather
-                        name="phone"
-                        size={11}
-                        color={colors.textTertiary}
-                      />
-                      <Text
-                        style={[
-                          styles.patientPhone,
-                          { color: colors.textTertiary },
-                        ]}
-                      >
-                        {item.phone}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.patientRight}>
-                    <StatusBadge status={item.status} size="sm" />
-                    <View style={styles.lastVisitRow}>
-                      <Feather
-                        name="calendar"
-                        size={11}
-                        color={colors.textTertiary}
-                      />
-                      <Text
-                        style={[
-                          styles.lastVisit,
-                          { color: colors.textTertiary },
-                        ]}
-                      >
-                        {item.lastVisit}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </Card>
-            </Pressable>
-          </Animated.View>
-        )}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Feather name="users" size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              {t("noResults")}
-            </Text>
-          </View>
-        }
-      />
+        <ErrorState onRetry={() => refetch()} />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={
+            filtered.length === 0
+              ? { flexGrow: 1 }
+              : { padding: horizontal, paddingBottom: botPad, gap: listGap }
+          }
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
+              <PatientCard patient={item} />
+            </Animated.View>
+          )}
+          ListEmptyComponent={
+            patients.length === 0 ? (
+              <EmptyState
+                variant="empty"
+                icon="users"
+                title={t("noPatientsYet")}
+                description={t("noPatientsDescription")}
+              />
+            ) : (
+              <EmptyState
+                variant="search"
+                icon="search"
+                title={t("noMatchingPatients")}
+                description={t("noMatchingPatientsDescription")}
+                actionLabel={t("clearFilters")}
+                onAction={() => {
+                  setSearch("");
+                  setActiveFilter("all");
+                }}
+              />
+            )
+          }
+        />
+      )}
     </View>
   );
 }
@@ -256,49 +216,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_500Medium",
     textTransform: "capitalize",
-  },
-  patientCard: {
-    padding: 14,
-  },
-  patientRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  patientInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  patientName: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  patientDiagnosis: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-  },
-  patientMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  patientPhone: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  patientRight: {
-    alignItems: "flex-end",
-    gap: 8,
-  },
-  lastVisitRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  lastVisit: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
   },
   empty: {
     alignItems: "center",

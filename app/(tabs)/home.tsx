@@ -297,7 +297,7 @@ export default function HomeScreen() {
                 }}
               >
                 <Card style={styles.patientCard}>
-                  <Avatar name={p.name} size={40} />
+                  <Avatar name={p.name} imageUrl={p.avatarUrl} size={40} />
                   <Text
                     style={[styles.patientName, { color: colors.text }]}
                     numberOfLines={1}

@@ -42,7 +42,7 @@ export default function LoginScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const enabled = await AsyncStorage.getItem("@careconnect/biometric");
+        const enabled = await AsyncStorage.getItem("@goconnect/biometric");
         if (enabled !== "true") return;
         const compatible = await LocalAuthentication.hasHardwareAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
@@ -58,8 +58,8 @@ export default function LoginScreen() {
         fallbackLabel: t("cancel"),
       });
       if (result.success) {
-        const { tokenStorage } = await import("@/features/auth/services/tokenStorage");
-        const auth = await tokenStorage.getAuth();
+        const { getStoredAuth } = await import("@/data/auth_repository");
+        const auth = await getStoredAuth();
         if (auth) {
           await login(auth.user, auth.token);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -88,8 +88,8 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { user, token } = await authLogin({ username, password });
-      await login(user, token);
+      const { accessToken, user } = await authLogin({ username, password });
+      await login(user, accessToken);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");
     } catch {
@@ -132,7 +132,7 @@ export default function LoginScreen() {
             </View>
             <View style={styles.logoPulse} />
           </View>
-          <Text style={styles.brandName}>CareConnect</Text>
+          <Text style={styles.brandName}>GoConnect</Text>
           <Text style={styles.brandSubtitle}>KSA Healthcare Platform</Text>
         </Animated.View>
 
@@ -270,11 +270,14 @@ export default function LoginScreen() {
             onPress={() => {
               Haptics.selectionAsync();
               const guestUser = {
-                id: 0,
+                id: "guest",
                 name: t("guest"),
                 role: "guest",
                 email: "",
-                token: "guest-token",
+                hospital: null,
+                phone: null,
+                department: null,
+                employeeId: "guest",
               };
               login(guestUser as any, "guest-token").then(() => {
                 router.replace("/(tabs)/home");

@@ -1,5 +1,5 @@
 export const Colors = {
-  primary: "#13A8BD",
+  primary: "#2DAAAE",
   primaryDark: "#0B7B8B",
   primaryLight: "#4DC4D6",
   secondary: "#1A2B4A",
@@ -16,9 +16,9 @@ export const Colors = {
     textTertiary: "#B8C4D0",
     border: "#EAEDF2",
     borderLight: "#F2F4F8",
-    tint: "#13A8BD",
+    tint: "#2DAAAE",
     tabIconDefault: "#B8C4D0",
-    tabIconSelected: "#13A8BD",
+    tabIconSelected: "#2DAAAE",
     statusBar: "dark" as const,
     shadow: "rgba(26,26,46,0.08)",
     success: "#22C55E",
@@ -37,9 +37,9 @@ export const Colors = {
     textTertiary: "#4A5568",
     border: "#1E2D3D",
     borderLight: "#162230",
-    tint: "#13A8BD",
+    tint: "#2DAAAE",
     tabIconDefault: "#4A5568",
-    tabIconSelected: "#13A8BD",
+    tabIconSelected: "#2DAAAE",
     statusBar: "light" as const,
     shadow: "rgba(0,0,0,0.3)",
     success: "#4ADE80",
@@ -62,7 +62,7 @@ export const Colors = {
 
   // Icon colors
   icon: {
-    teal: "#13A8BD",
+    teal: "#2DAAAE",
     green: "#22C55E",
     orange: "#F59E0B",
     purple: "#8B5CF6",

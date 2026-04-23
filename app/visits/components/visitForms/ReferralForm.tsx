@@ -12,7 +12,7 @@ import {
   REFERRAL_HOSPITALS,
   REFERRAL_TYPES,
   type ReferralPrintOptions,
-} from "@/types/referral";
+} from "@/data/models/referral";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleHeader } from "../CollapsibleHeader";
@@ -43,7 +43,6 @@ interface Props {
   primaryPhysician: string;
   referralBy: string;
   onSave: (data: ReferralFormData) => void;
-  onPrint: (data: ReferralFormData) => void;
   t: (key: any) => string;
 }
 
@@ -59,7 +58,6 @@ export function ReferralForm({
   primaryPhysician,
   referralBy,
   onSave,
-  onPrint,
   t,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
@@ -110,11 +108,6 @@ export function ReferralForm({
     setComments("");
     setAttachmentUri(undefined);
     setAttachmentName(undefined);
-  };
-
-  const handlePrint = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPrint(buildData());
   };
 
   const pickAttachment = async () => {
@@ -231,10 +224,6 @@ export function ReferralForm({
             <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
               <Feather name="trash-2" size={16} color="#fff" />
               <Text style={s.mainBtnText}>{t("clear")}</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#F59E0B", flex: 1 }]} onPress={handlePrint}>
-              <Feather name="printer" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("print")}</Text>
             </Pressable>
           </View>
         </View>
