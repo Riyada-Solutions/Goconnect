@@ -103,8 +103,8 @@ export default function AppointmentDetailScreen() {
 
   const typeColor =
     record.type === "Emergency" ? "#EF4444" :
-    record.type === "Consultation" ? "#6366F1" :
-    record.type === "Break" ? "#9CA3AF" : Colors.primary;
+      record.type === "Consultation" ? "#6366F1" :
+        record.type === "Break" ? "#9CA3AF" : Colors.primary;
 
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
@@ -134,10 +134,10 @@ export default function AppointmentDetailScreen() {
             <PatientCard patient={patientRecord} />
           </Animated.View>
         )}
-        
 
         {/* ─── Appointment Summary ────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <SectionHeader title={t("appointmentInfo")} />
           <Card style={s.summaryCard}>
             <View style={[s.typeBadge, { backgroundColor: `${typeColor}15` }]}>
               <View style={[s.typeDot, { backgroundColor: typeColor }]} />
