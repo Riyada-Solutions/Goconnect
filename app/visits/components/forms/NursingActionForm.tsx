@@ -3,6 +3,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
+import { DateTimeField } from "@/components/ui/DateTimeField";
 import type { FlowSheetNursingAction } from "@/data/models/flowSheet";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
@@ -29,7 +30,15 @@ export function NursingActionForm({ rows, onChange, colors }: Props) {
           key={idx}
           style={[s.dynRow, { borderColor: colors.border, backgroundColor: colors.surface, position: "relative" }]}
         >
-          <FormField label="Time" value={row.time} onChangeText={(v) => updateRow(idx, { time: v })} colors={colors} placeholder="--:--" />
+          <View style={s.formField}>
+            <Text style={[s.formLabel, { color: colors.text }]}>Time</Text>
+            <DateTimeField
+              mode="time"
+              value={row.time}
+              onChange={(v) => updateRow(idx, { time: v })}
+              colors={colors}
+            />
+          </View>
           <FormField label="Focus" value={row.focus} onChangeText={(v) => updateRow(idx, { focus: v })} colors={colors} />
           <FormField label="Nursing Action" value={row.action} onChangeText={(v) => updateRow(idx, { action: v })} colors={colors} />
           <FormField label="Evaluation" value={row.evaluation} onChangeText={(v) => updateRow(idx, { evaluation: v })} colors={colors} />

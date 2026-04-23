@@ -6,6 +6,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { CheckboxField } from "@/components/ui/CheckboxField";
+import { DateTimeField } from "@/components/ui/DateTimeField";
 import { SelectField } from "@/components/ui/SelectField";
 import { Colors } from "@/theme/colors";
 import {
@@ -181,12 +182,11 @@ export function ReferralForm({
           <View style={s.formRow}>
             <View style={{ flex: 1 }}>
               <Text style={[s.formLabel, { color: colors.text }]}>{t("completionDate")}</Text>
-              <TextInput
-                style={[s.formInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+              <DateTimeField
+                mode="date"
                 value={completionDate}
-                onChangeText={setCompletionDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textTertiary}
+                onChange={setCompletionDate}
+                colors={colors}
                 editable={!isReadOnly}
               />
             </View>
@@ -251,12 +251,11 @@ function ReferralHeaderFields({
     <>
       <View>
         <Text style={[s.formLabel, { color: colors.text }]}>{t("referralDate")}</Text>
-        <TextInput
-          style={[s.formInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+        <DateTimeField
+          mode="date"
           value={referralDate}
-          onChangeText={onReferralDateChange}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textTertiary}
+          onChange={onReferralDateChange}
+          colors={colors}
         />
       </View>
       <View style={s.formRow}>

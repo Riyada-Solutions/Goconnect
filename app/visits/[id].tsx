@@ -394,7 +394,8 @@ function VisitDetailScreenInner() {
             isReadOnly={isReadOnly}
             initialExpanded={false}
             onSave={(data) => {
-              submitRefusal.mutate(data, {
+              const primary = data.en.types.length > 0 || data.en.reason.trim() !== "" ? data.en : data.ar;
+              submitRefusal.mutate(primary, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("refusalTitle") }),
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });

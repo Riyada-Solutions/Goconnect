@@ -3,6 +3,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
+import { DateTimeField } from "@/components/ui/DateTimeField";
 import type { FlowSheetDialysisParam } from "@/data/models/flowSheet";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
@@ -33,7 +34,15 @@ export function DialysisParamsForm({ rows, onChange, colors }: Props) {
           key={idx}
           style={[s.dynRow, { borderColor: colors.border, backgroundColor: colors.surface, position: "relative" }]}
         >
-          <FormField label="Time" value={row.time} onChangeText={(v) => updateRow(idx, { time: v })} colors={colors} placeholder="--:--" />
+          <View style={s.formField}>
+            <Text style={[s.formLabel, { color: colors.text }]}>Time</Text>
+            <DateTimeField
+              mode="time"
+              value={row.time}
+              onChange={(v) => updateRow(idx, { time: v })}
+              colors={colors}
+            />
+          </View>
           <Text style={[ms.subLabel, { color: colors.text }]}>Blood Pressure (mmHg)</Text>
           <View style={s.formRow}>
             <FormField label="Systolic" value={row.systolic} onChangeText={(v) => updateRow(idx, { systolic: v })} colors={colors} half keyboardType="numeric" />

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
+import { DateTimeField } from "@/components/ui/DateTimeField";
 import { Colors } from "@/theme/colors";
 import {
   EMPTY_SARI_ACTIONS,
@@ -105,12 +106,11 @@ export function SariScreeningForm({
 
           <View>
             <Text style={[s.formLabel, { color: colors.text }]}>{t("sariDateTime")}</Text>
-            <TextInput
-              style={[s.formInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+            <DateTimeField
+              mode="datetime"
               value={dateTime}
-              onChangeText={setDateTime}
-              placeholder="YYYY-MM-DD HH:mm"
-              placeholderTextColor={colors.textTertiary}
+              onChange={setDateTime}
+              colors={colors}
             />
           </View>
 

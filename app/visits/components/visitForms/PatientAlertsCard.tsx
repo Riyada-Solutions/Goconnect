@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { Card } from "@/components/common/Card";
+import { useApp } from "@/context/AppContext";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleHeader, type CollapsibleBadge } from "../CollapsibleHeader";
@@ -23,17 +24,18 @@ interface Props {
 }
 
 export function PatientAlertsCard({ alerts, expanded, onToggle, colors }: Props) {
+  const { t } = useApp();
   const badges: CollapsibleBadge[] = [
     ...(alerts.allergies.length ? [{ text: String(alerts.allergies.length), bg: "#FEE2E2", fg: "#DC2626" }] : []),
     ...(alerts.contamination.length ? [{ text: String(alerts.contamination.length), bg: "#FEF3C7", fg: "#D97706" }] : []),
-    ...(alerts.isolation ? [{ text: "Isolation", bg: "#DBEAFE", fg: "#2563EB" }] : []),
+    ...(alerts.isolation ? [{ text: t("isolation"), bg: "#DBEAFE", fg: "#2563EB" }] : []),
   ];
 
   return (
     <Animated.View entering={FadeInDown.delay(80).springify()} style={s.section}>
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <CollapsibleHeader
-          title="Patient Alerts & Instructions"
+          title={t("patientAlertsInstructions")}
           icon="alert-triangle"
           iconColor="#F59E0B"
           badges={badges}
@@ -47,7 +49,7 @@ export function PatientAlertsCard({ alerts, expanded, onToggle, colors }: Props)
               <View style={[s.alertCard, { backgroundColor: "#FEF2F2", borderLeftColor: "#EF4444" }]}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <Feather name="alert-triangle" size={14} color="#DC2626" />
-                  <Text style={s.alertCardTitle}>ALLERGIES & CONTAMINATION</Text>
+                  <Text style={s.alertCardTitle}>{t("allergiesContamination")}</Text>
                 </View>
                 {alerts.allergies.map((a, i) => (
                   <View key={i} style={s.alertRow}>
@@ -61,7 +63,7 @@ export function PatientAlertsCard({ alerts, expanded, onToggle, colors }: Props)
                   <View key={`c-${i}`} style={s.alertRow}>
                     <MaterialCommunityIcons name="biohazard" size={14} color="#DC2626" />
                     <Text style={s.alertRowText}>
-                      <Text style={{ fontFamily: "Inter_600SemiBold" }}>Contamination:</Text> {c}
+                      <Text style={{ fontFamily: "Inter_600SemiBold" }}>{t("contamination")}:</Text> {c}
                     </Text>
                   </View>
                 ))}
@@ -72,7 +74,7 @@ export function PatientAlertsCard({ alerts, expanded, onToggle, colors }: Props)
               <View style={[s.alertCard, { backgroundColor: "#F59E0B18", borderLeftColor: "#F59E0B" }]}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                   <Feather name="file-text" size={14} color="#F59E0B" />
-                  <Text style={[s.alertCardTitle, { color: "#F59E0B" }]}>INSTRUCTIONS</Text>
+                  <Text style={[s.alertCardTitle, { color: "#F59E0B" }]}>{t("instructions").toUpperCase()}</Text>
                 </View>
                 <Text style={[s.alertInstrText, { color: colors.text }]}>{alerts.instructions}</Text>
               </View>
@@ -82,9 +84,9 @@ export function PatientAlertsCard({ alerts, expanded, onToggle, colors }: Props)
               <View style={[s.alertCard, { backgroundColor: "#3B82F618", borderLeftColor: "#3B82F6" }]}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
                   <Feather name="shield" size={14} color="#3B82F6" />
-                  <Text style={[s.alertCardTitle, { color: "#3B82F6" }]}>ISOLATION</Text>
+                  <Text style={[s.alertCardTitle, { color: "#3B82F6" }]}>{t("isolation").toUpperCase()}</Text>
                 </View>
-                <Text style={[s.alertInstrText, { color: colors.text }]}>Isolation = {alerts.isolation}</Text>
+                <Text style={[s.alertInstrText, { color: colors.text }]}>{t("isolation")} = {alerts.isolation}</Text>
               </View>
             ) : null}
           </View>

@@ -15,6 +15,7 @@ interface Props {
   onRisksChange: (r: RefusalRisks) => void;
   colors: any;
   t: (k: any) => string;
+  isRtl?: boolean;
 }
 
 export function RefusalMainSection({
@@ -26,6 +27,7 @@ export function RefusalMainSection({
   onRisksChange,
   colors,
   t,
+  isRtl = false,
 }: Props) {
   const toggleType = (type: RefusalType) => {
     onTypesChange(
@@ -33,9 +35,25 @@ export function RefusalMainSection({
     );
   };
 
+  const align = isRtl ? ("right" as const) : ("left" as const);
+  const writingDirection = isRtl ? ("rtl" as const) : ("ltr" as const);
+  const labelStyle = [s.formLabel, { color: colors.text, textAlign: align, writingDirection }];
+  const inputStyle = [
+    s.formInput,
+    {
+      color: colors.text,
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      minHeight: 80,
+      textAlignVertical: "top" as const,
+      textAlign: align,
+      writingDirection,
+    },
+  ];
+
   return (
     <View style={{ gap: 12 }}>
-      <Text style={[s.formLabel, { color: colors.text }]}>{t("selectAppropriateBox")}</Text>
+      <Text style={labelStyle}>{t("selectAppropriateBox")}</Text>
       <View style={{ gap: 4 }}>
         <CheckboxField
           label={t("discontinuationOfServices")}
@@ -49,17 +67,23 @@ export function RefusalMainSection({
         />
       </View>
 
-      <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: colors.textSecondary, lineHeight: 18 }}>
+      <Text
+        style={{
+          fontFamily: "Inter_400Regular",
+          fontSize: 12,
+          color: colors.textSecondary,
+          lineHeight: 18,
+          textAlign: align,
+          writingDirection,
+        }}
+      >
         {t("refusalDisclaimer")}
       </Text>
 
       <View>
-        <Text style={[s.formLabel, { color: colors.text }]}>{t("refusalReasonLabel")}</Text>
+        <Text style={labelStyle}>{t("refusalReasonLabel")}</Text>
         <TextInput
-          style={[
-            s.formInput,
-            { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, minHeight: 80, textAlignVertical: "top" },
-          ]}
+          style={inputStyle}
           value={reason}
           onChangeText={onReasonChange}
           multiline
@@ -67,12 +91,12 @@ export function RefusalMainSection({
       </View>
 
       <View>
-        <Text style={[s.formLabel, { color: colors.text, marginBottom: 6 }]}>
+        <Text style={[s.formLabel, { color: colors.text, marginBottom: 6, textAlign: align, writingDirection }]}>
           <Text style={{ fontFamily: "Inter_700Bold" }}>{t("risks")}</Text>
           {" — "}
           {t("risksExplained")}
         </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        <View style={{ flexDirection: isRtl ? "row-reverse" : "row", flexWrap: "wrap" }}>
           <View style={{ width: "50%" }}>
             <CheckboxField label={t("hyperkalemia")} value={risks.hyperkalemia} onChange={(v) => onRisksChange({ ...risks, hyperkalemia: v })} />
             <CheckboxField label={t("pulmonaryEdema")} value={risks.pulmonaryEdema} onChange={(v) => onRisksChange({ ...risks, pulmonaryEdema: v })} />
@@ -85,11 +109,19 @@ export function RefusalMainSection({
       </View>
 
       <View>
-        <Text style={[s.formLabel, { color: colors.text }]}>{t("othersPleaseSpecify")}</Text>
+        <Text style={labelStyle}>{t("othersPleaseSpecify")}</Text>
         <TextInput
           style={[
             s.formInput,
-            { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, minHeight: 60, textAlignVertical: "top" },
+            {
+              color: colors.text,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              minHeight: 60,
+              textAlignVertical: "top" as const,
+              textAlign: align,
+              writingDirection,
+            },
           ]}
           value={risks.others}
           onChangeText={(v) => onRisksChange({ ...risks, others: v })}

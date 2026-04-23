@@ -6,18 +6,26 @@ import { FlatList, Modal, Pressable, Text, View } from "react-native";
 import { Colors } from "@/theme/colors";
 import { useTheme } from "@/hooks/useTheme";
 
+export type SelectOption = string | { value: string; label: string };
+
 interface Props {
   label?: string;
   value: string | null;
-  options: readonly string[];
+  options: readonly SelectOption[];
   placeholder?: string;
   onChange: (v: string) => void;
   disabled?: boolean;
 }
 
+function toPair(o: SelectOption): { value: string; label: string } {
+  return typeof o === "string" ? { value: o, label: o } : o;
+}
+
 export function SelectField({ label, value, options, placeholder, onChange, disabled }: Props) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
+  const pairs = options.map(toPair);
+  const selectedLabel = value ? pairs.find((p) => p.value === value)?.label ?? value : null;
 
   return (
     <View>
@@ -52,7 +60,7 @@ export function SelectField({ label, value, options, placeholder, onChange, disa
             fontSize: 14,
           }}
         >
-          {value ?? placeholder ?? "Select..."}
+          {selectedLabel ?? placeholder ?? "Select..."}
         </Text>
         <Feather name="chevron-down" size={16} color={colors.textSecondary} />
       </Pressable>
@@ -84,15 +92,15 @@ export function SelectField({ label, value, options, placeholder, onChange, disa
               </Pressable>
             </View>
             <FlatList
-              data={options}
-              keyExtractor={(item) => item}
+              data={pairs}
+              keyExtractor={(item) => item.value}
               renderItem={({ item }) => {
-                const selected = item === value;
+                const selected = item.value === value;
                 return (
                   <Pressable
                     onPress={() => {
                       Haptics.selectionAsync();
-                      onChange(item);
+                      onChange(item.value);
                       setOpen(false);
                     }}
                     style={{
@@ -111,7 +119,7 @@ export function SelectField({ label, value, options, placeholder, onChange, disa
                         fontSize: 14,
                       }}
                     >
-                      {item}
+                      {item.label}
                     </Text>
                     {selected && <Feather name="check" size={16} color={Colors.primary} />}
                   </Pressable>
