@@ -407,7 +407,7 @@ export default function NotificationsScreen() {
               <Text style={[styles.markAllText, { color: Colors.primary }]}>{t("readAll")}</Text>
             </Pressable>
           )}
-          <Pressable
+          {/* <Pressable
             onPress={() => { Haptics.selectionAsync(); router.push("/(settings)/notifications"); }}
             style={({ pressed }) => [
               styles.settingsGear,
@@ -415,7 +415,7 @@ export default function NotificationsScreen() {
             ]}
           >
             <Feather name="settings" size={16} color={colors.textSecondary} />
-          </Pressable>
+          </Pressable> */}
         </View>
       </Animated.View>
 

@@ -213,7 +213,7 @@ export default function ProfileMainScreen() {
               border={border}
               text={textColor}
             />
-            <MenuItem
+            {/* <MenuItem
               icon="bell"
               label={t("notifications")}
               iconColor={Colors.icon.purple}
@@ -223,7 +223,7 @@ export default function ProfileMainScreen() {
               border={border}
               text={textColor}
               isLast
-            />
+            /> */}
           </View>
         </Animated.View>
 

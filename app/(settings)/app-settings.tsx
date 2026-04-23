@@ -251,7 +251,7 @@ export default function AppSettingsScreen() {
         </Animated.View>
 
         {/* ── Notifications ── */}
-        <Animated.View entering={FadeInDown.delay(140).springify()}>
+        {/* <Animated.View entering={FadeInDown.delay(140).springify()}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
             {t("notifications")}
           </Text>
@@ -289,7 +289,7 @@ export default function AppSettingsScreen() {
               subColor={colors.textSecondary}
             />
           </View>
-        </Animated.View>
+        </Animated.View> */}
 
         {/* ── Security ── */}
         <Animated.View entering={FadeInDown.delay(180).springify()}>
