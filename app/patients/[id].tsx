@@ -63,13 +63,47 @@ export default function PatientDetailScreen() {
   const { data: patient, isLoading, isError, refetch } = usePatient(Number(id));
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
+  // ── App-bar always visible — body switches between skeleton/error/empty/content ──
+  const renderHeader = () => (
+    <View
+      style={[
+        styles.topBar,
+        {
+          paddingTop: topPad + 8,
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+        },
+      ]}
+    >
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync();
+          router.back();
+        }}
+        style={styles.backBtn}
+      >
+        <Feather name="arrow-left" size={22} color={colors.text} />
+      </Pressable>
+      <Text style={[styles.topTitle, { color: colors.text }]} numberOfLines={1}>
+        {t("patientDetails")}
+      </Text>
+      <View style={{ width: 38 }} />
+    </View>
+  );
+
   if (isLoading || refreshing) {
-    return <PatientDetailSkeleton />;
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {renderHeader()}
+        <PatientDetailSkeleton />
+      </View>
+    );
   }
 
   if (isError) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {renderHeader()}
         <ErrorState onRetry={() => refetch()} />
       </View>
     );
@@ -78,6 +112,7 @@ export default function PatientDetailScreen() {
   if (!patient) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {renderHeader()}
         <EmptyState
           icon="user-x"
           title={t("patientNotFound")}
@@ -91,31 +126,7 @@ export default function PatientDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Sticky Top Bar */}
-      <View
-        style={[
-          styles.topBar,
-          {
-            paddingTop: topPad + 8,
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            router.back();
-          }}
-          style={styles.backBtn}
-        >
-          <Feather name="arrow-left" size={22} color={colors.text} />
-        </Pressable>
-        <Text style={[styles.topTitle, { color: colors.text }]} numberOfLines={1}>
-          {t("patientDetails")}
-        </Text>
-        <View style={{ width: 38 }} />
-      </View>
+      {renderHeader()}
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: botPad }}

@@ -1,3 +1,7 @@
+// Global card background alpha (8-digit hex suffix). "B3" ≈ 0.7 opacity.
+// Change here to adjust translucency of every Card on every screen.
+export const CARD_BG_ALPHA = "B3";
+
 export const Colors = {
   primary: "#2DAAAE",
   primaryDark: "#0B7B8B",

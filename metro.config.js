@@ -2,6 +2,12 @@ const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
 
+config.transformer.babelTransformerPath = require.resolve(
+  "react-native-svg-transformer/expo",
+);
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== "svg");
+config.resolver.sourceExts = [...config.resolver.sourceExts, "svg"];
+
 // Allow Babel to transform packages that ship TypeScript source via the
 // "react-native" package.json field (e.g. react-native-reanimated@4,
 // react-native-worklets). Without this, Hermes receives raw TypeScript and

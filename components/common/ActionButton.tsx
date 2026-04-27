@@ -5,9 +5,16 @@ import React from "react";
 import { Linking, Platform, Pressable, StyleSheet, Text } from "react-native";
 
 import { useApp } from "@/context/AppContext";
+import type { RuleAction } from "@/data/models/rules";
 import { Colors } from "@/theme/colors";
 
 export type ActionButtonType = "call" | "location" | "labResults";
+
+const RULE_FOR: Record<ActionButtonType, RuleAction> = {
+  call: "call_patient",
+  location: "navigate_to_patient_address",
+  labResults: "view_lab_results",
+};
 
 type ActionButtonProps = {
   type: ActionButtonType;
@@ -27,8 +34,10 @@ const COLORS: Record<ActionButtonType, { bg: string; fg: string }> = {
 };
 
 export function ActionButton({ type, value }: ActionButtonProps) {
-  const { t } = useApp();
+  const { t, can } = useApp();
   const palette = COLORS[type];
+
+  if (!can(RULE_FOR[type])) return null;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

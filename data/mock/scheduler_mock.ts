@@ -1,4 +1,4 @@
-import type { Slot } from '../../types/scheduler'
+import type { Slot } from '../models/scheduler'
 
 export const MOCK_SLOTS: Slot[] = [
   {
@@ -12,7 +12,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Follow-up',
     status: 'confirmed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Diabetes management review with Dr. Sarah Johnson this is a note',
+    instructions: 'Diabetes management review with Dr. Sarah Johnson this is a note',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '08:00 AM',
@@ -35,7 +35,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Consultation',
     status: 'confirmed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Blood pressure check',
+    instructions: 'Blood pressure check',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '09:00 AM',
@@ -58,7 +58,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Emergency',
     status: 'pending',
     provider: 'Dr. Mohammed Al-Amri',
-    notes: 'Urgent cardiac review',
+    instructions: 'Urgent cardiac review',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '10:00 AM',
@@ -78,7 +78,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Break',
     status: 'cancelled',
     provider: 'Dr. Sarah Johnson',
-    notes: '',
+    instructions: '',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '11:00 AM',
@@ -98,7 +98,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Follow-up',
     status: 'confirmed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Asthma inhaler technique check',
+    instructions: 'Asthma inhaler technique check',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '01:00 PM',
@@ -121,7 +121,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Consultation',
     status: 'pending',
     provider: 'Dr. Amira Khalil',
-    notes: 'Joint pain assessment',
+    instructions: 'Joint pain assessment',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '02:00 PM',
@@ -144,7 +144,7 @@ export const MOCK_SLOTS: Slot[] = [
     type: 'Follow-up',
     status: 'confirmed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Migraine medication review',
+    instructions: 'Migraine medication review',
     visitDate: '2026/02/24',
     procedureTime: '',
     visitTime: '03:30 PM',

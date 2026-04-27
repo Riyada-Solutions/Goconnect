@@ -11,8 +11,8 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     addedAt: '2026/01/22 03:54 PM',
     dueDate: '2026/01/22',
     status: 'result_ready',
-    nurseAcknowledged: false,
     resultPdfUrl: PDF_SAMPLE,
+    labOrderPdfUrl: PDF_SAMPLE,
   },
   {
     id: 140,
@@ -21,9 +21,9 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     addedBy: 'Dr. Sarah Johnson',
     addedAt: '2026/01/18 09:12 AM',
     dueDate: '2026/01/20',
-    status: 'acknowledged',
-    nurseAcknowledged: true,
+    status: 'result_ready',
     resultPdfUrl: PDF_SAMPLE,
+    labOrderPdfUrl: PDF_SAMPLE,
   },
   {
     id: 141,
@@ -33,8 +33,8 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     addedAt: '2026/01/25 10:30 AM',
     dueDate: '2026/01/27',
     status: 'pending',
-    nurseAcknowledged: false,
     resultPdfUrl: null,
+    labOrderPdfUrl: PDF_SAMPLE,
   },
   {
     id: 142,
@@ -44,8 +44,8 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     addedAt: '2026/01/20 02:15 PM',
     dueDate: '2026/01/21',
     status: 'result_ready',
-    nurseAcknowledged: true,
     resultPdfUrl: PDF_SAMPLE,
+    labOrderPdfUrl: PDF_SAMPLE,
   },
   {
     id: 143,
@@ -55,8 +55,8 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     addedAt: '2026/01/19 11:00 AM',
     dueDate: '2026/01/20',
     status: 'in_progress',
-    nurseAcknowledged: false,
     resultPdfUrl: null,
+    labOrderPdfUrl: PDF_SAMPLE,
   },
   {
     id: 144,
@@ -66,8 +66,8 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     addedAt: '2026/01/15 08:45 AM',
     dueDate: '2026/01/16',
     status: 'result_ready',
-    nurseAcknowledged: false,
     resultPdfUrl: PDF_SAMPLE,
+    labOrderPdfUrl: PDF_SAMPLE,
   },
 ]
 
@@ -78,17 +78,4 @@ export async function mockGetLabResultsByPatient(
 ): Promise<LabResult[]> {
   await delay(2000)
   return MOCK_LAB_RESULTS.filter((r) => r.patientId === patientId)
-}
-
-export async function mockAcknowledgeLabResult(id: number): Promise<LabResult> {
-  await delay(500)
-  const idx = MOCK_LAB_RESULTS.findIndex((r) => r.id === id)
-  if (idx < 0) throw new Error('Lab result not found')
-  const updated: LabResult = {
-    ...MOCK_LAB_RESULTS[idx],
-    nurseAcknowledged: true,
-    status: 'acknowledged',
-  }
-  MOCK_LAB_RESULTS[idx] = updated
-  return updated
 }

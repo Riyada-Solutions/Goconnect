@@ -1,6 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef } from "react";
 import { Dimensions, Platform, StyleSheet, Text, View } from "react-native";
+
+import Logo from "@/assets/svg/logo.svg";
 import Animated, {
   Easing,
   FadeIn,
@@ -105,20 +107,7 @@ export function SplashView({ onFinish }: SplashViewProps) {
         <View style={styles.center}>
           <Animated.View style={[styles.logoWrapper, logoStyle]}>
             <View style={styles.logoCircle}>
-              <View style={styles.heartbeat}>
-                {[0, 0, 1, 2, 1, 0, -1, -2, -1, 0, 0].map((v, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.heartbeatBar,
-                      {
-                        height: 8 + Math.abs(v) * 10,
-                        opacity: v === 0 ? 0.5 : 1,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
+              <Logo width={56} height={56} />
             </View>
             <View style={styles.glowRing} />
           </Animated.View>

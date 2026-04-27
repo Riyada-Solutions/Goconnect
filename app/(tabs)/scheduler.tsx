@@ -16,6 +16,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
+import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListSkeleton, SlotCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
@@ -66,6 +67,15 @@ const CALENDAR_DAYS = buildCalendarDays();
 const TODAY_GLOBAL = CALENDAR_DAYS.findIndex((d) => d.isToday);
 const DAY_CELL_WIDTH = 52;
 
+function to12h(time: string): { time: string; meridiem: "AM" | "PM" } {
+  const [hStr, mStr = "00"] = time.split(":");
+  const h = Number(hStr);
+  if (Number.isNaN(h)) return { time, meridiem: "AM" };
+  const meridiem = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return { time: `${h12}:${mStr.padStart(2, "0")}`, meridiem };
+}
+
 export default function SchedulerScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
@@ -86,6 +96,7 @@ export default function SchedulerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScreenBackground />
       {/* Header */}
       <View
         style={[
@@ -218,6 +229,8 @@ export default function SchedulerScreen() {
         {slots.map((slot, i) => {
           const typeColor = TYPE_COLORS[slot.type] ?? Colors.primary;
           const hasPatient = !!slot.patientName;
+          const start = to12h(slot.time);
+          const end = to12h(slot.endTime);
 
           return (
             <Animated.View
@@ -245,16 +258,27 @@ export default function SchedulerScreen() {
                     {/* Time Column */}
                     <View style={styles.timeCol}>
                       <Text style={[styles.slotTime, { color: typeColor }]}>
-                        {slot.time}
+                        {start.time}
                       </Text>
-                      <Text
+                      <Text style={[styles.slotMeridiem, { color: typeColor }]}>
+                        {start.meridiem}
+                      </Text>
+                      {/* <Text
                         style={[
                           styles.slotEndTime,
                           { color: colors.textTertiary },
                         ]}
                       >
-                        {slot.endTime}
-                      </Text>
+                        {end.time}
+                      </Text> */}
+                      {/* <Text
+                        style={[
+                          styles.slotEndMeridiem,
+                          { color: colors.textTertiary },
+                        ]}
+                      >
+                        {end.meridiem}
+                      </Text> */}
                     </View>
 
                     {/* Color bar */}
@@ -291,16 +315,38 @@ export default function SchedulerScreen() {
                               </Text>
                             </View>
                           </View>
-                          {slot.notes ? (
-                            <Text
+                          {slot.instructions ? (
+                            <View
                               style={[
-                                styles.slotNotes,
-                                { color: colors.textTertiary },
+                                styles.slotInstructionsBlock,
+                                { borderTopColor: colors.borderLight },
                               ]}
-                              numberOfLines={1}
                             >
-                              {slot.notes}
-                            </Text>
+                              <View style={styles.slotInstructionsHeader}>
+                                <Feather
+                                  name="file-text"
+                                  size={12}
+                                  color={colors.textSecondary}
+                                />
+                                <Text
+                                  style={[
+                                    styles.slotInstructionsLabel,
+                                    { color: colors.textSecondary },
+                                  ]}
+                                >
+                                  {t("instructions")}
+                                </Text>
+                              </View>
+                              <Text
+                                style={[
+                                  styles.slotNotes,
+                                  { color: colors.text },
+                                ]}
+                                numberOfLines={3}
+                              >
+                                {slot.instructions}
+                              </Text>
+                            </View>
                           ) : null}
                         </>
                       ) : (
@@ -406,7 +452,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   slotCard: {
-    padding: 12,
+    padding: 16,
+    minHeight: 110,
+    opacity: 0.7,
   },
   slotRow: {
     flexDirection: "row",
@@ -414,17 +462,33 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   timeCol: {
-    width: 48,
-    alignItems: "flex-end",
+    width: 56,
+    alignItems: "center",
   },
   slotTime: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  slotMeridiem: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+    letterSpacing: 0.5,
+    marginTop: 1,
   },
   slotEndTime: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    marginTop: 8,
+  },
+  slotEndMeridiem: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+    letterSpacing: 0.5,
+    marginTop: 1,
   },
   colorBar: {
     width: 3,
@@ -447,9 +511,24 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   slotNotes: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
-    marginTop: 4,
+    lineHeight: 18,
+  },
+  slotInstructionsBlock: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    gap: 4,
+  },
+  slotInstructionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  slotInstructionsLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
   },
   slotType: {
     fontSize: 14,

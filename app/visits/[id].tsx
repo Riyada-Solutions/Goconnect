@@ -12,7 +12,7 @@ import { usePatient, usePatientAlerts } from "@/hooks/usePatients";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useVisit, useMedications, useInventory, useSubmitDoctorProgressNote, useSubmitFlowSheet, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote } from "@/hooks/useVisits";
+import { useEndVisit, useSaveProcedureTimes, useStartVisit, useSubmitDoctorProgressNote, useSubmitInventoryUsage, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import type { InventoryItem } from "@/data/models/visit";
@@ -95,6 +95,11 @@ function VisitDetailScreenInner() {
   const { visitElapsed, procedureElapsed, stopVisitTimer, startProcedureTimer, stopProcedureTimer } =
     useVisitTimers(initialPhase);
 
+  const startVisitMutation = useStartVisit(numId);
+  const endVisitMutation = useEndVisit(numId);
+  const saveProcedureTimesMutation = useSaveProcedureTimes(numId);
+  const submitInventoryUsageMutation = useSubmitInventoryUsage(numId);
+
   const handleStartProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setVisitPhase("start_procedure");
@@ -103,7 +108,8 @@ function VisitDetailScreenInner() {
     startProcedureTimer(now);
     setProcedureStartTimeStr(formatClockTime(new Date(now)));
     setEditProcStart(formatClockTime(new Date(now)));
-  }, [stopVisitTimer, startProcedureTimer]);
+    startVisitMutation.mutate();
+  }, [stopVisitTimer, startProcedureTimer, startVisitMutation]);
 
   const handleEndProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -111,7 +117,8 @@ function VisitDetailScreenInner() {
     setProcedureEndTimeStr(formatClockTime(new Date()));
     setEditProcEnd(formatClockTime(new Date()));
     stopProcedureTimer();
-  }, [stopProcedureTimer]);
+    endVisitMutation.mutate();
+  }, [stopProcedureTimer, endVisitMutation]);
 
   // Collapsible states
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -159,25 +166,26 @@ function VisitDetailScreenInner() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Inventory modal
+  // Inventory modal — medications + inventory now ride on Visit (single source of truth).
   const [useModalVisible, setUseModalVisible] = useState(false);
-  const { data: medications = [] } = useMedications();
-  const { data: inventoryData = [] } = useInventory();
+  const medications = (record as any)?.medications ?? [];
+  const inventoryData: InventoryItem[] = (record as any)?.inventory ?? [];
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
-  // Progress Notes — loaded from visit details response
-  const nursingProgressNotes = (record as any)?.nursingProgressNotes ?? [];
-  const socialWorkerProgressNotes = (record as any)?.socialWorkerProgressNotes ?? [];
+  // Progress Notes — all three lists live under `Visit.progressNotes`.
+  const progressNotes = (record as any)?.progressNotes;
+  const nursingProgressNotes = progressNotes?.nursing ?? [];
+  const socialWorkerProgressNotes = progressNotes?.socialWorker ?? [];
   const submitNursingProgressNote = useSubmitNursingProgressNote(numId);
   const submitSocialWorkerProgressNote = useSubmitSocialWorkerProgressNote(numId);
   const submitReferral = useSubmitReferral(numId);
   const submitDoctorProgressNote = useSubmitDoctorProgressNote(numId);
   const submitRefusal = useSubmitRefusal(numId);
-  const submitFlowSheet = useSubmitFlowSheet(numId);
   const submitSariScreening = useSubmitSariScreening(numId);
-  const doctorProgressNotes = (record as any)?.doctorProgressNotes ?? [];
-  const preTreatmentVitals = (record as any)?.preTreatmentVitals;
+  const doctorProgressNotes = progressNotes?.doctor ?? [];
+  // preTreatmentVitals now lives inside flowSheet (single source of truth).
+  const preTreatmentVitals = (record as any)?.flowSheet?.preTreatmentVitals;
 
   // Must call hooks before any early return (Rules of Hooks)
   const patientId = (record as any)?.patientId as number | undefined;
@@ -190,9 +198,31 @@ function VisitDetailScreenInner() {
     }
   }, [inventoryData]);
 
-  if ((isLoading && !record) || refreshing) return <VisitDetailSkeleton colors={colors} />;
-  if (isError) return <VisitDetailError colors={colors} message={errorMessage} onRetry={refetch} />;
-  if (!record) return <VisitDetailEmpty colors={colors} onRetry={refetch} />;
+  // App-bar always visible — body switches between skeleton/error/empty/content.
+  if ((isLoading && !record) || refreshing) {
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <VisitDetailTopBar topPad={topPad} colors={colors} />
+        <VisitDetailSkeleton colors={colors} />
+      </View>
+    );
+  }
+  if (isError) {
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <VisitDetailTopBar topPad={topPad} colors={colors} />
+        <VisitDetailError colors={colors} message={errorMessage} onRetry={refetch} />
+      </View>
+    );
+  }
+  if (!record) {
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        <VisitDetailTopBar topPad={topPad} colors={colors} />
+        <VisitDetailEmpty colors={colors} onRetry={refetch} />
+      </View>
+    );
+  }
 
   const careTeam = (record as any).careTeam ?? [];
   const patientName = (record as any).patientName as string | undefined;
@@ -230,7 +260,7 @@ function VisitDetailScreenInner() {
       > 
         {/* ─── Patient Hero ───────────────────────────────────────────── */}
         {patientRecord && (
-          <Animated.View entering={FadeInDown.delay(30).springify()} style={s.section}>
+          <Animated.View entering={FadeInDown.delay(30).springify()} style={[s.section,{ marginTop: 16 }]}>
             <PatientCard patient={patientRecord} />
           </Animated.View>
         )}
@@ -265,6 +295,10 @@ function VisitDetailScreenInner() {
             if (editProcStart) setProcedureStartTimeStr(editProcStart);
             if (editProcEnd) setProcedureEndTimeStr(editProcEnd);
             setShowProcedureEdit(false);
+            saveProcedureTimesMutation.mutate({
+              startTime: editProcStart || undefined,
+              endTime: editProcEnd || undefined,
+            });
           }}
         />
         {isReadOnly && <ReadOnlyBanner />}
@@ -286,6 +320,7 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             // initialExpanded={initialPhase === "completed"}
+            visitId={numId}
             initial={(record as any)?.flowSheet}
             key={(record as any)?.flowSheet?.submittedAt ?? "new"}
             medications={medications}
@@ -297,43 +332,6 @@ function VisitDetailScreenInner() {
             physicianCalled={physicianCalled}
             onOpenMorseSheet={() => setMorseSheetOpen(true)}
             onRequestPhysicianCall={() => { setPhysicianCalled(null); setTimeout(() => setPhysicianModalOpen(true), 150); }}
-            onSave={(data) => {
-              const payload = {
-                vitals: data.vitals,
-                bpSite: data.bpSite,
-                method: data.method,
-                machine: data.machine,
-                pain: data.pain,
-                painDetails: data.painDetails,
-                fallRisk: data.fallRisk,
-                highFallRisk: data.highFallRisk,
-                outsideDialysis: data.outsideDialysis,
-                alarmsTest: data.alarmsTest,
-                nursingActions: data.nursingActions,
-                dialysisParams: data.dialysisParams,
-                intake: data.intake,
-                output: data.output,
-                car: data.car,
-                dialysate: data.dialysate,
-                access: data.access,
-                anticoagType: data.anticoagType,
-                postTx: data.postTx,
-                patientSignature:
-                  data.patientSignature.signed && data.patientSignature.dataUrl
-                    ? { dataUrl: data.patientSignature.dataUrl, signedAt: data.patientSignature.signedAt ?? new Date().toISOString() }
-                    : undefined,
-                nurseSignature:
-                  data.nurseSignature.signed && data.nurseSignature.dataUrl
-                    ? { dataUrl: data.nurseSignature.dataUrl, signedAt: data.nurseSignature.signedAt ?? new Date().toISOString() }
-                    : undefined,
-                submittedAt: new Date().toISOString(),
-              };
-              submitFlowSheet.mutate(payload, {
-                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: "Flow sheet saved." }),
-                onError: (err: unknown) =>
-                  showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
-              });
-            }}
           />
         </Animated.View>
 
@@ -490,15 +488,25 @@ function VisitDetailScreenInner() {
         item={selectedItem}
         onClose={() => setUseModalVisible(false)}
         onUse={(qty, notes) => {
+          if (!selectedItem) return;
+          // Optimistic local deduction so the UI feels instant.
           setInventoryItems((prev) =>
             prev.map((it) =>
-              it.id === selectedItem?.id
+              it.id === selectedItem.id
                 ? { ...it, available: Math.max(0, it.available - qty) }
                 : it,
             ),
           );
           setUseModalVisible(false);
-          showDialog({ variant: "success", title: "Success", message: `Used ${qty} × ${selectedItem?.name}. Inventory updated.` });
+          submitInventoryUsageMutation.mutate(
+            { itemId: selectedItem.id, quantity: qty, notes: notes || undefined },
+            {
+              onSuccess: () =>
+                showDialog({ variant: "success", title: "Success", message: `Used ${qty} × ${selectedItem.name}. Inventory updated.` }),
+              onError: (err) =>
+                showDialog({ variant: "error", title: t("error"), message: err.message }),
+            },
+          );
         }}
         colors={colors}
       />

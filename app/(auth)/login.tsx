@@ -25,9 +25,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import Logo from "@/assets/svg/logo.svg";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { login as authLogin } from "@/data/auth_repository";
+import { login as authLogin, verifyFace } from "@/data/auth_repository";
+import { getFaceToken, setFaceToken } from "@/data/secure_storage";
 
 export default function LoginScreen() {
   const { login, t } = useApp();
@@ -40,33 +42,49 @@ export default function LoginScreen() {
   const [biometricReady, setBiometricReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const enabled = await AsyncStorage.getItem("@goconnect/biometric");
         if (enabled !== "true") return;
         const compatible = await LocalAuthentication.hasHardwareAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
-        if (compatible && enrolled) setBiometricReady(true);
+        if (!compatible || !enrolled) return;
+        const faceToken = await getFaceToken();
+        if (!faceToken) return;
+        if (cancelled) return;
+        setBiometricReady(true);
+        // Auto-prompt the device biometric on screen open (mirrors the
+        // megasun Flutter app's behavior).
+        void handleBiometricLogin();
       } catch {}
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleBiometricLogin = async () => {
     try {
+      const faceToken = await getFaceToken();
+      if (!faceToken) return;
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: t("biometricLogin"),
         fallbackLabel: t("cancel"),
       });
-      if (result.success) {
-        const { getStoredAuth } = await import("@/data/auth_repository");
-        const auth = await getStoredAuth();
-        if (auth) {
-          await login(auth.user, auth.token);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.replace("/(tabs)/home");
-        }
-      }
-    } catch {}
+      if (!result.success) return;
+      setLoading(true);
+      const { accessToken, user } = await verifyFace({ face_token: faceToken });
+      await login(user, accessToken);
+      // Backend may rotate the face_token on each verify; persist the latest one.
+      if (user.face_token) await setFaceToken(user.face_token);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace("/(tabs)/home");
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const buttonScale = useSharedValue(1);
@@ -90,6 +108,13 @@ export default function LoginScreen() {
     try {
       const { accessToken, user } = await authLogin({ username, password });
       await login(user, accessToken);
+      // Persist face_token for next-time face login when the user has the
+      // biometric setting enabled.
+      const biometricEnabled =
+        (await AsyncStorage.getItem("@goconnect/biometric")) === "true";
+      if (biometricEnabled && user.face_token) {
+        await setFaceToken(user.face_token);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");
     } catch {
@@ -128,7 +153,7 @@ export default function LoginScreen() {
         >
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
-              <Feather name="activity" size={32} color="#fff" />
+              <Logo width={48} height={48} />
             </View>
             <View style={styles.logoPulse} />
           </View>

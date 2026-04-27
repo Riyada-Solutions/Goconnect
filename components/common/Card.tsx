@@ -2,20 +2,21 @@ import React from "react";
 import { StyleSheet, View, ViewProps } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { CARD_BG_ALPHA } from "@/theme/colors";
 
 interface CardProps extends ViewProps {
   elevated?: boolean;
 }
 
 export function Card({ elevated, style, children, ...props }: CardProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: colors.card,
+          backgroundColor: `${colors.card}${CARD_BG_ALPHA}`,
           borderColor: colors.border,
           shadowColor: colors.shadow,
         },

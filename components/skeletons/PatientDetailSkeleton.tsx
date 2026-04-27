@@ -9,27 +9,11 @@ import { Spacing } from "@/theme/spacing";
 
 export function PatientDetailSkeleton() {
   const { colors } = useTheme();
-  const { topPad } = useScreenPadding();
   const base = colors.border;
   const highlight = colors.card;
 
   return (
-    <View style={[s.container, { backgroundColor: colors.background }]}>
-      {/* Top bar */}
-      <View
-        style={[
-          s.topBar,
-          {
-            paddingTop: topPad + 8,
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <Shimmer width={38} height={38} radius={10} baseColor={base} highlightColor={highlight} />
-        <Shimmer width={140} height={20} baseColor={base} highlightColor={highlight} />
-      </View>
-
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Hero */}
       <View style={[s.hero, { backgroundColor: colors.card }]}>
         <Shimmer width={72} height={72} radius={36} baseColor={base} highlightColor={highlight} />

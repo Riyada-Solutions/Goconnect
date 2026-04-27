@@ -9,9 +9,9 @@ export interface Slot {
   time: string
   endTime: string
   type: string
-  status: 'confirmed' | 'pending' | 'cancelled'
+  status: 'confirmed' | 'pending' | 'cancelled' | 'checked_in'
   provider: string
-  notes: string
+  instructions: string
   visitDate: string
   procedureTime: string
   visitTime: string

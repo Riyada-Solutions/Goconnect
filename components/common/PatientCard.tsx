@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 14,
     gap: 10,
+    opacity: 0.7,
   },
   row: {
     flexDirection: "row",

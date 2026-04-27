@@ -2,7 +2,6 @@ export const LabResultStatus = {
   Pending: 'pending',
   InProgress: 'in_progress',
   ResultReady: 'result_ready',
-  Acknowledged: 'acknowledged',
   Cancelled: 'cancelled',
 } as const
 export type LabResultStatus =
@@ -16,6 +15,6 @@ export interface LabResult {
   addedAt: string
   dueDate: string
   status: LabResultStatus
-  nurseAcknowledged: boolean
   resultPdfUrl?: string | null
+  labOrderPdfUrl?: string | null
 }

@@ -10,6 +10,7 @@ export const MOCK_USER: User = {
   hospital: 'King Abdulaziz Medical City',
   email: 'sarah.johnson@goconnect.sa',
   phone: '+966 50 123 4567',
+  face_token: 'mock-face-token-abcdef',
   department: 'Nursing',
   employeeId: 'GC-2024-001',
   initials: 'SJ',
@@ -22,6 +23,12 @@ export async function mockLogin(body: LoginRequest): Promise<LoginResponse> {
     return { accessToken: 'mock-token-xyz', user: MOCK_USER }
   }
   throw new Error('Invalid credentials')
+}
+
+export async function mockVerifyFace(face_token: string): Promise<LoginResponse> {
+  await mockDelay()
+  if (!face_token) throw new Error('Missing face_token')
+  return { accessToken: 'mock-token-face-xyz', user: MOCK_USER }
 }
 
 export async function mockGetMe(): Promise<User> {

@@ -12,6 +12,8 @@ interface Props {
   title: string;
   subtitle?: string;
   statement?: string;
+  /** Saved PNG data URI (or raw base64) to show when reopening after a previous sign. */
+  initialSignature?: string;
   onConfirm: (signatureData?: string) => void;
   onClose: () => void;
   colors: any;
@@ -25,6 +27,7 @@ export function SignatureConfirmSheet({
   title,
   subtitle,
   statement,
+  initialSignature,
   onConfirm,
   onClose,
   colors,
@@ -39,12 +42,20 @@ export function SignatureConfirmSheet({
   const [padKey, setPadKey] = useState(0);
 
   useEffect(() => {
-    if (!visible) {
+    if (visible) {
+      if (initialSignature) {
+        setSignatureData(initialSignature);
+        setHasContent(true);
+      } else {
+        setSignatureData("");
+        setHasContent(false);
+      }
+      setPadKey((k) => k + 1);
+    } else {
       setSignatureData("");
       setHasContent(false);
-      setPadKey((k) => k + 1);
     }
-  }, [visible]);
+  }, [visible, initialSignature]);
 
   const handleClear = () => {
     Haptics.selectionAsync();
@@ -141,8 +152,11 @@ export function SignatureConfirmSheet({
               ref={padRef}
               key={padKey}
               colors={colors}
+              initialDataUrl={visible ? initialSignature : undefined}
               placeholderLabel={signHereLabel}
               onChange={(d, has) => {
+                // console.log("SignaturePad data", d);
+                // console.log("SignaturePad has", has);
                 setSignatureData(d);
                 setHasContent(has);
               }}

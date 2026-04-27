@@ -16,19 +16,16 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
+import { RuleGate } from "@/components/common/RuleGate";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { LabResultCardSkeleton, ListSkeleton } from "@/components/skeletons";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { useApp } from "@/context/AppContext";
+import { useLabResults } from "@/hooks/useLabResults";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
-import {
-  useAcknowledgeLabResult,
-  useLabResults,
-} from "@/hooks/useLabResults";
 import { Colors } from "@/theme/colors";
-import type { LabResult } from "@/data/models/labResult";
 
 export default function LabResultsScreen() {
   const { patientId } = useLocalSearchParams<{ patientId: string }>();
@@ -39,12 +36,11 @@ export default function LabResultsScreen() {
   const { dialogProps, show: showDialog } = useFeedbackDialog();
 
   const { data: results = [], isLoading, isError, refetch } = useLabResults(pid);
-  const acknowledge = useAcknowledgeLabResult(pid);
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
 
-  const openPdf = async (item: LabResult) => {
-    if (!item.resultPdfUrl) {
+  const openPdf = async (url?: string | null) => {
+    if (!url) {
       showDialog({
         variant: "error",
         title: t("labResults"),
@@ -54,32 +50,13 @@ export default function LabResultsScreen() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const ok = await Linking.canOpenURL(item.resultPdfUrl);
-      if (ok) await Linking.openURL(item.resultPdfUrl);
+      const ok = await Linking.canOpenURL(url);
+      if (ok) await Linking.openURL(url);
     } catch {
       showDialog({
         variant: "error",
         title: t("labResults"),
         message: t("pdfOpenFailed"),
-      });
-    }
-  };
-
-  const handleAcknowledge = async (item: LabResult) => {
-    if (item.nurseAcknowledged) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      await acknowledge.mutateAsync(item.id);
-      showDialog({
-        variant: "success",
-        title: t("labResults"),
-        message: t("acknowledged"),
-      });
-    } catch (err: any) {
-      showDialog({
-        variant: "error",
-        title: t("labResults"),
-        message: err?.message ?? "Failed to acknowledge",
       });
     }
   };
@@ -220,64 +197,75 @@ export default function LabResultsScreen() {
                     { borderTopColor: colors.borderLight },
                   ]}
                 >
-                  <Pressable
-                    disabled={item.nurseAcknowledged || acknowledge.isPending}
-                    onPress={() => handleAcknowledge(item)}
-                    style={[
-                      styles.ackBtn,
-                      {
-                        backgroundColor: item.nurseAcknowledged
-                          ? "#EEF2FF"
-                          : Colors.primary,
-                        opacity: acknowledge.isPending ? 0.6 : 1,
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name={item.nurseAcknowledged ? "check-circle" : "check"}
-                      size={14}
-                      color={item.nurseAcknowledged ? "#4F46E5" : "#fff"}
-                    />
-                    <Text
+                  <RuleGate action="view_lab_order_pdf">
+                    <Pressable
+                      onPress={() => openPdf(item.labOrderPdfUrl)}
+                      disabled={!item.labOrderPdfUrl}
                       style={[
-                        styles.ackText,
+                        styles.viewBtn,
                         {
-                          color: item.nurseAcknowledged ? "#4F46E5" : "#fff",
+                          backgroundColor: item.labOrderPdfUrl
+                            ? Colors.primary
+                            : colors.borderLight,
                         },
                       ]}
                     >
-                      {item.nurseAcknowledged ? t("acknowledged") : t("nurseAck")}
-                    </Text>
-                  </Pressable>
+                      <Feather
+                        name="clipboard"
+                        size={14}
+                        color={
+                          item.labOrderPdfUrl ? "#fff" : colors.textTertiary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.viewText,
+                          {
+                            color: item.labOrderPdfUrl
+                              ? "#fff"
+                              : colors.textTertiary,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t("viewLabOrder")}
+                      </Text>
+                    </Pressable>
+                  </RuleGate>
 
-                  <Pressable
-                    onPress={() => openPdf(item)}
-                    disabled={!item.resultPdfUrl}
-                    style={[
-                      styles.viewBtn,
-                      {
-                        backgroundColor: item.resultPdfUrl
-                          ? Colors.primary
-                          : colors.borderLight,
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name="file-text"
-                      size={14}
-                      color={item.resultPdfUrl ? "#fff" : colors.textTertiary}
-                    />
-                    <Text
+                  <RuleGate action="view_lab_result_pdf">
+                    <Pressable
+                      onPress={() => openPdf(item.resultPdfUrl)}
+                      disabled={!item.resultPdfUrl}
                       style={[
-                        styles.viewText,
+                        styles.viewBtn,
                         {
-                          color: item.resultPdfUrl ? "#fff" : colors.textTertiary,
+                          backgroundColor: item.resultPdfUrl
+                            ? Colors.primary
+                            : colors.borderLight,
                         },
                       ]}
                     >
-                      {t("view")}
-                    </Text>
-                  </Pressable>
+                      <Feather
+                        name="file-text"
+                        size={14}
+                        color={item.resultPdfUrl ? "#fff" : colors.textTertiary}
+                      />
+                      <Text
+                        style={[
+                          styles.viewText,
+                          {
+                            color: item.resultPdfUrl
+                              ? "#fff"
+                              : colors.textTertiary,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t("viewLabResults")}
+                      </Text>
+                    </Pressable>
+                  </RuleGate>
                 </View>
               </Card>
             </Animated.View>
@@ -386,19 +374,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-  },
-  ackBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  ackText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
   },
   viewBtn: {
     flex: 1,

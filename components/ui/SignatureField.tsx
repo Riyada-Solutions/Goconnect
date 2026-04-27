@@ -127,6 +127,7 @@ export function SignatureField({
         title={label}
         subtitle={subtitle}
         statement={statement}
+        initialSignature={value.signed && value.dataUrl ? value.dataUrl : undefined}
         clearLabel={clearLabel}
         signHereLabel={signHereLabel}
         confirmLabel={confirmLabel}

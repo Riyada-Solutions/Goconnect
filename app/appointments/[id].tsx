@@ -23,7 +23,11 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppointmentDetailSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { useSlot } from "@/hooks/useScheduler";
+import {
+  useCheckInAppointment,
+  useConfirmAppointment,
+  useSlot,
+} from "@/hooks/useScheduler";
 import { usePatient } from "@/hooks/usePatients";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
@@ -49,19 +53,62 @@ export default function AppointmentDetailScreen() {
     record?.status === "confirmed" ? "confirmed" : "pending",
   );
 
+  const confirmMutation = useConfirmAppointment();
+  const checkInMutation = useCheckInAppointment();
+
+  const handleConfirm = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    confirmMutation.mutate(Number(id), {
+      onSuccess: () => {
+        setStatus("confirmed");
+        showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") });
+      },
+      onError: (err) =>
+        showDialog({ variant: "error", title: t("error"), message: err.message }),
+    });
+  };
+
+  const handleCheckIn = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    checkInMutation.mutate(Number(id), {
+      onSuccess: () => {
+        setStatus("checked-in");
+        showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") });
+      },
+      onError: (err) =>
+        showDialog({ variant: "error", title: t("error"), message: err.message }),
+    });
+  };
+
+  const careTeam = record?.careTeam ?? [];
+  const typeColor =
+    record?.type === "Emergency" ? "#EF4444" :
+      record?.type === "Consultation" ? "#6366F1" :
+        record?.type === "Break" ? "#9CA3AF" : Colors.primary;
+
+  // ── App-bar always visible — body switches between skeleton/error/empty/content ──
+  const renderHeader = () => (
+    <View style={[s.headerBar, { paddingTop: topPad }]}>
+      <Pressable onPress={() => router.back()} style={s.backBtn}>
+        <Feather name="arrow-left" size={22} color={colors.text} />
+      </Pressable>
+      <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
+    </View>
+  );
+
   if (isLoading || refreshing) {
-    return <AppointmentDetailSkeleton />;
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        {renderHeader()}
+        <AppointmentDetailSkeleton />
+      </View>
+    );
   }
 
   if (isError) {
     return (
-      <View style={[s.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
-        <View style={s.headerBar}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}>
-            <Feather name="arrow-left" size={22} color={colors.text} />
-          </Pressable>
-          <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
-        </View>
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        {renderHeader()}
         <ErrorState onRetry={() => refetch()} />
       </View>
     );
@@ -69,13 +116,8 @@ export default function AppointmentDetailScreen() {
 
   if (!record) {
     return (
-      <View style={[s.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
-        <View style={s.headerBar}>
-          <Pressable onPress={() => router.back()} style={s.backBtn}>
-            <Feather name="arrow-left" size={22} color={colors.text} />
-          </Pressable>
-          <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
-        </View>
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        {renderHeader()}
         <EmptyState
           icon="calendar"
           title={t("appointmentNotFound")}
@@ -87,34 +129,10 @@ export default function AppointmentDetailScreen() {
     );
   }
 
-  const careTeam = record.careTeam ?? [];
-
-  const handleConfirm = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setStatus("confirmed");
-    showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") });
-  };
-
-  const handleCheckIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setStatus("checked-in");
-    showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") });
-  };
-
-  const typeColor =
-    record.type === "Emergency" ? "#EF4444" :
-      record.type === "Consultation" ? "#6366F1" :
-        record.type === "Break" ? "#9CA3AF" : Colors.primary;
-
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
       <FeedbackDialog {...dialogProps} />
-      <View style={[s.headerBar, { paddingTop: topPad }]}>
-        <Pressable onPress={() => router.back()} style={s.backBtn}>
-          <Feather name="arrow-left" size={22} color={colors.text} />
-        </Pressable>
-        <Text style={[s.headerTitle, { color: colors.text, flex: 1 }]}>{t("appointmentDetails")}</Text>
-      </View>
+      {renderHeader()}
 
       <ScrollView
         contentContainerStyle={{ padding: horizontal, paddingBottom: botPad, gap }}
@@ -139,45 +157,43 @@ export default function AppointmentDetailScreen() {
         <Animated.View entering={FadeInDown.delay(50).springify()}>
           <SectionHeader title={t("appointmentInfo")} />
           <Card style={s.summaryCard}>
-            <View style={[s.typeBadge, { backgroundColor: `${typeColor}15` }]}>
-              <View style={[s.typeDot, { backgroundColor: typeColor }]} />
-              <Text style={[s.typeText, { color: typeColor }]}>{record.type}</Text>
-            </View>
-            {/* <Text style={[s.patientNameLarge, { color: colors.text }]}>{record.patientName}</Text> */}
-            {record.notes && (
-              <Text style={[s.notesText, { color: colors.textSecondary }]}>{record.notes}</Text>
-            )}
-            <View style={s.divider} />
-            <View style={s.infoGrid}>
-              <View style={s.infoItem}>
-                <Feather name="clock" size={14} color={Colors.primary} />
-                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{t("time")}</Text>
-                <Text style={[s.infoValue, { color: colors.text }]}>{record.time} - {record.endTime}</Text>
+            {/* Top: type (left) + status (right) */}
+            <View style={s.topRow}>
+              <View style={[s.typeBadge, { backgroundColor: `${typeColor}15` }]}>
+                <View style={[s.typeDot, { backgroundColor: typeColor }]} />
+                <Text style={[s.typeText, { color: typeColor }]}>{record.type}</Text>
               </View>
+              <StatusBadge
+                status={status === "checked-in" ? t("checkedIn") : status === "confirmed" ? t("confirmed") : t("pending")}
+              />
+            </View>
+
+            <View style={s.divider} />
+
+            {/* Date (left) + Time (right) */}
+            <View style={s.infoGrid}>
               <View style={s.infoItem}>
                 <Feather name="calendar" size={14} color={Colors.primary} />
                 <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{t("date")}</Text>
                 <Text style={[s.infoValue, { color: colors.text }]}>{record.visitDate || t("today")}</Text>
               </View>
-              {/* <View style={s.infoItem}>
-                <Feather name="home" size={14} color={Colors.primary} />
-                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>Hospital</Text>
-                <Text style={[s.infoValue, { color: colors.text }]} numberOfLines={2}>{record.hospital || "—"}</Text>
-              </View>
               <View style={s.infoItem}>
-                <Feather name="shield" size={14} color={Colors.primary} />
-                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>Insurance</Text>
-                <Text style={[s.infoValue, { color: colors.text }]}>{record.insurance || "N/A"}</Text>
-              </View> */}
+                <Feather name="clock" size={14} color={Colors.primary} />
+                <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{t("time")}</Text>
+                <Text style={[s.infoValue, { color: colors.text }]}>{record.time} - {record.endTime}</Text>
+              </View>
             </View>
 
-            {/* Status */}
-            <View style={[s.statusRow, { borderTopColor: colors.borderLight }]}>
-              <Text style={[s.statusLabel, { color: colors.textSecondary }]}>{t("status")}</Text>
-              <StatusBadge
-                status={status === "checked-in" ? t("checkedIn") : status === "confirmed" ? t("confirmed") : t("pending")}
-              />
-            </View>
+            {/* Instructions */}
+            {record.instructions ? (
+              <>
+                <View style={s.divider} />
+                <View style={s.instructionsBlock}>
+                  <Text style={[s.infoLabel, { color: colors.textSecondary }]}>{t("instructions")}</Text>
+                  <Text style={[s.notesText, { color: colors.text }]}>{record.instructions}</Text>
+                </View>
+              </>
+            ) : null}
           </Card>
         </Animated.View>
 
@@ -247,6 +263,8 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
 
   summaryCard: { padding: 16, gap: 12 },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  instructionsBlock: { gap: 4 },
   typeBadge: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   typeDot: { width: 8, height: 8, borderRadius: 4 },
   typeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

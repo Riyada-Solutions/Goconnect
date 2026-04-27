@@ -8,16 +8,33 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { I18nManager, useColorScheme } from "react-native";
+import { I18nManager, Platform, useColorScheme } from "react-native";
 
 import { Language, translations } from "@/config/i18n";
 import {
   ACCESS_TOKEN_KEY,
   getMe,
   logout as logoutApi,
+  registerDevice,
   updateMe,
 } from "@/data/auth_repository";
 import type { User } from "@/data/models/auth";
+import type { RuleAction } from "@/data/models/rules";
+import { getRules } from "@/data/rules_repository";
+import { RULES_QUERY_KEY } from "@/hooks/useRules";
+
+const FCM_TOKEN_KEY = "@goconnect/fcm_token";
+
+async function syncDeviceWithProfile(): Promise<void> {
+  try {
+    const fcm_token = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+    const device_type: "ios" | "android" =
+      Platform.OS === "ios" ? "ios" : "android";
+    await registerDevice({ fcm_token, device_type });
+  } catch {
+    // non-fatal; the call will be retried on next app open
+  }
+}
 
 export type Theme = "light" | "dark" | "system";
 
@@ -28,6 +45,10 @@ interface AppContextValue {
   language: Language;
   theme: Theme;
   isDark: boolean;
+  /** Action keys the user is allowed to perform. */
+  rules: Set<RuleAction>;
+  /** True when `action` is in the rules list. Use this to gate buttons/screens. */
+  can: (action: RuleAction) => boolean;
   t: (key: keyof typeof translations.en) => string;
   login: (user: User, token: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -50,8 +71,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [language, setLanguageState] = useState<Language>("en");
   const [theme, setThemeState] = useState<Theme>("system");
+  const [rules, setRules] = useState<Set<RuleAction>>(new Set());
   const colorScheme = useColorScheme();
   const systemDark = colorScheme === "dark";
+
+  const syncRules = useCallback(async () => {
+    try {
+      const list = await getRules();
+      const set = new Set(list);
+      setRules(set);
+      queryClient.setQueryData(RULES_QUERY_KEY, list);
+    } catch {
+      // Leave the existing set in place; the next app open will retry.
+    }
+  }, [queryClient]);
 
   useEffect(() => {
     let done = false;
@@ -71,6 +104,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const me = await getMe();
             setUser(me);
             queryClient.setQueryData(["me"], me);
+            void syncDeviceWithProfile();
+            void syncRules();
           } catch (error: any) {
             const status = error?.response?.status;
             if (status === 401 || status === 403 || status === 404) {
@@ -114,16 +149,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       setToken(authToken);
       queryClient.setQueryData(["me"], userData);
+      void syncDeviceWithProfile();
+      void syncRules();
     },
-    [queryClient],
+    [queryClient, syncRules],
   );
 
   const logout = useCallback(async () => {
     await logoutApi();
     setUser(null);
     setToken(null);
+    setRules(new Set());
     queryClient.clear();
   }, [queryClient]);
+
+  const can = useCallback(
+    (action: RuleAction) => rules.has(action),
+    [rules],
+  );
 
   const setLanguage = useCallback(async (lang: Language) => {
     await AsyncStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
@@ -158,6 +201,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       language,
       theme,
       isDark,
+      rules,
+      can,
       t,
       login,
       logout,
@@ -165,7 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       updateProfile,
     }),
-    [user, token, isReady, language, theme, isDark, t, login, logout, setLanguage, setTheme, updateProfile],
+    [user, token, isReady, language, theme, isDark, rules, can, t, login, logout, setLanguage, setTheme, updateProfile],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

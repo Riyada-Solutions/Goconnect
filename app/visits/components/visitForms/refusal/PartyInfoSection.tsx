@@ -165,6 +165,11 @@ export function PartyInfoSection({
         title={title}
         subtitle={value.name || undefined}
         statement={signatureStatement}
+        initialSignature={
+          value.signed
+            ? value.signatureData ?? value.signatureUrl ?? undefined
+            : undefined
+        }
         onConfirm={(signatureData) => {
           onChange({
             ...value,

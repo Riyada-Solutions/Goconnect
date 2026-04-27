@@ -20,6 +20,7 @@ import { HRSwitch } from "@/components/common/HRSwitch";
 import { Colors } from "@/theme/colors";
 import { Language } from "@/config/i18n";
 import { useApp } from "@/context/AppContext";
+import { clearFaceToken, setFaceToken } from "@/data/secure_storage";
 import { useTheme } from "@/hooks/useTheme";
 
 // ─── Toggle row (icon + label + subtitle + switch) ───────────────────────────
@@ -96,7 +97,7 @@ function NavRow({
 }
 
 export default function AppSettingsScreen() {
-  const { t, language, setLanguage, isDark, setTheme } = useApp();
+  const { t, user, language, setLanguage, isDark, setTheme } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -129,6 +130,9 @@ export default function AppSettingsScreen() {
         fallbackLabel: t("cancel"),
       });
       if (!result.success) return;
+      if (user?.face_token) await setFaceToken(user.face_token);
+    } else {
+      await clearFaceToken();
     }
     setBiometricEnabled(next);
     await AsyncStorage.setItem("@goconnect/biometric", String(next));

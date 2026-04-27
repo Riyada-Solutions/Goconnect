@@ -14,8 +14,11 @@ import {
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import AppBarBackground from "@/assets/svg/appbar-background.svg";
+import BackgroundCare from "@/assets/svg/background-care.svg";
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
+import { PatientCard } from "@/components/common/PatientCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
@@ -86,8 +89,27 @@ export default function HomeScreen() {
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={styles.screenBg} pointerEvents="none">
+        <BackgroundCare
+          width="70%"
+          height="70%"
+
+          preserveAspectRatio="xMaxYMid slice"
+        />
+        <LinearGradient
+          colors={[
+            colors.background,
+            `${colors.background}00`,
+            `${colors.background}00`,
+            colors.background,
+          ]}
+          locations={[0, 0.18, 0.82, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: "transparent" }}
       contentContainerStyle={{ paddingBottom: botPad }}
       showsVerticalScrollIndicator={false}
     >
@@ -100,6 +122,23 @@ export default function HomeScreen() {
         }
         style={[styles.header, { paddingTop: topPad + 16 }]}
       >
+        <View style={styles.headerBg} pointerEvents="none">
+          <AppBarBackground
+            width="100%"
+            height="100%"
+            preserveAspectRatio="xMidYMid slice"
+          />
+          <LinearGradient
+            colors={[
+              "rgba(45,170,174,0.55)",
+              "rgba(45,170,174,0)",
+              "rgba(45,170,174,0)",
+              "rgba(15,98,108,0.85)",
+            ]}
+            locations={[0, 0.35, 0.65, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
         <View style={styles.headerContent}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{t(greetingKey)}</Text>
@@ -280,47 +319,19 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.patientGrid}>
+        <View style={styles.patientList}>
           {recentPatients.map((p, i) => (
             <Animated.View
               key={p.id}
               entering={FadeInDown.delay(100 + i * 60).springify()}
-              style={{ width: "48%" }}
             >
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  router.push({
-                    pathname: "/patients/[id]",
-                    params: { id: p.id },
-                  });
-                }}
-              >
-                <Card style={styles.patientCard}>
-                  <Avatar name={p.name} imageUrl={p.avatarUrl} size={40} />
-                  <Text
-                    style={[styles.patientName, { color: colors.text }]}
-                    numberOfLines={1}
-                  >
-                    {p.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.patientDiagnosis,
-                      { color: colors.textSecondary },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {p.diagnosis}
-                  </Text>
-                  <StatusBadge status={p.status} size="sm" />
-                </Card>
-              </Pressable>
+              <PatientCard patient={p} />
             </Animated.View>
           ))}
         </View>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -328,6 +339,17 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 24,
+    overflow: "hidden",
+  },
+  screenBg: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+    // opacity: 1,
+  },
+  headerBg: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.55,
   },
   headerContent: {
     flexDirection: "row",
@@ -485,22 +507,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
   },
-  patientGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  patientList: {
     gap: 12,
-  },
-  patientCard: {
-    padding: 14,
-    gap: 6,
-  },
-  patientName: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    marginTop: 4,
-  },
-  patientDiagnosis: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
   },
 });

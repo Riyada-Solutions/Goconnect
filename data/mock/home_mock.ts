@@ -1,4 +1,4 @@
-import type { DashboardStats } from '../../types/home'
+import type { DashboardStats } from '../models/home'
 
 export async function mockGetDashboardStats(): Promise<DashboardStats> {
   return {

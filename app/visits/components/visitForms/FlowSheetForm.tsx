@@ -1,10 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
 
 import { type SignatureValue } from "@/components/ui/SignatureField";
-import { Colors } from "@/theme/colors";
+import { useApp } from "@/context/AppContext";
 import type {
   FlowSheet,
   FlowSheetCar,
@@ -15,7 +15,32 @@ import type {
   FlowSheetNursingAction,
   FlowSheetPainDetails,
 } from "@/data/models/flowSheet";
+import type { RuleAction } from "@/data/models/rules";
 import type { DialysisMedication } from "@/data/models/visit";
+import {
+  submitFlowSheetAccess,
+  submitFlowSheetAlarmsTest,
+  submitFlowSheetAnticoagulation,
+  submitFlowSheetCar,
+  submitFlowSheetDialysate,
+  submitFlowSheetDialysisParams,
+  submitFlowSheetFallRisk,
+  submitFlowSheetIntakeOutput,
+  submitFlowSheetMachines,
+  submitFlowSheetMedications,
+  submitFlowSheetNursingActions,
+  submitFlowSheetOutsideDialysis,
+  submitFlowSheetPain,
+  submitFlowSheetPostTreatment,
+  submitFlowSheetVitals,
+} from "@/data/visit_repository";
+import { Colors } from "@/theme/colors";
+
+/** Convert the form-side SignatureValue to the API-side SavedSignature shape. */
+const toSaved = (v: SignatureValue) =>
+  v.signed && v.dataUrl
+    ? { dataUrl: v.dataUrl, signedAt: v.signedAt ?? new Date().toISOString() }
+    : undefined;
 
 import { Card } from "@/components/common/Card";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
@@ -89,6 +114,8 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
+  /** ID of the visit this flow sheet belongs to — required for per-section saves. */
+  visitId: number;
   /** Previously-saved Flow Sheet to pre-fill the form. */
   initial?: FlowSheet;
   medications: DialysisMedication[];
@@ -101,7 +128,96 @@ interface Props {
   onOpenMorseSheet: () => void;
   onRequestPhysicianCall: () => void;
   onSignatureSaved?: (kind: "patient" | "nurse", value: SignatureValue) => void;
-  onSave: (data: FlowSheetFormData & { patientSignature: SignatureValue; nurseSignature: SignatureValue }) => void;
+}
+
+function SectionSaveBar({
+  rule,
+  label,
+  save,
+  onClear,
+}: {
+  rule: RuleAction;
+  label: string;
+  /** Caller-provided typed save call (e.g. `submitFlowSheetVitals(visitId, body)`).
+   *  Resolves to whatever the underlying repo function returns (typically the
+   *  updated `Visit`); we ignore the value here. */
+  save: () => Promise<unknown>;
+  onClear: () => void;
+}) {
+  const { can, t } = useApp();
+  const [busy, setBusy] = useState(false);
+  const allowed = can(rule);
+
+  const handleSave = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!allowed) {
+      Alert.alert(t("permissionDenied"), t("permissionDeniedDescription"));
+      return;
+    }
+    setBusy(true);
+    try {
+      await save();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", err?.message ?? "Failed to save");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleClear = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onClear();
+  };
+
+  const btnBase = {
+    flex: 1,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  };
+  const labelStyle = { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 };
+
+  return (
+    <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+      <Pressable
+        onPress={handleSave}
+        disabled={busy || !allowed}
+        style={{
+          ...btnBase,
+          backgroundColor: allowed ? Colors.primary : "#9CA3AF",
+          opacity: busy ? 0.7 : 1,
+        }}
+      >
+        {busy ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Feather name="save" size={14} color="#fff" />
+        )}
+        <Text style={labelStyle}>{label}</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={handleClear}
+        disabled={busy}
+        style={{
+          ...btnBase,
+          flex: 0,
+          paddingHorizontal: 16,
+          backgroundColor: "#EF4444",
+          opacity: busy ? 0.5 : 1,
+        }}
+      >
+        <Feather name="trash-2" size={14} color="#fff" />
+        <Text style={labelStyle}>Clear</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 export function FlowSheetForm(props: Props) {
@@ -135,14 +251,17 @@ export function FlowSheetForm(props: Props) {
   const [access, setAccess] = useState(init?.access ?? "");
   const [anticoagType, setAnticoagType] = useState(init?.anticoagType ?? "");
   const [postTx, setPostTx] = useState<FlowSheetFormPostTx>(init?.postTx ?? EMPTY_POST);
+  // Note: response now returns `url` (CDN/S3 link), not inline base64. We feed
+  // the URL into the local SignatureValue via the same `dataUrl` field — the
+  // SignaturePad WebView can render an http(s) URL identically.
   const [patientSignature, setPatientSignature] = useState<SignatureValue>(
     init?.patientSignature
-      ? { signed: true, dataUrl: init.patientSignature.dataUrl, signedAt: init.patientSignature.signedAt }
+      ? { signed: true, dataUrl: init.patientSignature.url, signedAt: init.patientSignature.signedAt }
       : { signed: false },
   );
   const [nurseSignature, setNurseSignature] = useState<SignatureValue>(
     init?.nurseSignature
-      ? { signed: true, dataUrl: init.nurseSignature.dataUrl, signedAt: init.nurseSignature.signedAt }
+      ? { signed: true, dataUrl: init.nurseSignature.url, signedAt: init.nurseSignature.signedAt }
       : { signed: false },
   );
 
@@ -170,34 +289,7 @@ export function FlowSheetForm(props: Props) {
   const medsDone = Object.keys(props.medAdmin).length > 0;
   const postDone = Object.values(postTx).some((v) => v !== "");
 
-  const handleClear = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setVitals(EMPTY_VITALS);
-    setPain(""); setFallRisk(""); setIntake(""); setOutput(""); setAccess("");
-    setOutsideDialysis(false); setAlarmsTest(false); setHighFallRisk(false);
-    setBpSite(""); setMethod(""); setMachine("");
-    setNursingActions([{ ...EMPTY_NURSING }]);
-    setDialysisParams([{ ...EMPTY_DIALYSIS }]);
-    setCar(EMPTY_CAR);
-    setDialysate(EMPTY_DIALYSATE);
-    setAnticoagType("");
-    setPostTx(EMPTY_POST);
-    setPainDetails(EMPTY_PAIN);
-    setPatientSignature({ signed: false });
-    setNurseSignature({ signed: false });
-  };
-
-  const handleSave = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    props.onSave({
-      vitals, bpSite, method, machine, pain, painDetails, fallRisk, highFallRisk,
-      outsideDialysis, alarmsTest, nursingActions, dialysisParams,
-      intake, output, car, dialysate, access, anticoagType, postTx,
-      patientSignature, nurseSignature,
-    });
-  };
-
-  const { colors, isReadOnly } = props;
+  const { colors, isReadOnly, visitId } = props;
 
   return (
     <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -214,18 +306,50 @@ export function FlowSheetForm(props: Props) {
         <View style={{ padding: 14 }}>
           <Acc title="Outside Dialysis" color="#0EA5E9" done={outsideDialysis} isOpen={!!sections.outside} onToggle={() => toggle("outside")} colors={colors} isReadOnly={isReadOnly}>
             <OutsideDialysisForm value={outsideDialysis} onChange={setOutsideDialysis} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_outside_dialysis"
+                label="Save Outside Dialysis"
+                save={() => submitFlowSheetOutsideDialysis(visitId, { outsideDialysis })}
+                onClear={() => setOutsideDialysis(false)}
+              />
+            )}
           </Acc>
 
           <Acc title="Pre-Treatment Vitals" color="#2DAAAE" done={vitalsDone} isOpen={!!sections.vitals} onToggle={() => toggle("vitals")} colors={colors} isReadOnly={isReadOnly}>
             <VitalsForm vitals={vitals} bpSite={bpSite} method={method} onVitalChange={updateVital} onBpSiteChange={setBpSite} onMethodChange={setMethod} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_pre_treatment_vitals"
+                label="Save Vitals"
+                save={() => submitFlowSheetVitals(visitId, { vitals, bpSite, method })}
+                onClear={() => { setVitals(EMPTY_VITALS); setBpSite(""); setMethod(""); }}
+              />
+            )}
           </Acc>
 
           <Acc title="Machines" color="#8B5CF6" done={machineDone} isOpen={!!sections.machines} onToggle={() => toggle("machines")} colors={colors} isReadOnly={isReadOnly}>
             <MachinesForm machine={machine} onChange={setMachine} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_machines"
+                label="Save Machines"
+                save={() => submitFlowSheetMachines(visitId, { machine })}
+                onClear={() => setMachine("")}
+              />
+            )}
           </Acc>
 
           <Acc title="Pain Assessment" color="#EF4444" done={painDone} isOpen={!!sections.pain} onToggle={() => toggle("pain")} colors={colors} isReadOnly={isReadOnly}>
             <PainForm painScore={pain} painDetails={painDetails} onScoreChange={setPain} onDetailsChange={setPainDetails} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_pain_assessment"
+                label="Save Pain Assessment"
+                save={() => submitFlowSheetPain(visitId, { pain, painDetails })}
+                onClear={() => { setPain(""); setPainDetails(EMPTY_PAIN); }}
+              />
+            )}
           </Acc>
 
           <Acc title="Fall Risk Assessment" color="#F59E0B" done={fallDone} isOpen={!!sections.fall} onToggle={() => toggle("fall")} colors={colors} isReadOnly={isReadOnly}>
@@ -241,42 +365,129 @@ export function FlowSheetForm(props: Props) {
               onOpenMorseSheet={props.onOpenMorseSheet}
               colors={colors}
             />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_fall_risk"
+                label="Save Fall Risk"
+                save={() => submitFlowSheetFallRisk(visitId, {
+                  fallRisk,
+                  highFallRisk,
+                  morseValues: props.morseValues,
+                  morseTotal: props.morseTotal,
+                })}
+                onClear={() => { setFallRisk(""); setHighFallRisk(false); }}
+              />
+            )}
           </Acc>
 
           <Acc title="Nursing Action" color="#10B981" done={nursingDone} isOpen={!!sections.nursing} onToggle={() => toggle("nursing")} colors={colors} isReadOnly={isReadOnly}>
             <NursingActionForm rows={nursingActions} onChange={setNursingActions} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_nursing_actions"
+                label="Save Nursing Action"
+                save={() => submitFlowSheetNursingActions(visitId, { nursingActions })}
+                onClear={() => setNursingActions([{ ...EMPTY_NURSING }])}
+              />
+            )}
           </Acc>
 
           <Acc title="Dialysis Parameters" color="#3B82F6" done={dialysisDone} isOpen={!!sections.dialysis} onToggle={() => toggle("dialysis")} colors={colors} isReadOnly={isReadOnly}>
             <DialysisParamsForm rows={dialysisParams} onChange={setDialysisParams} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_dialysis_parameters"
+                label="Save Dialysis Parameters"
+                save={() => submitFlowSheetDialysisParams(visitId, { dialysisParams })}
+                onClear={() => setDialysisParams([{ ...EMPTY_DIALYSIS }])}
+              />
+            )}
           </Acc>
 
           <Acc title="Alarms Test" color="#F97316" done={alarmsTest} isOpen={!!sections.alarms} onToggle={() => toggle("alarms")} colors={colors} isReadOnly={isReadOnly}>
             <AlarmsTestForm passed={alarmsTest} onChange={setAlarmsTest} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_alarms_test"
+                label="Save Alarms Test"
+                save={() => submitFlowSheetAlarmsTest(visitId, { alarmsTest })}
+                onClear={() => setAlarmsTest(false)}
+              />
+            )}
           </Acc>
 
           <Acc title="Intake / Output" color="#06B6D4" done={intakeDone} isOpen={!!sections.intake} onToggle={() => toggle("intake")} colors={colors} isReadOnly={isReadOnly}>
             <IntakeOutputForm intake={intake} output={output} onIntakeChange={setIntake} onOutputChange={setOutput} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_intake_output"
+                label="Save Intake / Output"
+                save={() => submitFlowSheetIntakeOutput(visitId, { intake, output })}
+                onClear={() => { setIntake(""); setOutput(""); }}
+              />
+            )}
           </Acc>
 
           <Acc title="CAR" color="#8B5CF6" done={carDone} isOpen={!!sections.car} onToggle={() => toggle("car")} colors={colors} isReadOnly={isReadOnly}>
             <CarForm car={car} onChange={setCar} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_car"
+                label="Save CAR"
+                save={() => submitFlowSheetCar(visitId, { car })}
+                onClear={() => setCar(EMPTY_CAR)}
+              />
+            )}
           </Acc>
 
           <Acc title="Access / Location" color="#10B981" done={accessDone} isOpen={!!sections.access} onToggle={() => toggle("access")} colors={colors} isReadOnly={isReadOnly}>
             <AccessForm value={access} onChange={setAccess} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_access"
+                label="Save Access"
+                save={() => submitFlowSheetAccess(visitId, { access })}
+                onClear={() => setAccess("")}
+              />
+            )}
           </Acc>
 
           <Acc title="Dialysate" color="#3B82F6" done={dialysateDone} isOpen={!!sections.dialysate} onToggle={() => toggle("dialysate")} colors={colors} isReadOnly={isReadOnly}>
             <DialysateForm dialysate={dialysate} onChange={setDialysate} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_dialysate"
+                label="Save Dialysate"
+                save={() => submitFlowSheetDialysate(visitId, { dialysate })}
+                onClear={() => setDialysate(EMPTY_DIALYSATE)}
+              />
+            )}
           </Acc>
 
           <Acc title="Anticoagulation" color="#EF4444" done={anticoagDone} isOpen={!!sections.anticoag} onToggle={() => toggle("anticoag")} colors={colors} isReadOnly={isReadOnly}>
             <AnticoagForm type={anticoagType} onChange={setAnticoagType} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_anticoagulation"
+                label="Save Anticoagulation"
+                save={() => submitFlowSheetAnticoagulation(visitId, { anticoagType })}
+                onClear={() => setAnticoagType("")}
+              />
+            )}
           </Acc>
 
           <Acc title="Dialysis Medications" color="#0891B2" done={medsDone} isOpen={!!sections.meds} onToggle={() => toggle("meds")} colors={colors} isReadOnly={isReadOnly}>
             <DialysisMedsForm medications={props.medications} medAdmin={props.medAdmin} onAction={props.onMedAction} colors={colors} />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_medications"
+                label="Save Medications"
+                save={() => submitFlowSheetMedications(visitId, { medAdmin: props.medAdmin })}
+                onClear={() => {
+                  // Medication state is controlled by parent; nothing local to clear.
+                }}
+              />
+            )}
           </Acc>
 
           <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly}>
@@ -290,18 +501,23 @@ export function FlowSheetForm(props: Props) {
               onSignatureSaved={props.onSignatureSaved}
               colors={colors}
             />
+            {!isReadOnly && (
+              <SectionSaveBar
+                rule="submit_flow_sheet_post_treatment"
+                label="Save Post Treatment"
+                save={() => submitFlowSheetPostTreatment(visitId, {
+                  postTx,
+                  patientSignature: toSaved(patientSignature),
+                  nurseSignature: toSaved(nurseSignature),
+                })}
+                onClear={() => {
+                  setPostTx(EMPTY_POST);
+                  setPatientSignature({ signed: false });
+                  setNurseSignature({ signed: false });
+                }}
+              />
+            )}
           </Acc>
-
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: Colors.primary, flex: 1 }]} onPress={handleSave}>
-              <Feather name="save" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>Save</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
-              <Feather name="trash-2" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>Clear</Text>
-            </Pressable>
-          </View>
         </View>
       )}
     </Card>

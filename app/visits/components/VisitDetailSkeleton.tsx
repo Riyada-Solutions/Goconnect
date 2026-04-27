@@ -12,22 +12,11 @@ interface Props {
 }
 
 export function VisitDetailSkeleton({ colors }: Props) {
-  const { topPad } = useScreenPadding({ hasActionBar: true });
   const baseColor = colors.border;
   const highlightColor = colors.card;
 
   return (
-    <View style={[s.container, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          s.topBar,
-          { paddingTop: topPad + 8, backgroundColor: colors.surface, borderBottomColor: colors.border },
-        ]}
-      >
-        <Shimmer width={38} height={38} radius={10} baseColor={baseColor} highlightColor={highlightColor} />
-        <Shimmer width={140} height={20} baseColor={baseColor} highlightColor={highlightColor} style={{ marginLeft: 8 }} />
-      </View>
-
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: Spacing.screen.horizontal, gap: Spacing.screen.gap }}>
         {/* Hero */}
         <View style={[s.heroCard, { backgroundColor: colors.card, gap: 10 }]}>

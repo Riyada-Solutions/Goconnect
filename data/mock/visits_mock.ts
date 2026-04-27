@@ -1,29 +1,40 @@
-import type { Visit, DialysisMedication, InventoryItem } from '../../types/visit'
-import type { FlowSheet } from '../../types/flowSheet'
-import type { NursingProgressNote, NursingProgressNoteInput } from '../../types/nursingProgressNote'
+import type { Visit, DialysisMedication, InventoryItem } from '../models/visit'
+import type { FlowSheet } from '../models/flowSheet'
+import type { NursingProgressNote, NursingProgressNoteInput } from '../models/nursingProgressNote'
 import type {
   SocialWorkerProgressNote,
   SocialWorkerProgressNoteInput,
-} from '../../types/socialWorkerProgressNote'
-import type { Referral, ReferralInput } from '../../types/referral'
-import type { DoctorProgressNote, DoctorProgressNoteInput } from '../../types/doctorProgressNote'
-import type { Refusal, RefusalInput } from '../../types/refusal'
-import type { VisitSignature, VisitSignatureInput } from '../../types/visitSignature'
-import type { SariScreening, SariScreeningInput } from '../../types/sariScreening'
+} from '../models/socialWorkerProgressNote'
+import type { Referral, ReferralInput } from '../models/referral'
+import type { DoctorProgressNote, DoctorProgressNoteInput } from '../models/doctorProgressNote'
+import type { Refusal, RefusalInput } from '../models/refusal'
+import type { SariScreening, SariScreeningInput } from '../models/sariScreening'
 
-export const MOCK_VISITS: Visit[] = [
+/**
+ * Legacy in-memory storage shape with progress notes / preTreatmentVitals at
+ * the top level. The public functions below transform this into the canonical
+ * `Visit` shape (progressNotes wrapper, flowSheet.preTreatmentVitals) before
+ * returning. Submit helpers continue to push into the legacy keys so they
+ * remain a flat in-memory store.
+ */
+type LegacyMockVisit = Omit<Visit, 'progressNotes' | 'flowSheet'> & {
+  flowSheet?: any
+  preTreatmentVitals?: any
+  nursingProgressNotes?: NursingProgressNote[]
+  doctorProgressNotes?: DoctorProgressNote[]
+  socialWorkerProgressNotes?: SocialWorkerProgressNote[]
+}
+
+export const MOCK_VISITS: LegacyMockVisit[] = [
   {
     id: 1,
     patientName: 'Ahmed Al-Rashid',
     patientId: 1,
-    phone: '+966 50 123 4567',
     date: '2024-12-22',
     time: '09:00',
     type: 'Home Visit',
     status: 'completed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Patient stable. Blood sugar levels within target range. Insulin dosage adjusted.',
-    diagnosis: 'Type 2 Diabetes',
     address: 'Riyadh, Al Olaya District, Villa 45',
     duration: 45,
     careTeam: [
@@ -82,14 +93,11 @@ export const MOCK_VISITS: Visit[] = [
     id: 2,
     patientName: 'Fatima Al-Zahra',
     patientId: 2,
-    phone: '+966 55 987 6543',
     date: '2024-12-22',
     time: '11:00',
     type: 'Clinic Visit',
     status: 'completed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'BP 130/85. Medication adjusted. Follow-up in 2 weeks.',
-    diagnosis: 'Hypertension',
     address: 'Jeddah, Al Hamra Clinic',
     duration: 30,
     careTeam: [
@@ -121,14 +129,11 @@ export const MOCK_VISITS: Visit[] = [
     id: 3,
     patientName: 'Khalid Al-Mansouri',
     patientId: 3,
-    phone: '+966 54 456 7890',
     date: '2024-12-23',
     time: '08:30',
     type: 'Home Visit',
     status: 'in_progress',
     provider: 'Dr. Mohammed Al-Amri',
-    notes: 'Urgent cardiac assessment required.',
-    diagnosis: 'Chronic Heart Failure',
     address: 'Dammam, Al Faisaliyah, Building 12',
     duration: 60,
     careTeam: [
@@ -160,14 +165,11 @@ export const MOCK_VISITS: Visit[] = [
     id: 4,
     patientName: 'Nora Al-Qahtani',
     patientId: 4,
-    phone: '+966 50 234 5678',
     date: '2024-12-23',
     time: '10:00',
     type: 'Follow-up',
     status: 'start_procedure',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Inhaler technique improvement noted.',
-    diagnosis: 'Asthma',
     address: 'Riyadh, Al Nuzha, Apt 203',
     duration: 30,
     careTeam: [
@@ -198,14 +200,11 @@ export const MOCK_VISITS: Visit[] = [
     id: 5,
     patientName: 'Tariq Al-Otaibi',
     patientId: 7,
-    phone: '+966 56 678 9012',
     date: '2024-12-21',
     time: '14:00',
     type: 'Emergency',
     status: 'completed',
     provider: 'Dr. Mohammed Al-Amri',
-    notes: 'Breathing difficulties. Nebulizer treatment administered. Transferred to hospital.',
-    diagnosis: 'COPD Exacerbation',
     address: 'Riyadh, Al Malaz, House 78',
     duration: 90,
     careTeam: [
@@ -243,14 +242,11 @@ export const MOCK_VISITS: Visit[] = [
     id: 6,
     patientName: 'Layla Al-Hassan',
     patientId: 6,
-    phone: '+966 58 345 6789',
     date: '2024-12-24',
     time: '13:30',
     type: 'Home Visit',
     status: 'end_procedure',
     provider: 'Dr. Amira Khalil',
-    notes: 'Joint pain reassessment and physiotherapy guidance.',
-    diagnosis: 'Rheumatoid Arthritis',
     address: 'Medina, Al Rawabi, Villa 22',
     duration: 45,
     careTeam: [
@@ -281,14 +277,11 @@ export const MOCK_VISITS: Visit[] = [
     id: 7,
     patientName: 'Hessa Al-Shammari',
     patientId: 8,
-    phone: '+966 53 789 0123',
     date: '2024-12-20',
     time: '16:00',
     type: 'Clinic Visit',
     status: 'completed',
     provider: 'Dr. Sarah Johnson',
-    notes: 'Migraine triggers identified. New preventative medication prescribed.',
-    diagnosis: 'Chronic Migraine',
     address: 'Jeddah, Al Rehab Clinic',
     duration: 40,
     careTeam: [
@@ -367,38 +360,64 @@ export const MOCK_INVENTORY: InventoryItem[] = [
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/**
+ * Restructure a legacy in-memory visit into the canonical Visit response:
+ *   - hydrate medications + inventory
+ *   - move preTreatmentVitals INSIDE flowSheet
+ *   - group nursing / doctor / socialWorker notes under `progressNotes`
+ */
+const withReferenceData = (v: LegacyMockVisit): Visit => {
+  const {
+    nursingProgressNotes,
+    doctorProgressNotes,
+    socialWorkerProgressNotes,
+    preTreatmentVitals,
+    flowSheet,
+    ...rest
+  } = v
+
+  const flow = flowSheet ?? {}
+  const hasPreVitals = !!preTreatmentVitals || !!flow.preTreatmentVitals
+  const mergedFlow =
+    Object.keys(flow).length > 0 || hasPreVitals
+      ? {
+          visitId: v.id,
+          ...flow,
+          ...(hasPreVitals
+            ? { preTreatmentVitals: preTreatmentVitals ?? flow.preTreatmentVitals }
+            : {}),
+        }
+      : undefined
+
+  const hasNotes =
+    !!(nursingProgressNotes?.length || doctorProgressNotes?.length || socialWorkerProgressNotes?.length)
+
+  return {
+    ...rest,
+    flowSheet: mergedFlow,
+    progressNotes: hasNotes
+      ? {
+          nursing: nursingProgressNotes ?? [],
+          doctor: doctorProgressNotes ?? [],
+          socialWorker: socialWorkerProgressNotes ?? [],
+        }
+      : undefined,
+    medications: rest.medications ?? MOCK_DIALYSIS_MEDICATIONS,
+    inventory: rest.inventory ?? MOCK_INVENTORY,
+  }
+}
+
 export async function mockGetVisits(): Promise<Visit[]> {
   await delay(2000)
-  return MOCK_VISITS
+  return MOCK_VISITS.map(withReferenceData)
 }
 
 export async function mockGetVisitById(id: number): Promise<Visit | undefined> {
   await delay(2000)
-  return MOCK_VISITS.find((v) => v.id === id)
+  const found = MOCK_VISITS.find((v) => v.id === id)
+  return found ? withReferenceData(found) : undefined
 }
 
-export async function mockGetMedications(): Promise<DialysisMedication[]> {
-  await delay(2000)
-  return MOCK_DIALYSIS_MEDICATIONS
-}
-
-export async function mockGetInventory(): Promise<InventoryItem[]> {
-  await delay(2000)
-  return MOCK_INVENTORY
-}
-
-export async function mockSubmitFlowSheet(payload: FlowSheet): Promise<void> {
-  await new Promise((r) => setTimeout(r, 500))
-  const idx = findVisitIndex(payload.visitId)
-  if (idx >= 0) {
-    MOCK_VISITS[idx] = { ...MOCK_VISITS[idx], flowSheet: payload }
-  }
-  const patientBytes = payload.patientSignature?.dataUrl.length ?? 0
-  const nurseBytes = payload.nurseSignature?.dataUrl.length ?? 0
-  console.log(
-    `[mockSubmitFlowSheet] saved flow sheet for visit ${payload.visitId} — patient signature: ${patientBytes}b, nurse signature: ${nurseBytes}b`,
-  )
-}
 
 let nextNursingNoteId = 100
 let nextSocialWorkerNoteId = 200
@@ -449,21 +468,6 @@ export async function mockSubmitDoctorProgressNote(
     const existing = MOCK_VISITS[idx].doctorProgressNotes ?? []
     MOCK_VISITS[idx] = { ...MOCK_VISITS[idx], doctorProgressNotes: [record, ...existing] }
   }
-  return record
-}
-
-export async function mockSubmitVisitSignature(
-  payload: VisitSignatureInput,
-): Promise<VisitSignature> {
-  await new Promise((r) => setTimeout(r, 300))
-  const record: VisitSignature = {
-    id: nextSignatureId++,
-    visitId: payload.visitId,
-    kind: payload.kind,
-    dataUrl: payload.dataUrl,
-    signedAt: payload.signedAt,
-  }
-  console.log(`[mockSubmitVisitSignature] saved ${record.kind} signature for visit ${record.visitId} (${record.dataUrl.length} bytes)`)
   return record
 }
 

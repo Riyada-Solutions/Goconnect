@@ -5,6 +5,9 @@ export interface User {
   hospital: string | null
   email: string
   phone: string | null
+  /** Opaque token used by `POST /auth/verify-face` for biometric (Face ID) login.
+   *  Stored in OS secure storage when the user enables Face ID in settings. */
+  face_token?: string | null
   department: string | null
   employeeId: string
   initials?: string
@@ -21,6 +24,10 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string
   user: User
+}
+
+export interface VerifyFaceRequest {
+  face_token: string
 }
 
 export interface RegisterRequest {
@@ -46,26 +53,3 @@ export interface ChangePasswordRequest {
   currentPassword: string
   newPassword: string
 }
-
-export interface SessionResponse {
-  user: User
-  expiresAt: string
-}
-
-export interface HeartbeatResponse {
-  expiresAt: string
-}
-
-export interface NotificationSettings {
-  email_notifications: boolean
-  sms_notifications: boolean
-  push_notifications: boolean
-  vibration: boolean
-  sound_alerts: boolean
-  quiet_hours_start: string
-  quiet_hours_end: string
-}
-
-// Legacy aliases — keep existing callers compiling
-export type LoginCredentials = LoginRequest
-export type RegisterData = RegisterRequest

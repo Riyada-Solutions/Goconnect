@@ -1,25 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  getVisits,
+  endVisit,
   getVisitById,
-  getMedications,
-  getInventory,
+  getVisits,
+  saveProcedureTimes,
+  startVisit,
   submitDoctorProgressNote,
-  submitFlowSheet,
+  submitInventoryUsage,
   submitNursingProgressNote,
   submitReferral,
   submitRefusal,
   submitSariScreening,
   submitSocialWorkerProgressNote,
-  submitVisitSignature,
 } from '../data/visit_repository'
-import type { DoctorProgressNoteInput } from '../types/doctorProgressNote'
-import type { FlowSheet } from '../types/flowSheet'
-import type { ReferralInput } from '../types/referral'
-import type { RefusalInput } from '../types/refusal'
-import type { SariScreeningInput } from '../types/sariScreening'
-import type { SocialWorkerLocation } from '../types/socialWorkerProgressNote'
-import type { VisitSignatureKind } from '../types/visitSignature'
+import type { InventoryUsageInput, Visit } from '../data/models/visit'
+import type { DoctorProgressNoteInput } from '../data/models/doctorProgressNote'
+import type { ReferralInput } from '../data/models/referral'
+import type { RefusalInput } from '../data/models/refusal'
+import type { SariScreeningInput } from '../data/models/sariScreening'
+import type { SocialWorkerLocation } from '../data/models/socialWorkerProgressNote'
 
 export function useVisits() {
   return useQuery({
@@ -38,114 +37,93 @@ export function useVisit(id: number) {
   })
 }
 
-export function useMedications() {
-  return useQuery({
-    queryKey: ['medications'],
-    queryFn: getMedications,
-    staleTime: 60_000,
-  })
-}
-
-export function useInventory() {
-  return useQuery({
-    queryKey: ['inventory'],
-    queryFn: getInventory,
-    staleTime: 60_000,
-  })
-}
-
-export function useSubmitFlowSheet(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: Omit<FlowSheet, 'visitId'>) => submitFlowSheet({ ...payload, visitId } as FlowSheet),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-    },
-  })
+/**
+ * Every visit mutation returns the **updated Visit** (single source of truth).
+ * On success we shove it straight into the React-Query cache so screens
+ * re-render instantly without a network round-trip.
+ */
+function applyVisitUpdate(qc: ReturnType<typeof useQueryClient>, visit: Visit) {
+  qc.setQueryData(['visits', visit.id], visit)
+  qc.invalidateQueries({ queryKey: ['visits'] })
 }
 
 export function useSubmitNursingProgressNote(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (note: string) => submitNursingProgressNote({ visitId, note }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-      queryClient.invalidateQueries({ queryKey: ['visits'] })
-    },
-  })
-}
-
-export function useSubmitVisitSignature(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: { kind: VisitSignatureKind; dataUrl: string; signedAt?: string }) =>
-      submitVisitSignature({
-        visitId,
-        kind: input.kind,
-        dataUrl: input.dataUrl,
-        signedAt: input.signedAt ?? new Date().toISOString(),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-    },
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, string>({
+    mutationFn: (note) => submitNursingProgressNote({ visitId, note }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
   })
 }
 
 export function useSubmitSariScreening(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: Omit<SariScreeningInput, 'visitId'>) =>
-      submitSariScreening({ visitId, ...input }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-      queryClient.invalidateQueries({ queryKey: ['visits'] })
-    },
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Omit<SariScreeningInput, 'visitId'>>({
+    mutationFn: (input) => submitSariScreening({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
   })
 }
 
 export function useSubmitRefusal(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: Omit<RefusalInput, 'visitId'>) => submitRefusal({ visitId, ...input }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-      queryClient.invalidateQueries({ queryKey: ['visits'] })
-    },
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Omit<RefusalInput, 'visitId'>>({
+    mutationFn: (input) => submitRefusal({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
   })
 }
 
 export function useSubmitDoctorProgressNote(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: Omit<DoctorProgressNoteInput, 'visitId'>) =>
-      submitDoctorProgressNote({ visitId, ...input }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-      queryClient.invalidateQueries({ queryKey: ['visits'] })
-    },
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Omit<DoctorProgressNoteInput, 'visitId'>>({
+    mutationFn: (input) => submitDoctorProgressNote({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
   })
 }
 
 export function useSubmitReferral(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: Omit<ReferralInput, 'visitId'>) =>
-      submitReferral({ visitId, ...input }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-      queryClient.invalidateQueries({ queryKey: ['visits'] })
-    },
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Omit<ReferralInput, 'visitId'>>({
+    mutationFn: (input) => submitReferral({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
   })
 }
 
 export function useSubmitSocialWorkerProgressNote(visitId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: { note: string; location: SocialWorkerLocation }) =>
-      submitSocialWorkerProgressNote({ visitId, ...input }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visits', visitId] })
-      queryClient.invalidateQueries({ queryKey: ['visits'] })
-    },
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, { note: string; location: SocialWorkerLocation }>({
+    mutationFn: (input) => submitSocialWorkerProgressNote({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
+  })
+}
+
+export function useSubmitInventoryUsage(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Omit<InventoryUsageInput, 'visitId'>>({
+    mutationFn: (input) => submitInventoryUsage({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
+  })
+}
+
+
+function useVisitStatusMutation(
+  fn: (id: number) => Promise<Visit>,
+  visitId: number,
+) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, void>({
+    mutationFn: () => fn(visitId),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
+  })
+}
+
+export const useStartVisit = (visitId: number) =>
+  useVisitStatusMutation(startVisit, visitId)
+export const useEndVisit = (visitId: number) =>
+  useVisitStatusMutation(endVisit, visitId)
+
+export function useSaveProcedureTimes(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, { startTime?: string; endTime?: string }>({
+    mutationFn: (body) => saveProcedureTimes(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
   })
 }

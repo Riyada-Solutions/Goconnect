@@ -9,17 +9,11 @@ import { Spacing } from "@/theme/spacing";
 
 export function AppointmentDetailSkeleton() {
   const { colors } = useTheme();
-  const { topPad } = useScreenPadding({ hasActionBar: true });
   const base = colors.border;
   const highlight = colors.card;
 
   return (
-    <View style={[s.container, { backgroundColor: colors.background }]}>
-      <View style={[s.topBar, { paddingTop: topPad, borderBottomColor: colors.border }]}>
-        <Shimmer width={40} height={40} radius={20} baseColor={base} highlightColor={highlight} />
-        <Shimmer width={180} height={20} baseColor={base} highlightColor={highlight} />
-      </View>
-
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ padding: Spacing.screen.horizontal, gap: Spacing.screen.gap }}>
         {/* Patient card */}
         <Card style={{ padding: 14, gap: 10 }}>

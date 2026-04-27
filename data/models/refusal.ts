@@ -13,7 +13,11 @@ export interface PartyInfo {
   relationship?: string
   signed: boolean
   signedAt?: string // ISO datetime
-  signatureData?: string // SVG path data
+  /** Local-only: PNG data URL captured by SignaturePad. Stripped before
+   *  sending — the bytes ride the matching `*_signature` multipart file part. */
+  signatureData?: string
+  /** Server-returned URL of the stored PNG. Present on responses (Visit.refusals). */
+  signatureUrl?: string
   address?: string
 }
 

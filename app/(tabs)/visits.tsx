@@ -17,6 +17,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
+import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListSkeleton, VisitCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
@@ -73,6 +74,7 @@ export default function VisitsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScreenBackground />
       {/* Header */}
       <View
         style={[

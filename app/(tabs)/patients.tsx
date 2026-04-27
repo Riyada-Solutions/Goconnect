@@ -13,6 +13,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PatientCard } from "@/components/common/PatientCard";
+import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { SearchBar } from "@/components/common/SearchBar";
 import { ListSkeleton, PatientCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
@@ -54,6 +55,7 @@ export default function PatientsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScreenBackground />
       {/* Header */}
       <View
         style={[

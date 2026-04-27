@@ -1,7 +1,7 @@
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
 import { mockGetPatients, mockGetPatientById, mockGetPatientAlerts } from './mock/patients_mock'
-import type { Patient, PatientAlert } from '../types/patient'
+import type { Patient, PatientAlert } from './models/patient'
 
 export async function getPatients(): Promise<Patient[]> {
   if (ENV.USE_MOCK_DATA) return mockGetPatients()

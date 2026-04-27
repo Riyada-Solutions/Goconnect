@@ -9,6 +9,7 @@ import {
   mockSendOtp,
   mockVerifyOtp,
   mockResetPassword,
+  mockVerifyFace,
 } from './mock/auth_mock'
 import type {
   LoginRequest,
@@ -18,8 +19,9 @@ import type {
   VerifyOtpRequest,
   ResetPasswordRequest,
   ChangePasswordRequest,
-  NotificationSettings,
+  VerifyFaceRequest,
 } from './models/auth'
+import { clearFaceToken } from './secure_storage'
 
 export const ACCESS_TOKEN_KEY = 'access_token'
 
@@ -45,6 +47,25 @@ export async function register(body: RegisterRequest): Promise<void> {
   await apiClient.post('/auth/register', body)
 }
 
+/**
+ * Authenticate using a previously-issued face_token (kept in secure storage).
+ * Returns the same payload as `/auth/login`. Used by the Face ID quick-login
+ * flow on the login screen.
+ */
+export async function verifyFace(body: VerifyFaceRequest): Promise<LoginResponse> {
+  if (ENV.USE_MOCK_DATA) {
+    const res = await mockVerifyFace(body.face_token)
+    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, res.accessToken)
+    return res
+  }
+  const { data } = await apiClient.post<{ data: LoginResponse }>(
+    '/auth/verify-face',
+    body,
+  )
+  await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.data.accessToken)
+  return data.data
+}
+
 export async function verifyOtp(
   body: VerifyOtpRequest,
 ): Promise<{ resetToken?: string }> {
@@ -54,11 +75,6 @@ export async function verifyOtp(
   }
   const { data } = await apiClient.post('/auth/verify-otp', body)
   return data?.data ?? data ?? {}
-}
-
-export async function resendOtp(purpose: string, identifier: string): Promise<void> {
-  if (ENV.USE_MOCK_DATA) return
-  await apiClient.post('/auth/resend-otp', { purpose, identifier })
 }
 
 export async function forgotPassword(email: string): Promise<void> {
@@ -78,6 +94,7 @@ export async function changePassword(body: ChangePasswordRequest): Promise<void>
 
 export async function logout(): Promise<void> {
   await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
+  await clearFaceToken()
   if (ENV.USE_MOCK_DATA) return
   await apiClient.post('/auth/logout').catch(() => {})
 }
@@ -96,59 +113,22 @@ export async function updateMe(body: { name: string; phone: string }): Promise<U
   return res.data?.data ?? res.data
 }
 
-export async function getNotificationSettings(): Promise<NotificationSettings> {
-  if (ENV.USE_MOCK_DATA) {
-    return {
-      email_notifications: true,
-      sms_notifications: false,
-      push_notifications: true,
-      vibration: true,
-      sound_alerts: true,
-      quiet_hours_start: '22:00',
-      quiet_hours_end: '06:00',
-    }
-  }
-  const res = await apiClient.get('/settings/notifications')
-  const d = res.data?.data ?? res.data
-  return {
-    email_notifications: d.email_notifications ?? true,
-    sms_notifications: d.sms_notifications ?? true,
-    push_notifications: d.push_notifications ?? true,
-    vibration: d.vibration ?? true,
-    sound_alerts: d.sound_alerts ?? true,
-    quiet_hours_start: d.quiet_hours_start ?? '22:00',
-    quiet_hours_end: d.quiet_hours_end ?? '06:00',
-  }
+export interface RegisterDeviceRequest {
+  fcm_token: string | null
+  device_type: 'ios' | 'android'
 }
 
-export async function updateNotificationSettings(
-  body: Partial<NotificationSettings>,
-): Promise<NotificationSettings> {
-  if (ENV.USE_MOCK_DATA) return getNotificationSettings()
-  const res = await apiClient.put('/settings/notifications', body)
-  return res.data?.data ?? res.data
-}
-
-export async function updateDeviceToken(token: string, platform: 'ios' | 'android'): Promise<void> {
+/**
+ * Sends the device's FCM token + platform to the profile API.
+ * Called on every app open so the backend always has the latest token.
+ */
+export async function registerDevice(body: RegisterDeviceRequest): Promise<void> {
   if (ENV.USE_MOCK_DATA) return
-  await apiClient.post('/me/device-token', { token, platform })
+  await apiClient.post('/me/device-token', body)
 }
 
-// ── Legacy wrappers used by existing hooks/screens ───────────────────────────
 
-/** @deprecated use forgotPassword(email) */
+/** @deprecated use forgotPassword(email) — kept for forgot-password screen. */
 export async function sendOtp(email: string): Promise<void> {
   return forgotPassword(email)
-}
-
-/** @deprecated token is no longer persisted as a pair; use getMe() + AsyncStorage token */
-export async function getStoredAuth(): Promise<{ user: User; token: string } | null> {
-  const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY)
-  if (!token) return null
-  try {
-    const user = await getMe()
-    return { user, token }
-  } catch {
-    return null
-  }
 }
