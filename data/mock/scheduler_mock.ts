@@ -1,4 +1,5 @@
 import type { Slot } from '../models/scheduler'
+import { MOCK_PATIENTS } from './patients_mock'
 
 export const MOCK_SLOTS: Slot[] = [
   {
@@ -160,12 +161,20 @@ export const MOCK_SLOTS: Slot[] = [
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+const withPatient = (slot: Slot): Slot => ({
+  ...slot,
+  patient: slot.patientId != null
+    ? MOCK_PATIENTS.find((p) => p.id === slot.patientId) ?? null
+    : null,
+})
+
 export async function mockGetSlots(): Promise<Slot[]> {
   await delay(2000)
-  return MOCK_SLOTS
+  return MOCK_SLOTS.map(withPatient)
 }
 
 export async function mockGetSlotById(id: number): Promise<Slot | undefined> {
   await delay(2000)
-  return MOCK_SLOTS.find((s) => s.id === id)
+  const found = MOCK_SLOTS.find((s) => s.id === id)
+  return found ? withPatient(found) : undefined
 }

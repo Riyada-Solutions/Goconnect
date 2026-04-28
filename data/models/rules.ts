@@ -28,7 +28,6 @@ export type RuleAction =
   // ── Patients ──────────────────────────────────────────────────────
   | 'view_patients'
   | 'view_patient_detail'
-  | 'view_patient_alerts'
   | 'view_patient_care_team'
   | 'call_patient'
   | 'navigate_to_patient_address'
@@ -69,6 +68,9 @@ export type RuleAction =
   | 'submit_refusal'
   | 'submit_sari_screening'
   | 'submit_inventory_usage'
+  // ── Help & support ────────────────────────────────────────────────
+  | 'view_help_support'
+  | 'submit_support_message'
 
 export const ALL_RULE_ACTIONS: RuleAction[] = [
   'view_dashboard',
@@ -89,7 +91,6 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
 
   'view_patients',
   'view_patient_detail',
-  'view_patient_alerts',
   'view_patient_care_team',
   'call_patient',
   'navigate_to_patient_address',
@@ -131,6 +132,8 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
   'submit_sari_screening',
   'submit_inventory_usage',
 
+  'view_help_support',
+  'submit_support_message',
 ]
 
 /** Backend response shape. */

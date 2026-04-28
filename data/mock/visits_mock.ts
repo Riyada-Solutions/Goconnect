@@ -9,6 +9,7 @@ import type { Referral, ReferralInput } from '../models/referral'
 import type { DoctorProgressNote, DoctorProgressNoteInput } from '../models/doctorProgressNote'
 import type { Refusal, RefusalInput } from '../models/refusal'
 import type { SariScreening, SariScreeningInput } from '../models/sariScreening'
+import { MOCK_PATIENTS, MOCK_PATIENT_ALERTS } from './patients_mock'
 
 /**
  * Legacy in-memory storage shape with progress notes / preTreatmentVitals at
@@ -392,8 +393,13 @@ const withReferenceData = (v: LegacyMockVisit): Visit => {
   const hasNotes =
     !!(nursingProgressNotes?.length || doctorProgressNotes?.length || socialWorkerProgressNotes?.length)
 
+  const patient = MOCK_PATIENTS.find((p) => p.id === rest.patientId) ?? null
+  const patientAlerts = rest.patientId != null ? MOCK_PATIENT_ALERTS[rest.patientId] ?? null : null
+
   return {
     ...rest,
+    patient,
+    patientAlerts,
     flowSheet: mergedFlow,
     progressNotes: hasNotes
       ? {

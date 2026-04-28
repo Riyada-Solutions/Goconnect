@@ -28,7 +28,6 @@ import {
   useConfirmAppointment,
   useSlot,
 } from "@/hooks/useScheduler";
-import { usePatient } from "@/hooks/usePatients";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
@@ -46,8 +45,8 @@ export default function AppointmentDetailScreen() {
 
   const { data: record, isLoading, isError, refetch } = useSlot(Number(id));
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
-  const patientId = (record as any)?.patientId as number | undefined;
-  const { data: patientRecord } = usePatient(patientId ?? 0);
+  // Patient hero card data rides on the slot response (single source of truth).
+  const patientRecord = (record as any)?.patient ?? null;
 
   const [status, setStatus] = useState<"pending" | "confirmed" | "checked-in">(
     record?.status === "confirmed" ? "confirmed" : "pending",

@@ -1,4 +1,5 @@
 import type { CareTeamMember } from './careTeam'
+import type { Patient } from './patient'
 
 export interface Slot {
   id: number
@@ -19,4 +20,9 @@ export interface Slot {
   insurance: string
   doctorTime: string
   careTeam: CareTeamMember[]
+
+  /** Embedded patient record so the appointment detail screen can render the
+   *  patient hero card without a second `/patients/{id}` request. `null` for
+   *  slots without a patient (e.g. provider breaks). */
+  patient?: Patient | null
 }

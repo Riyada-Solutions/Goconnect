@@ -250,8 +250,3 @@ export async function mockGetPatientById(id: number): Promise<Patient | undefine
   await delay(2000)
   return MOCK_PATIENTS.find((p) => p.id === id)
 }
-
-export async function mockGetPatientAlerts(patientId: number): Promise<PatientAlert | undefined> {
-  await delay(2000)
-  return MOCK_PATIENT_ALERTS[patientId]
-}

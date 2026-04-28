@@ -264,6 +264,16 @@ export default function ProfileMainScreen() {
               text={textColor}
             />
             <MenuItem
+              icon="help-circle"
+              label={t("helpSupport")}
+              iconColor={Colors.icon.purple}
+              iconBg={Colors.pastel.purple}
+              onPress={() => router.push("/(settings)/help-support")}
+              isDark={isDark}
+              border={border}
+              text={textColor}
+            />
+            <MenuItem
               icon="trash-2"
               label={t("deleteAccount")}
               iconColor={Colors.icon.red}

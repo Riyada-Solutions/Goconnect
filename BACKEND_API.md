@@ -9,14 +9,15 @@ This is the API contract between the CareConnect Nurse mobile app and the backen
 1. [Conventions](#1-conventions)
 2. [Authentication & profile](#2-authentication--profile)
 3. [Permissions / rules](#3-permissions--rules)
-4. [Dashboard](#4-dashboard)
+4. [Home](#4-home)
 5. [Patients](#5-patients)
 6. [Lab results](#6-lab-results)
 7. [Scheduler / appointments](#7-scheduler--appointments)
 8. [Visits — read & status transitions](#8-visits--read--status-transitions)
 9. [Visit forms — write](#9-visit-forms--write)
 10. [Reference data — embedded in Visit response](#10-reference-data--embedded-in-visit-response)
-11. [Endpoint summary](#11-endpoint-summary)
+11. [Help & support](#11-help--support)
+12. [Endpoint summary](#12-endpoint-summary)
 
 ---
 
@@ -338,18 +339,19 @@ Action-level permission list for the authenticated user. The app calls this on l
 
 ### 3.3 Canonical action catalogue
 
-The mobile app currently checks **52 keys**. Source of truth: [data/models/rules.ts](data/models/rules.ts).
+The mobile app currently checks **53 keys**. Source of truth: [data/models/rules.ts](data/models/rules.ts).
 
 | Group | Keys |
 |---|---|
 | **Dashboard / shell** | `view_dashboard`, `view_notifications` |
 | **Profile / account** | `view_profile`, `edit_profile`, `change_avatar`, `change_password`, `delete_account`, `logout` |
 | **App settings** | `toggle_biometric`, `toggle_push_notifications`, `toggle_email_notifications`, `change_language`, `change_theme` |
-| **Patients** | `view_patients`, `view_patient_detail`, `view_patient_alerts`, `view_patient_care_team`, `call_patient`, `navigate_to_patient_address` |
+| **Patients** | `view_patients`, `view_patient_detail`, `view_patient_care_team`, `call_patient`, `navigate_to_patient_address` |
 | **Lab results** | `view_lab_results`, `view_lab_order_pdf`, `view_lab_result_pdf` |
 | **Schedule / appointments** | `view_schedule`, `view_appointment_detail`, `confirm_appointment`, `check_in_patient` |
 | **Visits (read)** | `view_visits`, `view_visit_detail`, `start_visit`, `end_visit` |
 | **Visit forms (write)** | `submit_flow_sheet_outside_dialysis`, `submit_flow_sheet_pre_treatment_vitals`, `submit_flow_sheet_machines`, `submit_flow_sheet_pain_assessment`, `submit_flow_sheet_fall_risk`, `submit_flow_sheet_nursing_actions`, `submit_flow_sheet_dialysis_parameters`, `submit_flow_sheet_alarms_test`, `submit_flow_sheet_intake_output`, `submit_flow_sheet_car`, `submit_flow_sheet_access`, `submit_flow_sheet_dialysate`, `submit_flow_sheet_anticoagulation`, `submit_flow_sheet_medications`, `submit_flow_sheet_post_treatment`, `submit_nursing_progress_note`, `submit_doctor_progress_note`, `submit_social_worker_progress_note`, `submit_referral`, `submit_refusal`, `submit_sari_screening`, `submit_inventory_usage` |
+| **Help & support** | `view_help_support`, `submit_support_message` |
 
 ### 3.4 Errors
 - `401` → token invalid/expired → app signs the user out.
@@ -357,12 +359,14 @@ The mobile app currently checks **52 keys**. Source of truth: [data/models/rules
 
 ---
 
-## 4. Dashboard
+## 4. Home
 
-### 4.1 Dashboard stats
-`GET /dashboard/stats`
+### 4.1 Home payload
+`GET /home`
 
-KPI cards on the home screen.
+Single endpoint that powers the entire home screen — KPI stats, today's
+visits, and the recent-patients carousel ride on one response so the screen
+makes exactly one request on mount.
 
 **Request** — none.
 
@@ -370,13 +374,25 @@ KPI cards on the home screen.
 ```json
 {
   "data": {
-    "totalPatients": 0,
-    "todayVisits": 0,
-    "pendingSchedules": 0,
-    "completedVisits": 0
+    "stats": {
+      "totalPatients": 0,
+      "todayVisits": 0,
+      "pendingSchedules": 0,
+      "completedVisits": 0
+    },
+    "todayVisits": [ { "...Visit..." } ],
+    "recentPatients": [ { "...Patient..." } ]
   }
 }
 ```
+
+- `todayVisits` — up to N upcoming/today visits, each is the full `Visit`
+  shape (§8.2). The mobile app shows the first three on the home cards.
+- `recentPatients` — up to N most recently seen patients, each is the full
+  `Patient` shape (§5.1). The mobile app shows the first four.
+
+The home screen does **not** call `/visits`, `/patients`, or any per-resource
+endpoint on mount — everything it needs comes back here.
 
 ---
 
@@ -452,24 +468,10 @@ Source: [data/patient_repository.ts](data/patient_repository.ts), [data/models/p
 }
 ```
 
-### 5.3 Patient alerts
-`GET /patients/{id}/alerts`
-
-Allergies, isolation, contamination, and special instructions shown on the visit detail screen.
-
-**Request** — none.
-
-**Response**
-```json
-{
-  "data": {
-    "allergies": [{ "type": "drug", "value": "Penicillin" }],
-    "contamination": ["MRSA"],
-    "instructions": "string",
-    "isolation": "Contact precautions"
-  }
-}
-```
+> Patient alerts (allergies, isolation, contamination, special instructions)
+> are **not** a standalone endpoint — they ride on the Visit response under
+> `Visit.patientAlerts` (§8.2). The visit detail screen renders the alerts
+> card straight from there, no extra request.
 
 ---
 
@@ -538,11 +540,17 @@ Source: [data/scheduler_repository.ts](data/scheduler_repository.ts), [data/mode
       "doctorTime": "string",
       "careTeam": [
         { "name": "...", "role": "...", "phone": "...", "isPrimary": true }
-      ]
+      ],
+      "patient": { "...full Patient (§5.1)... | null" }
     }
   ]
 }
 ```
+
+`patient` is the full embedded `Patient` record for this slot (`null` for
+slots without a patient — e.g. provider breaks). The appointment detail
+screen renders the patient hero card directly from this — no second
+`/patients/{id}` round-trip.
 
 ### 7.2 Slot detail
 `GET /scheduler/slots/{id}`
@@ -572,7 +580,8 @@ Source: [data/scheduler_repository.ts](data/scheduler_repository.ts), [data/mode
     "doctorTime": "string",
     "careTeam": [
       { "name": "...", "role": "...", "phone": "...", "isPrimary": true }
-    ]
+    ],
+    "patient": { "...full Patient (§5.1)... | null" }
   }
 }
 ```
@@ -607,7 +616,8 @@ Transitions a slot from `pending` → `confirmed`. Rule: `confirm_appointment`.
     "doctorTime": "string",
     "careTeam": [
       { "name": "...", "role": "...", "phone": "...", "isPrimary": true }
-    ]
+    ],
+    "patient": { "...full Patient (§5.1)... | null" }
   }
 }
 ```
@@ -660,6 +670,20 @@ The full Visit response. Every nested form is on this object — the app does no
   "duration": 60,
 
   "careTeam": [{ "name": "...", "role": "...", "phone": "...", "isPrimary": true }],
+
+  // ── Embedded patient record (single source of truth). The visit detail
+  //    screen renders the patient hero card straight from this — no
+  //    `/patients/{id}` round-trip. ──
+  "patient": { "...full Patient (§5.1)... | null" },
+
+  // ── Allergies / isolation / contamination / special instructions for the
+  //    patient. `null` when the patient has no alerts on file. ──
+  "patientAlerts": {
+    "allergies": [{ "type": "drug", "value": "Penicillin" }],
+    "contamination": ["MRSA"],
+    "instructions": "string",
+    "isolation": "Contact precautions"
+  },
 
   // ── Flow sheet snapshot (single home for everything captured during the visit). ──
   // Every field is optional — the flow sheet grows incrementally as the nurse
@@ -1219,7 +1243,46 @@ There are **no standalone `/medications` or `/inventory` endpoints**. Both lists
 
 ---
 
-## 11. Endpoint summary
+## 11. Help & support
+
+Source: [data/support_repository.ts](data/support_repository.ts), [data/models/support.ts](data/models/support.ts), [app/(settings)/help-support.tsx](app/(settings)/help-support.tsx).
+
+### 11.1 Submit support message
+`POST /support/messages`
+`Content-Type: application/json`
+
+Rule: `submit_support_message`. Submits a contact-form message from the
+in-app **Help & Support** screen. The backend forwards the message to the
+support inbox (and may email a copy to the user).
+
+**Request**
+```json
+{
+  "name": "string",
+  "email": "string",
+  "subject": "string",
+  "message": "string"
+}
+```
+- All fields are required and non-empty (the mobile client trims whitespace
+  and short-circuits with a local validation error otherwise).
+- `email` — the address support should reply to. The mobile client does no
+  format check beyond non-emptiness; the backend should validate and return
+  `400` on a malformed value.
+
+**Response** — `204` (no body). The mobile client surfaces a "message sent"
+confirmation regardless of whether the backend echoes anything back.
+
+### 11.2 Errors
+- `400` — validation failed (missing field, malformed email).
+- `401` — token invalid/expired → app signs the user out.
+- `403` — user lacks `submit_support_message` (e.g. role with read-only
+  access). The mobile client should surface the message and leave the form
+  populated so the user can retry after a permission change.
+
+---
+
+## 12. Endpoint summary
 
 ### Auth & profile
 | # | Endpoint | Method |
@@ -1237,14 +1300,13 @@ There are **no standalone `/medications` or `/inventory` endpoints**. Both lists
 | 2.11 | `/me/device-token` | POST |
 | 2.12 | `/auth/verify-face` | POST |
 
-### Permissions, dashboard, patients, lab, scheduler
+### Permissions, home, patients, lab, scheduler
 | # | Endpoint | Method |
 |---|---|---|
 | 3.1 | `/me/rules` | GET |
-| 4.1 | `/dashboard/stats` | GET |
+| 4.1 | `/home` | GET |
 | 5.1 | `/patients` | GET |
 | 5.2 | `/patients/{id}` | GET |
-| 5.3 | `/patients/{id}/alerts` | GET |
 | 6.1 | `/patients/{id}/lab-results` | GET |
 | 7.1 | `/scheduler/slots` | GET |
 | 7.2 | `/scheduler/slots/{id}` | GET |
@@ -1288,4 +1350,9 @@ There are **no standalone `/medications` or `/inventory` endpoints**. Both lists
 
 > Reference data (medications + inventory) ride on the `GET /visits/{id}` response — no standalone endpoints. See §10.
 
-**Total: 49 endpoints.**
+### Help & support
+| # | Endpoint | Method |
+|---|---|---|
+| 11.1 | `/support/messages` | POST |
+
+**Total: 48 endpoints.**

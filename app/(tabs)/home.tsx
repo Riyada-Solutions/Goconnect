@@ -22,9 +22,7 @@ import { PatientCard } from "@/components/common/PatientCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { useDashboardStats } from "@/hooks/useHome";
-import { usePatients } from "@/hooks/usePatients";
-import { useVisits } from "@/hooks/useVisits";
+import { useHome } from "@/hooks/useHome";
 import { useTheme } from "@/hooks/useTheme";
 
 function getGreeting() {
@@ -43,12 +41,10 @@ export default function HomeScreen() {
     | "goodAfternoon"
     | "goodEvening";
 
-  const { data: stats } = useDashboardStats();
-  const { data: visits = [] } = useVisits();
-  const { data: patients = [] } = usePatients();
-
-  const todayVisits = visits.slice(0, 3);
-  const recentPatients = patients.slice(0, 4);
+  const { data: home } = useHome();
+  const stats = home?.stats;
+  const todayVisits = home?.todayVisits ?? [];
+  const recentPatients = home?.recentPatients ?? [];
 
   const STAT_CARDS = [
     {

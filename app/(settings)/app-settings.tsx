@@ -374,7 +374,7 @@ export default function AppSettingsScreen() {
               iconBg={Colors.pastel.green}
               iconColor={Colors.icon.green}
               label={t("helpFeedback")}
-              onPress={() => {}}
+              onPress={() => router.push("/(settings)/help-support")}
               borderColor={bd}
               textColor={colors.text}
               subColor={colors.textSecondary}

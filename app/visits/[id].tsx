@@ -8,7 +8,6 @@ import { CareTeamView } from "@/components/common/CareTeamView";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { usePatient, usePatientAlerts } from "@/hooks/usePatients";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
@@ -187,10 +186,9 @@ function VisitDetailScreenInner() {
   // preTreatmentVitals now lives inside flowSheet (single source of truth).
   const preTreatmentVitals = (record as any)?.flowSheet?.preTreatmentVitals;
 
-  // Must call hooks before any early return (Rules of Hooks)
-  const patientId = (record as any)?.patientId as number | undefined;
-  const { data: patientRecord } = usePatient(patientId ?? 0);
-  const { data: patientAlertsData } = usePatientAlerts(patientId ?? 0);
+  // Patient + alerts ride on the visit response (single source of truth).
+  const patientRecord = (record as any)?.patient ?? null;
+  const patientAlertsData = (record as any)?.patientAlerts ?? null;
 
   useEffect(() => {
     if (inventoryData.length > 0 && inventoryItems.length === 0) {
