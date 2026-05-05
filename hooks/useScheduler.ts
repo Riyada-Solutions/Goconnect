@@ -5,13 +5,14 @@ import {
   confirmAppointment,
   getSlotById,
   getSlots,
+  type SlotsQuery,
 } from '../data/scheduler_repository'
 import type { Slot } from '../data/models/scheduler'
 
-export function useSlots() {
+export function useSlots(query?: SlotsQuery) {
   return useQuery({
-    queryKey: ['slots'],
-    queryFn: getSlots,
+    queryKey: ['slots', query?.date ?? null],
+    queryFn: () => getSlots(query),
     staleTime: 30_000,
   })
 }

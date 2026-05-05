@@ -72,14 +72,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("en");
   const [theme, setThemeState] = useState<Theme>("system");
   const [rules, setRules] = useState<Set<RuleAction>>(new Set());
+  // Wildcard mode: backend returns an empty rules array for super-admin /
+  // role-less accounts. Treat that as "all actions permitted" so admins can
+  // exercise the app instead of being silently locked out.
+  const [allowAll, setAllowAll] = useState(false);
   const colorScheme = useColorScheme();
   const systemDark = colorScheme === "dark";
 
   const syncRules = useCallback(async () => {
     try {
       const list = await getRules();
-      const set = new Set(list);
-      setRules(set);
+      setRules(new Set(list));
+      setAllowAll(list.length === 0);
       queryClient.setQueryData(RULES_QUERY_KEY, list);
     } catch {
       // Leave the existing set in place; the next app open will retry.
@@ -160,12 +164,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setToken(null);
     setRules(new Set());
+    setAllowAll(false);
     queryClient.clear();
   }, [queryClient]);
 
   const can = useCallback(
-    (action: RuleAction) => rules.has(action),
-    [rules],
+    (action: RuleAction) => allowAll || rules.has(action),
+    [rules, allowAll],
   );
 
   const setLanguage = useCallback(async (lang: Language) => {

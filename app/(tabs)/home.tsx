@@ -213,7 +213,8 @@ export default function HomeScreen() {
         </ScrollView>
       </LinearGradient>
 
-      {/* Upcoming Visits */}
+      {/* Upcoming Visits — hidden when there's nothing to show */}
+      {todayVisits.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -291,13 +292,15 @@ export default function HomeScreen() {
                   </View>
                   <StatusBadge status={visit.status} size="sm" />
                 </View>
-              </Card>
+                </Card>
             </Pressable>
           </Animated.View>
         ))}
       </View>
+      )}
 
-      {/* Recent Patients */}
+      {/* Recent Patients — hidden when the list is empty */}
+      {recentPatients.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -326,6 +329,7 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+      )}
     </ScrollView>
     </View>
   );

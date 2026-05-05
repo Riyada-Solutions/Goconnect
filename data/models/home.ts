@@ -1,11 +1,25 @@
 import type { Patient } from './patient'
 import type { Visit } from './visit'
 
+/**
+ * KPI cards on the home screen. Field names changed when the dashboard moved
+ * from `/home` to `/dashboard/stats`; we accept both old and new names so
+ * unmigrated screens can still read whatever is populated.
+ */
 export interface DashboardStats {
-  totalPatients: number
-  todayVisits: number
-  pendingSchedules: number
-  completedVisits: number
+  /** New API. */
+  totalActivePatients?: number
+  inProgressVisits?: number
+  todayAppointments?: number
+  confirmedAppointments?: number
+
+  /** Legacy mock fields. */
+  totalPatients?: number
+  pendingSchedules?: number
+
+  /** Present in both. */
+  todayVisits?: number
+  completedVisits?: number
 }
 
 /**

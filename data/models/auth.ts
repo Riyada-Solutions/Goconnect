@@ -1,7 +1,7 @@
 export interface User {
   id: string
   name: string
-  role: string
+  role: string | null
   hospital: string | null
   email: string
   phone: string | null
@@ -31,15 +31,18 @@ export interface VerifyFaceRequest {
 }
 
 export interface RegisterRequest {
-  registerCode: string
+  registerCode?: string
   phone: string
-  fullName: string
+  username: string
+  name: string
   email: string
+  password: string
+  password_confirmation: string
 }
 
 export interface VerifyOtpRequest {
   purpose: 'register' | 'reset_password'
-  identifier: string
+  email: string
   otp: string
 }
 

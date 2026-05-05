@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   Animated,
@@ -26,6 +26,10 @@ export default function NewPasswordScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
   const s = makeStyles(colors);
 
+  const params = useLocalSearchParams<{ email?: string; resetToken?: string }>();
+  const email = typeof params.email === "string" ? params.email : "";
+  const resetToken = typeof params.resetToken === "string" ? params.resetToken : "";
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -48,7 +52,7 @@ export default function NewPasswordScreen() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await resetPassword(newPassword);
+      await resetPassword({ email, resetToken, newPassword });
       setSuccess(true);
       Animated.spring(successScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }).start();
     } catch {

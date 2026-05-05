@@ -22,7 +22,7 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       await sendOtp(email);
-      router.push("/(auth)/otp");
+      router.push({ pathname: "/(auth)/otp", params: { email } });
     } catch {
     } finally {
       setLoading(false);

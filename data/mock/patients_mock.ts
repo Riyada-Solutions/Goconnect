@@ -1,4 +1,4 @@
-import type { Patient, PatientAlert } from '../models/patient'
+import type { Patient, PatientAlertSummary } from '../models/patient'
 
 export const MOCK_PATIENTS: Patient[] = [
   {
@@ -197,7 +197,7 @@ export const MOCK_PATIENTS: Patient[] = [
   },
 ]
 
-export const MOCK_PATIENT_ALERTS: Record<number, PatientAlert> = {
+export const MOCK_PATIENT_ALERTS: Record<number, PatientAlertSummary> = {
   1: {
     allergies: [{ type: 'Drug Allergies', value: 'Vancomycin' }],
     contamination: ['dust'],

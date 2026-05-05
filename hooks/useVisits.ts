@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   endVisit,
   getVisitById,
-  getVisits,
+  getVisitsPage,
+  VISITS_PER_PAGE,
   saveProcedureTimes,
   startVisit,
   submitDoctorProgressNote,
@@ -20,10 +21,12 @@ import type { RefusalInput } from '../data/models/refusal'
 import type { SariScreeningInput } from '../data/models/sariScreening'
 import type { SocialWorkerLocation } from '../data/models/socialWorkerProgressNote'
 
-export function useVisits() {
-  return useQuery({
-    queryKey: ['visits'],
-    queryFn: getVisits,
+export function useVisits(date?: string) {
+  return useInfiniteQuery({
+    queryKey: ['visits', date ?? null],
+    queryFn: ({ pageParam = 1 }) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date),
+    initialPageParam: 1,
+    getNextPageParam: (last) => last.hasMore ? last.meta.current_page + 1 : undefined,
     staleTime: 30_000,
   })
 }
@@ -32,7 +35,7 @@ export function useVisit(id: number) {
   return useQuery({
     queryKey: ['visits', id],
     queryFn: () => getVisitById(id),
-    staleTime: 30_000,
+    staleTime: 0,
     enabled: !!id,
   })
 }

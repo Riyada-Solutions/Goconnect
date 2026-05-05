@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { changePassword } from "@/data/auth_repository";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 
 function PasswordField({
@@ -97,15 +98,21 @@ export default function ChangePasswordScreen() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    showDialog({
-      variant: "success",
-      title: "Password Changed",
-      message: "Your password has been updated successfully.",
-      primaryAction: { label: "OK", onPress: () => router.back() },
-    });
+    try {
+      await changePassword({ currentPassword: current, newPassword: newPass });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showDialog({
+        variant: "success",
+        title: "Password Changed",
+        message: "Your password has been updated successfully.",
+        primaryAction: { label: "OK", onPress: () => router.back() },
+      });
+    } catch {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setErrors({ current: "Failed to change password. Please check your current password." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -1,9 +1,7 @@
 import * as Haptics from "expo-haptics";
 import React, { useMemo, useState } from "react";
 import {
-  FlatList,
   Pressable,
-  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -12,6 +10,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
+import { PaginationList } from "@/components/common/PaginationList";
 import { PatientCard } from "@/components/common/PatientCard";
 import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { SearchBar } from "@/components/common/SearchBar";
@@ -33,7 +32,25 @@ export default function PatientsScreen() {
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
-  const { data: patients = [], isLoading, isError, refetch } = usePatients();
+  const {
+    data: pagesData,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = usePatients();
+  const patients = useMemo(() => {
+    const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
+    const seen = new Set<string>();
+    return all.filter((p) => {
+      const k = String(p.id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [pagesData]);
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
 
@@ -125,25 +142,22 @@ export default function PatientsScreen() {
       ) : isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : (
-        <FlatList
+        <PaginationList
           data={filtered}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item: any) => String(item.id)}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          itemGap={listGap}
           contentContainerStyle={
             filtered.length === 0
               ? { flexGrow: 1 }
-              : { padding: horizontal, paddingBottom: botPad, gap: listGap }
+              : { padding: horizontal, paddingBottom: botPad }
           }
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary}
-              colors={[Colors.primary]}
-            />
-          }
-          renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
+          renderItem={({ item, index }: { item: any; index: number }) => (
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 40).springify()}>
               <PatientCard patient={item} />
             </Animated.View>
           )}

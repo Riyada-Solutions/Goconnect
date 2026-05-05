@@ -224,21 +224,21 @@ export default function PatientDetailScreen() {
               <GridItem
                 icon="calendar"
                 label={t("dob")}
-                value={patient.dob}
+                value={patient.dob ?? undefined}
                 textColor={colors.text}
                 secondaryColor={colors.textSecondary}
               />
               <GridItem
                 icon="user"
                 label={t("gender")}
-                value={patient.gender}
+                value={patient.gender ?? undefined}
                 textColor={colors.text}
                 secondaryColor={colors.textSecondary}
               />
               <GridItem
                 icon="shield"
                 label={t("codeStatus")}
-                value={patient.codeStatus}
+                value={patient.codeStatus ?? undefined}
                 textColor={colors.text}
                 secondaryColor={colors.textSecondary}
               />

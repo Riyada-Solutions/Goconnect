@@ -3,16 +3,33 @@ import { apiClient } from './api_client'
 import { mockGetSlots, mockGetSlotById } from './mock/scheduler_mock'
 import type { Slot } from './models/scheduler'
 
-export async function getSlots(): Promise<Slot[]> {
-  if (ENV.USE_MOCK_DATA) return mockGetSlots()
-  const { data } = await apiClient.get<Slot[]>('/scheduler/slots')
-  return data
+const unwrapSlot = (raw: any): Slot => raw?.data ?? raw
+const unwrapSlots = (raw: any): Slot[] => raw?.data ?? raw ?? []
+
+export interface SlotsQuery {
+  date?: string   // YYYY-MM-DD
+  perPage?: number
+  page?: number
 }
 
-export async function getSlotById(id: number): Promise<Slot | undefined> {
-  if (ENV.USE_MOCK_DATA) return mockGetSlotById(id)
-  const { data } = await apiClient.get<Slot>(`/scheduler/slots/${id}`)
-  return data
+export async function getSlots(query?: SlotsQuery): Promise<Slot[]> {
+  if (ENV.USE_MOCK_DATA) return mockGetSlots()
+  const params: Record<string, unknown> = {}
+  if (query?.date) params.date = query.date
+  if (query?.perPage != null) params.per_page = query.perPage
+  if (query?.page != null) params.page = query.page
+  const res = await apiClient.get('/scheduler/slots', {
+    params: Object.keys(params).length ? params : undefined,
+  })
+  return unwrapSlots(res.data)
+}
+
+export async function getSlotById(
+  id: number | string,
+): Promise<Slot | undefined> {
+  if (ENV.USE_MOCK_DATA) return mockGetSlotById(Number(id))
+  const res = await apiClient.get(`/scheduler/slots/${id}`)
+  return unwrapSlot(res.data)
 }
 
 // ─── Status transitions ─────────────────────────────────────────────────────
@@ -23,7 +40,7 @@ export async function getSlotById(id: number): Promise<Slot | undefined> {
 
 const unwrap = (raw: any): Slot => raw?.data ?? raw
 
-async function patchMockSlot(id: number, status: Slot['status']): Promise<Slot> {
+async function patchMockSlot(id: number, status: string): Promise<Slot> {
   await new Promise((r) => setTimeout(r, 300))
   const current = await mockGetSlotById(id)
   if (!current) throw new Error('Slot not found')
@@ -31,14 +48,18 @@ async function patchMockSlot(id: number, status: Slot['status']): Promise<Slot> 
   return current
 }
 
-export async function confirmAppointment(slotId: number): Promise<Slot> {
-  if (ENV.USE_MOCK_DATA) return patchMockSlot(slotId, 'confirmed')
+export async function confirmAppointment(
+  slotId: number | string,
+): Promise<Slot> {
+  if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'confirmed')
   const res = await apiClient.post(`/scheduler/slots/${slotId}/confirm`)
   return unwrap(res.data)
 }
 
-export async function checkInAppointment(slotId: number): Promise<Slot> {
-  if (ENV.USE_MOCK_DATA) return patchMockSlot(slotId, 'checked_in')
+export async function checkInAppointment(
+  slotId: number | string,
+): Promise<Slot> {
+  if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'checked_in')
   const res = await apiClient.post(`/scheduler/slots/${slotId}/check-in`)
   return unwrap(res.data)
 }

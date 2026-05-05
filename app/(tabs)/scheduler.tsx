@@ -85,12 +85,17 @@ export default function SchedulerScreen() {
   );
   const calendarRef = useRef<ScrollView>(null);
 
+  const selectedDate = CALENDAR_DAYS[selectedGlobal]?.fullDate
+  const selectedDateStr = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+    : undefined
+
   const {
     data: slots = [],
     isLoading: slotsLoading,
     isError: slotsError,
     refetch: refetchSlots,
-  } = useSlots();
+  } = useSlots({ date: selectedDateStr });
   const { refreshing, onRefresh } = usePullToRefresh(refetchSlots);
   const showSkeleton = slotsLoading || refreshing;
 
@@ -227,7 +232,7 @@ export default function SchedulerScreen() {
         </Text>
 
         {slots.map((slot, i) => {
-          const typeColor = TYPE_COLORS[slot.type] ?? Colors.primary;
+          const typeColor = (slot.type && TYPE_COLORS[slot.type]) ?? Colors.primary;
           const hasPatient = !!slot.patientName;
           const start = to12h(slot.time);
           const end = to12h(slot.endTime);

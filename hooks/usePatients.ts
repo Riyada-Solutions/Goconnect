@@ -1,10 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
-import { getPatients, getPatientById } from '../data/patient_repository'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { getPatientById, getPatientsPage, PATIENTS_PER_PAGE } from '../data/patient_repository'
 
 export function usePatients() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['patients'],
-    queryFn: getPatients,
+    queryFn: ({ pageParam = 1 }) => getPatientsPage(PATIENTS_PER_PAGE, pageParam as number),
+    initialPageParam: 1,
+    getNextPageParam: (last) => last.hasMore ? last.meta.current_page + 1 : undefined,
     staleTime: 30_000,
   })
 }

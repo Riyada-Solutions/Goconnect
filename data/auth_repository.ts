@@ -58,10 +58,7 @@ export async function verifyFace(body: VerifyFaceRequest): Promise<LoginResponse
     await AsyncStorage.setItem(ACCESS_TOKEN_KEY, res.accessToken)
     return res
   }
-  const { data } = await apiClient.post<{ data: LoginResponse }>(
-    '/auth/verify-face',
-    body,
-  )
+  const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/verify-face', { face_token: body.face_token })
   await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.data.accessToken)
   return data.data
 }
@@ -118,12 +115,9 @@ export interface RegisterDeviceRequest {
   device_type: 'ios' | 'android'
 }
 
-/**
- * Sends the device's FCM token + platform to the profile API.
- * Called on every app open so the backend always has the latest token.
- */
 export async function registerDevice(body: RegisterDeviceRequest): Promise<void> {
   if (ENV.USE_MOCK_DATA) return
+  if (!body.fcm_token) return
   await apiClient.post('/me/device-token', body)
 }
 

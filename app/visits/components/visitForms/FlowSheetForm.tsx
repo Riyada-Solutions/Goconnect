@@ -80,7 +80,16 @@ const EMPTY_DIALYSIS: FlowSheetDialysisParam = {
 };
 const EMPTY_CAR: FlowSheetCar = { ffPercent: "", dialyzer: "", temp: "" };
 const EMPTY_DIALYSATE: FlowSheetDialysate = { na: "", hco3: "", k: "", glucose: "" };
-const EMPTY_POST: FlowSheetFormPostTx = { postWeight: "", lastBp: "", lastPulse: "", condition: "", notes: "" };
+const EMPTY_POST: FlowSheetFormPostTx = {
+  bpSystolic: "", bpDiastolic: "", bpSite: "",
+  pulse: "", temp: "", tempMethod: "",
+  spo2: "", rr: "", rbs: "",
+  weight: "", txHr: "", dialysateL: "",
+  uf: "", blp: "", ufNet: "",
+  catheterLock: "", arterialAccess: "", venousAccess: "",
+  machineDisinfected: false,
+  accessProblems: "", nonMedicalIncidence: "",
+};
 
 const ALL_SECTIONS_OPEN: Record<string, boolean> = {
   outside: false, vitals: false, machines: false, pain: false, fall: false,
@@ -329,7 +338,7 @@ export function FlowSheetForm(props: Props) {
           </Acc>
 
           <Acc title="Machines" color="#8B5CF6" done={machineDone} isOpen={!!sections.machines} onToggle={() => toggle("machines")} colors={colors} isReadOnly={isReadOnly}>
-            <MachinesForm machine={machine} onChange={setMachine} colors={colors} />
+            <MachinesForm machine={machine} onChange={setMachine} colors={colors} disabled={isReadOnly} />
             {!isReadOnly && (
               <SectionSaveBar
                 rule="submit_flow_sheet_machines"
@@ -465,7 +474,7 @@ export function FlowSheetForm(props: Props) {
           </Acc>
 
           <Acc title="Anticoagulation" color="#EF4444" done={anticoagDone} isOpen={!!sections.anticoag} onToggle={() => toggle("anticoag")} colors={colors} isReadOnly={isReadOnly}>
-            <AnticoagForm type={anticoagType} onChange={setAnticoagType} colors={colors} />
+            <AnticoagForm type={anticoagType} onChange={setAnticoagType} colors={colors} disabled={isReadOnly} />
             {!isReadOnly && (
               <SectionSaveBar
                 rule="submit_flow_sheet_anticoagulation"

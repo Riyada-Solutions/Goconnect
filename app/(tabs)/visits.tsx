@@ -3,9 +3,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  FlatList,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +15,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
+import { PaginationList } from "@/components/common/PaginationList";
 import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListSkeleton, VisitCardSkeleton } from "@/components/skeletons";
@@ -62,7 +61,25 @@ export default function VisitsScreen() {
   const { colors } = useTheme();
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [activeFilter, setActiveFilter] = useState<VisitFilter>("all");
-  const { data: visits = [], isLoading, isError, refetch } = useVisits();
+  const {
+    data: pagesData,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useVisits();
+  const visits = useMemo(() => {
+    const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
+    const seen = new Set<string>();
+    return all.filter((v) => {
+      const k = String(v.id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }, [pagesData]);
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
 
@@ -140,180 +157,188 @@ export default function VisitsScreen() {
       ) : isError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : (
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={
-          filtered.length === 0
-            ? { flexGrow: 1 }
-            : { padding: horizontal, paddingBottom: botPad, gap: listGap }
-        }
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.primary}
-            colors={[Colors.primary]}
-          />
-        }
-        renderItem={({ item, index }) => {
-          const icon =
-            (VISIT_TYPE_ICONS[item.type] as any) ?? "activity";
-          return (
-            <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  router.push({
-                    pathname: "/visits/[id]",
-                    params: { id: item.id },
-                  });
-                }}
-              >
-                <Card style={styles.visitCard}>
-                  <View style={styles.visitRow}>
-                    {/* Type icon */}
+        <PaginationList
+          data={filtered}
+          keyExtractor={(item) => String(item.id)}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          itemGap={listGap}
+          contentContainerStyle={
+            filtered.length === 0
+              ? { flexGrow: 1 }
+              : { padding: horizontal, paddingBottom: botPad }
+          }
+          renderItem={({ item, index }: { item: any; index: number }) => {
+            const icon =
+              (VISIT_TYPE_ICONS[item.type] as any) ?? "activity";
+            return (
+              <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 50).springify()}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push({
+                      pathname: "/visits/[id]",
+                      params: { id: item.id },
+                    });
+                  }}
+                >
+                  <Card style={styles.visitCard}>
+                    {/* Footer row */}
                     <View
                       style={[
-                        styles.typeIcon,
-                        {
-                          backgroundColor:
-                            item.status === "completed"
-                              ? "#EEF2FF"
-                              : item.status === "in_progress"
-                                ? "#E0F2FE"
-                                : item.status === "start_procedure"
-                                  ? "#FFF7ED"
-                                  : item.status === "end_procedure"
-                                    ? "#FEF3C7"
-                                    : Colors.accentLight,
-                        },
+                        styles.providerRow,
+                        { borderBottomColor: colors.borderLight },
                       ]}
                     >
-                      <Feather
-                        name={icon}
-                        size={20}
-                        color={
-                          item.status === "completed"
-                            ? "#4F46E5"
-                            : item.status === "in_progress"
-                              ? "#0369A1"
-                              : item.status === "start_procedure"
-                                ? "#C2410C"
-                                : item.status === "end_procedure"
-                                  ? "#92400E"
-                                  : Colors.primary
-                        }
-                      />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.visitTopRow}>
-                        <Text
-                          style={[styles.patientName, { color: colors.text }]}
-                        >
-                          {item.patientName}
-                        </Text>
-                        <StatusBadge status={item.status} size="sm" />
-                      </View>
+                      {item.provider ? (
+                        <Avatar name={item.provider} size={22} />
+                      ) : (
+                        <Feather name="hash" size={13} color={colors.textTertiary} />
+                      )}
                       <Text
                         style={[
-                          styles.visitType,
+                          styles.providerName,
                           { color: colors.textSecondary },
                         ]}
+                        numberOfLines={1}
                       >
-                        {item.type}
+                        {item.provider ?? item.id}
                       </Text>
-                      <View style={styles.visitMeta}>
-                        <View style={styles.metaItem}>
-                          <Feather
-                            name="calendar"
-                            size={11}
-                            color={colors.textTertiary}
-                          />
-                          <Text
-                            style={[
-                              styles.metaText,
-                              { color: colors.textTertiary },
-                            ]}
-                          >
-                            {item.date}
-                          </Text>
-                        </View>
-                        {item.time && (
-                          <View style={styles.metaItem}>
-                            <Feather
-                              name="clock"
-                              size={11}
-                              color={colors.textTertiary}
-                            />
-                            <Text
-                              style={[
-                                styles.metaText,
-                                { color: colors.textTertiary },
-                              ]}
-                            >
-                              {item.time}
-                            </Text>
-                          </View>
-                        )}
-                        {item.duration && (
-                          <View style={styles.metaItem}>
-                            <Feather
-                              name="activity"
-                              size={11}
-                              color={colors.textTertiary}
-                            />
-                            <Text
-                              style={[
-                                styles.metaText,
-                                { color: colors.textTertiary },
-                              ]}
-                            >
-                              {item.duration}min
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  </View>
+                      <StatusBadge status={item.status} size="sm" />
 
-                  {/* Provider */}
-                  <View
-                    style={[
-                      styles.providerRow,
-                      { borderTopColor: colors.borderLight },
-                    ]}
-                  >
-                    <Avatar name={item.provider} size={22} />
-                    <Text
-                      style={[
-                        styles.providerName,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {item.provider}
-                    </Text>
-                    <Feather
+                      {/* <Feather
                       name="chevron-right"
                       size={14}
                       color={colors.textTertiary}
-                    />
-                  </View>
-                </Card>
-              </Pressable>
-            </Animated.View>
-          );
-        }}
-        ListEmptyComponent={
-          <EmptyState
-            icon="activity"
-            title={t("noVisits")}
-            description={t("noVisitsDescription")}
-          />
-        }
-      />
+                    /> */}
+                    </View>
+     
+             
+                    <View style={styles.visitRow}>
+                      {/* Type icon */}
+                      <View
+                        style={[
+                          styles.typeIcon,
+                          {
+                            backgroundColor:
+                              item.status === "completed"
+                                ? "#EEF2FF"
+                                : item.status === "in_progress"
+                                  ? "#E0F2FE"
+                                  : item.status === "start_procedure"
+                                    ? "#FFF7ED"
+                                    : item.status === "end_procedure"
+                                      ? "#FEF3C7"
+                                      : Colors.accentLight,
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={icon}
+                          size={20}
+                          color={
+                            item.status === "completed"
+                              ? "#4F46E5"
+                              : item.status === "in_progress"
+                                ? "#0369A1"
+                                : item.status === "start_procedure"
+                                  ? "#C2410C"
+                                  : item.status === "end_procedure"
+                                    ? "#92400E"
+                                    : Colors.primary
+                          }
+                        />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.visitTopRow}>
+                          <Text
+                            style={[styles.patientName, { color: colors.text }]}
+                            numberOfLines={1}
+                          >
+                            {item.patientName ?? item.patient?.name}
+                          </Text>
+                          {/* <StatusBadge status={item.status} size="sm" /> */}
+                        </View>
+                        <Text
+                          style={[
+                            styles.visitType,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {item.type}
+                        </Text>
+                        <View style={styles.visitMeta}>
+                          <View style={styles.metaItem}>
+                            <Feather
+                              name="calendar"
+                              size={11}
+                              color={colors.textTertiary}
+                            />
+                            <Text
+                              style={[
+                                styles.metaText,
+                                { color: colors.textTertiary },
+                              ]}
+                            >
+                              {item.date}
+                            </Text>
+                          </View>
+                          {item.time && (
+                            <View style={styles.metaItem}>
+                              <Feather
+                                name="clock"
+                                size={11}
+                                color={colors.textTertiary}
+                              />
+                              <Text
+                                style={[
+                                  styles.metaText,
+                                  { color: colors.textTertiary },
+                                ]}
+                              >
+                                {item.time}
+                              </Text>
+                            </View>
+                          )}
+                          {item.duration && (
+                            <View style={styles.metaItem}>
+                              <Feather
+                                name="activity"
+                                size={11}
+                                color={colors.textTertiary}
+                              />
+                              <Text
+                                style={[
+                                  styles.metaText,
+                                  { color: colors.textTertiary },
+                                ]}
+                              >
+                                {item.duration}min
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+
+
+                  </Card>
+                </Pressable>
+              </Animated.View>
+            );
+          }}
+          ListEmptyComponent={
+            <EmptyState
+              icon="activity"
+              title={t("noVisits")}
+              description={t("noVisitsDescription")}
+            />
+          }
+        />
       )}
     </View>
   );
@@ -403,7 +428,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderTopWidth: 1,
+    borderBottomWidth: 1,
   },
   providerName: {
     flex: 1,

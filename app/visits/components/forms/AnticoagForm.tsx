@@ -1,21 +1,32 @@
 import React from "react";
 
-import { FormField } from "../FormField";
+import { SelectField } from "@/components/ui/SelectField";
+
+export const ANTICOAG_OPTIONS = [
+  "Heparin",
+  "Low Molecular Weight Heparin",
+  "Citrate",
+  "Nafamostat",
+  "Argatroban",
+  "None",
+] as const;
 
 interface Props {
   type: string;
   onChange: (v: string) => void;
   colors: any;
+  disabled?: boolean;
 }
 
-export function AnticoagForm({ type, onChange, colors }: Props) {
+export function AnticoagForm({ type, onChange, colors: _colors, disabled }: Props) {
   return (
-    <FormField
+    <SelectField
       label="Anticoagulation Type"
-      value={type}
-      onChangeText={onChange}
-      colors={colors}
-      placeholder="Choose..."
+      value={type || null}
+      options={ANTICOAG_OPTIONS}
+      placeholder="Select type..."
+      onChange={onChange}
+      disabled={disabled}
     />
   );
 }

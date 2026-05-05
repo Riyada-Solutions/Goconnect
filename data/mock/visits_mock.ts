@@ -393,13 +393,20 @@ const withReferenceData = (v: LegacyMockVisit): Visit => {
   const hasNotes =
     !!(nursingProgressNotes?.length || doctorProgressNotes?.length || socialWorkerProgressNotes?.length)
 
-  const patient = MOCK_PATIENTS.find((p) => p.id === rest.patientId) ?? null
-  const patientAlerts = rest.patientId != null ? MOCK_PATIENT_ALERTS[rest.patientId] ?? null : null
+  const patient =
+    MOCK_PATIENTS.find((p) => Number(p.id) === Number(rest.patientId)) ?? null
+  const patientAlerts =
+    rest.patientId != null
+      ? MOCK_PATIENT_ALERTS[Number(rest.patientId)] ?? null
+      : null
 
   return {
     ...rest,
     patient,
-    patientAlerts,
+    // The legacy mock stores a single static summary; the real API returns an
+    // array of activity items. Cast to the looser model so call sites that
+    // still read the legacy shape keep compiling.
+    patientAlerts: patientAlerts as any,
     flowSheet: mergedFlow,
     progressNotes: hasNotes
       ? {

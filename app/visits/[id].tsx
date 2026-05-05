@@ -144,6 +144,19 @@ function VisitDetailScreenInner() {
   const [nurseSigned, setNurseSigned] = useState(false);
   const [nurseSignatureConfirmed, setNurseSignatureConfirmed] = useState(false);
 
+  // Seed Morse values from loaded flowSheet when a new visit record arrives.
+  useEffect(() => {
+    const mv = (record as any)?.flowSheet?.morseValues;
+    if (!mv) return;
+    setMorseA(mv.a ?? null);
+    setMorseB(mv.b ?? null);
+    setMorseC(mv.c ?? null);
+    setMorseD(mv.d ?? null);
+    setMorseE(mv.e ?? null);
+    setMorseF(mv.f ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id]);
+
   // Open physician modal only after Morse sheet has fully closed
   useEffect(() => {
     if (!morseSheetOpen && pendingPhysicianModal) {

@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,6 +15,10 @@ export default function OtpScreen() {
   const { t, isDark } = useApp();
   const colors = isDark ? Colors.dark : Colors.light;
   const s = makeStyles(colors);
+  const params = useLocalSearchParams<{ email?: string; purpose?: string }>();
+  const email = typeof params.email === "string" ? params.email : "";
+  const purpose: "register" | "reset_password" =
+    params.purpose === "register" ? "register" : "reset_password";
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const inputs = useRef<(TextInput | null)[]>([]);
@@ -30,8 +34,15 @@ export default function OtpScreen() {
     setLoading(true);
     try {
       const code = otp.join("");
-      await verifyOtp(code);
-      router.push("/(auth)/new-password");
+      const res = await verifyOtp({ purpose, email, otp: code });
+      if (purpose === "reset_password") {
+        router.push({
+          pathname: "/(auth)/new-password",
+          params: { email, resetToken: res.resetToken ?? "" },
+        });
+      } else {
+        router.replace("/(auth)/login");
+      }
     } catch {
     } finally {
       setLoading(false);
