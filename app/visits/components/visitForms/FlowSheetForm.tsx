@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { type SignatureValue } from "@/components/ui/SignatureField";
 import { useApp } from "@/context/AppContext";
 import type {
@@ -156,20 +157,23 @@ function SectionSaveBar({
   const { can, t } = useApp();
   const [busy, setBusy] = useState(false);
   const allowed = can(rule);
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
+  const sectionName = label.replace(/^Save\s*/i, "");
 
   const handleSave = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!allowed) {
-      Alert.alert(t("permissionDenied"), t("permissionDeniedDescription"));
+      showDialog({ variant: "error", title: t("permissionDenied"), message: t("permissionDeniedDescription") });
       return;
     }
     setBusy(true);
     try {
       await save();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showDialog({ variant: "success", title: "Saved", message: `${sectionName} saved successfully.` });
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Error", err?.message ?? "Failed to save");
+      showDialog({ variant: "error", title: "Save Failed", message: err?.message ?? "Failed to save. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -193,39 +197,42 @@ function SectionSaveBar({
   const labelStyle = { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 };
 
   return (
-    <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-      <Pressable
-        onPress={handleSave}
-        disabled={busy || !allowed}
-        style={{
-          ...btnBase,
-          backgroundColor: allowed ? Colors.primary : "#9CA3AF",
-          opacity: busy ? 0.7 : 1,
-        }}
-      >
-        {busy ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Feather name="save" size={14} color="#fff" />
-        )}
-        <Text style={labelStyle}>{label}</Text>
-      </Pressable>
+    <>
+      <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+        <Pressable
+          onPress={handleSave}
+          disabled={busy || !allowed}
+          style={{
+            ...btnBase,
+            backgroundColor: allowed ? Colors.primary : "#9CA3AF",
+            opacity: busy ? 0.7 : 1,
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Feather name="save" size={14} color="#fff" />
+          )}
+          <Text style={labelStyle}>{label}</Text>
+        </Pressable>
 
-      <Pressable
-        onPress={handleClear}
-        disabled={busy}
-        style={{
-          ...btnBase,
-          flex: 0,
-          paddingHorizontal: 16,
-          backgroundColor: "#EF4444",
-          opacity: busy ? 0.5 : 1,
-        }}
-      >
-        <Feather name="trash-2" size={14} color="#fff" />
-        <Text style={labelStyle}>Clear</Text>
-      </Pressable>
-    </View>
+        <Pressable
+          onPress={handleClear}
+          disabled={busy}
+          style={{
+            ...btnBase,
+            flex: 0,
+            paddingHorizontal: 16,
+            backgroundColor: "#EF4444",
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          <Feather name="trash-2" size={14} color="#fff" />
+          <Text style={labelStyle}>Clear</Text>
+        </Pressable>
+      </View>
+      <FeedbackDialog {...dialogProps} />
+    </>
   );
 }
 
