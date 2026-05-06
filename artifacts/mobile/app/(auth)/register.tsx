@@ -16,13 +16,8 @@ export default function RegisterScreen() {
   const colors = isDark ? Colors.dark : Colors.light;
   const [registerCode, setRegisterCode] = useState("");
   const [phone, setPhone] = useState("");
-  const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const s = makeStyles(colors);
@@ -30,14 +25,13 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setLoading(true);
     try {
+      // v2 contract: registration is identifier-only — no username, no password.
+      // The user sets their password later via the OTP / set-password flow.
       await register({
         registerCode,
         phone,
-        username,
-        name,
+        fullName: name,
         email,
-        password,
-        password_confirmation: passwordConfirmation,
       });
       router.push({ pathname: "/(auth)/otp", params: { email, purpose: "register" } });
     } catch {
@@ -69,7 +63,6 @@ export default function RegisterScreen() {
           {[
             { icon: "key" as const, placeholder: t("registerCode"), value: registerCode, onChange: setRegisterCode },
             { icon: "phone" as const, placeholder: t("phone"), value: phone, onChange: setPhone, keyboard: "phone-pad" as const },
-            { icon: "user" as const, placeholder: t("username"), value: username, onChange: setUsername },
             { icon: "user" as const, placeholder: t("fullName"), value: name, onChange: setName },
             { icon: "mail" as const, placeholder: t("emailAddress"), value: email, onChange: setEmail, keyboard: "email-address" as const },
           ].map((field, i) => (
@@ -86,40 +79,6 @@ export default function RegisterScreen() {
               />
             </View>
           ))}
-
-          {/* Password */}
-          <View style={s.inputWrap}>
-            <Feather name="lock" size={18} color={colors.textSecondary} style={s.inputIcon} />
-            <TextInput
-              style={s.input}
-              placeholder={t("password")}
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <Pressable onPress={() => setShowPassword((v) => !v)}>
-              <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          {/* Confirm password */}
-          <View style={s.inputWrap}>
-            <Feather name="lock" size={18} color={colors.textSecondary} style={s.inputIcon} />
-            <TextInput
-              style={s.input}
-              placeholder={t("confirmPassword") || "Confirm password"}
-              placeholderTextColor={colors.textSecondary}
-              value={passwordConfirmation}
-              onChangeText={setPasswordConfirmation}
-              secureTextEntry={!showConfirm}
-              autoCapitalize="none"
-            />
-            <Pressable onPress={() => setShowConfirm((v) => !v)}>
-              <Feather name={showConfirm ? "eye-off" : "eye"} size={18} color={colors.textSecondary} />
-            </Pressable>
-          </View>
 
           <Pressable style={[s.registerBtn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
             <Text style={s.registerBtnText}>{loading ? t("loading") : t("register")}</Text>

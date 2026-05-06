@@ -1,7 +1,7 @@
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
 import { mockGetPatients, mockGetPatientById } from './mock/patients_mock'
-import type { Patient, PatientAlert } from './models/patient'
+import type { Patient, PatientAlert, PatientAlertSummary } from './models/patient'
 import { parsePage, EMPTY_META } from './models/pagination'
 import type { Page } from './models/pagination'
 
@@ -27,11 +27,27 @@ export async function getPatientById(
   return res.data?.data ?? res.data
 }
 
+/**
+ * v2 contract: `GET /patients/{id}/alerts` returns the **summary object**
+ * `{ allergies, contamination, instructions, isolation }`. Use
+ * `getPatientAlertSummary` for the new shape.
+ *
+ * @deprecated The legacy "activity log" array shape is no longer served; this
+ * helper now always returns `[]`. New code should call
+ * `getPatientAlertSummary` instead.
+ */
 export async function getPatientAlerts(
-  id: number | string,
+  _id: number | string,
 ): Promise<PatientAlert[]> {
-  if (ENV.USE_MOCK_DATA) return []
+  return []
+}
+
+export async function getPatientAlertSummary(
+  id: number | string,
+): Promise<PatientAlertSummary | undefined> {
+  if (ENV.USE_MOCK_DATA) return undefined
   const res = await apiClient.get(`/patients/${id}/alerts`)
   const payload = res.data?.data ?? res.data
-  return Array.isArray(payload) ? (payload as PatientAlert[]) : []
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined
+  return payload as PatientAlertSummary
 }

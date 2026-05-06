@@ -70,6 +70,8 @@ export async function verifyOtp(
     const ok = await mockVerifyOtp(body.otp)
     return ok ? { resetToken: 'mock-reset-token' } : {}
   }
+  // v2 contract: server expects `identifier` (the type already encodes that;
+  // posting `body` verbatim is correct).
   const { data } = await apiClient.post('/auth/verify-otp', body)
   return data?.data ?? data ?? {}
 }

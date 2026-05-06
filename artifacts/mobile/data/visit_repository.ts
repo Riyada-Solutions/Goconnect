@@ -94,19 +94,23 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   const visitId = Number(raw?.id)
 
   // ── Pre-treatment vitals ──────────────────────────────────────────────────
+  // v2 stores nested camelCase under `pre_treatment_vitals.vitals`; older
+  // backends wrote a flat snake_case object under `pre_treatment_vital`.
+  const ptvWrap = v.pre_treatment_vitals ?? {}
+  const ptvCamel = ptvWrap.vitals ?? {}
   const ptv = v.pre_treatment_vital ?? {}
   const vitals: FlowSheetMobileVitals = {
-    height:      String(ptv.height ?? ''),
-    preWeight:   String(ptv.weight ?? ptv.pre_weight ?? ''),
-    dryWeight:   String(ptv.weight_dry ?? ptv.dry_weight ?? ''),
-    ufGoal:      String(ptv.uf_goal ?? ''),
-    bpSystolic:  String(ptv.bp_systolic ?? ''),
-    bpDiastolic: String(ptv.bp_diastolic ?? ''),
-    temperature: String(ptv.temp ?? ptv.temperature ?? ''),
-    spo2:        String(ptv.spo2 ?? ''),
-    hr:          String(ptv.pr_value ?? ptv.hr ?? ptv.pulse ?? ''),
-    rr:          String(ptv.rr ?? ''),
-    rbs:         String(ptv.rbs ?? ''),
+    height:      String(ptvCamel.height ?? ptv.height ?? ''),
+    preWeight:   String(ptvCamel.preWeight ?? ptv.weight ?? ptv.pre_weight ?? ''),
+    dryWeight:   String(ptvCamel.dryWeight ?? ptv.weight_dry ?? ptv.dry_weight ?? ''),
+    ufGoal:      String(ptvCamel.ufGoal ?? ptv.uf_goal ?? ''),
+    bpSystolic:  String(ptvCamel.bpSystolic ?? ptv.bp_systolic ?? ''),
+    bpDiastolic: String(ptvCamel.bpDiastolic ?? ptv.bp_diastolic ?? ''),
+    temperature: String(ptvCamel.temperature ?? ptv.temp ?? ptv.temperature ?? ''),
+    spo2:        String(ptvCamel.spo2 ?? ptv.spo2 ?? ''),
+    hr:          String(ptvCamel.hr ?? ptv.pr_value ?? ptv.hr ?? ptv.pulse ?? ''),
+    rr:          String(ptvCamel.rr ?? ptv.rr ?? ''),
+    rbs:         String(ptvCamel.rbs ?? ptv.rbs ?? ''),
   }
   const hasVitals = Object.values(vitals).some(x => x !== '')
 
@@ -114,38 +118,49 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   const pa = v.pain_assessment ?? {}
 
   // ── Fall risk ─────────────────────────────────────────────────────────────
-  const fra = v.fall_risk_assessment ?? {}
+  // v2: top-level key is `fall_risk` (legacy: `fall_risk_assessment`).
+  const fra = v.fall_risk ?? v.fall_risk_assessment ?? {}
 
   // ── Alarms test ───────────────────────────────────────────────────────────
   const at = v.alarms_test ?? {}
 
-  // ── CAR (ff%, dialyzer, temp) — may be its own key or inside alarms_test ──
-  const carRaw = v.car ?? {}
-  const carFfPct = carRaw.ff_percent ?? at.ff_percent
+  // ── CAR (ff%, dialyzer, temp) ─────────────────────────────────────────────
+  // v2: nested under `car.car` (camelCase). Legacy: flat snake_case under
+  // `car` or sometimes inside alarms_test.
+  const carWrap = v.car ?? {}
+  const carInner = carWrap.car ?? {}
+  const carFfPct = carInner.ffPercent ?? carWrap.ff_percent ?? at.ff_percent
   const car: FlowSheetCar | undefined =
-    (carFfPct || carRaw.dialyzer || at.dialyzer || carRaw.temp || at.temp)
+    (carFfPct || carInner.dialyzer || carWrap.dialyzer || at.dialyzer || carInner.temp || carWrap.temp || at.temp)
       ? {
           ffPercent: String(carFfPct ?? ''),
-          dialyzer:  String(carRaw.dialyzer ?? at.dialyzer ?? ''),
-          temp:      String(carRaw.temp ?? at.temp ?? ''),
+          dialyzer:  String(carInner.dialyzer ?? carWrap.dialyzer ?? at.dialyzer ?? ''),
+          temp:      String(carInner.temp ?? carWrap.temp ?? at.temp ?? ''),
         }
       : undefined
 
   // ── Dialysate ─────────────────────────────────────────────────────────────
-  const dsRaw = v.dialysate ?? {}
+  // v2: nested under `dialysate.dialysate`. Legacy: flat snake_case under `dialysate`.
+  const dsWrap = v.dialysate ?? {}
+  const dsInner = dsWrap.dialysate ?? {}
   const dialysate: FlowSheetDialysate | undefined =
-    (dsRaw.na || dsRaw.hco3 || dsRaw.k || dsRaw.glucose || at.k || at.glucose)
+    (dsInner.na || dsInner.hco3 || dsInner.k || dsInner.glucose ||
+      dsWrap.na || dsWrap.hco3 || dsWrap.k || dsWrap.glucose ||
+      at.k || at.glucose)
       ? {
-          na:      String(dsRaw.na ?? at.na ?? ''),
-          hco3:    String(dsRaw.hco3 ?? at.hco3 ?? ''),
-          k:       String(dsRaw.k ?? at.k ?? ''),
-          glucose: String(dsRaw.glucose ?? at.glucose ?? ''),
+          na:      String(dsInner.na ?? dsWrap.na ?? at.na ?? ''),
+          hco3:    String(dsInner.hco3 ?? dsWrap.hco3 ?? at.hco3 ?? ''),
+          k:       String(dsInner.k ?? dsWrap.k ?? at.k ?? ''),
+          glucose: String(dsInner.glucose ?? dsWrap.glucose ?? at.glucose ?? ''),
         }
       : undefined
 
   // ── Dialysis parameters ───────────────────────────────────────────────────
+  // v2: top-level `dialysis_parameters.dialysisParams[]` (camelCase).
+  // Legacy: `hemodialysis.dialysis[]` with snake_case fields.
+  const dp = v.dialysis_parameters ?? {}
   const hd = v.hemodialysis ?? {}
-  const rawRows: any[] = hd.dialysis ?? hd.dialysis_parameters ?? []
+  const rawRows: any[] = dp.dialysisParams ?? hd.dialysis ?? hd.dialysis_parameters ?? []
   const dialysisParams: FlowSheetDialysisParam[] = rawRows.map(row => ({
     time:          String(row.time ?? ''),
     systolic:      String(row.blood_pressure_systolic ?? row.systolic ?? ''),
@@ -165,42 +180,51 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   }))
 
   // ── Nursing actions ───────────────────────────────────────────────────────
-  const naRaw = v.nursing_action ?? v.nursing_actions ?? {}
+  // v2: `nursing_actions.nursingActions[]`. Legacy: `nursing_action`.
+  const naRaw = v.nursing_actions ?? v.nursing_action ?? {}
   const nursingActions: FlowSheetNursingAction[] | undefined = Array.isArray(naRaw)
     ? naRaw
     : (Array.isArray(naRaw.nursingActions) ? naRaw.nursingActions : undefined)
 
   // ── Post treatment ────────────────────────────────────────────────────────
+  // v2: `post_treatment.postTx` (camelCase, matches FlowSheetMobilePostTx).
+  // Legacy: `post_assessment` flat snake_case object.
+  const postWrap = v.post_treatment ?? {}
+  const postCamel = postWrap.postTx ?? postWrap
   const post = v.post_assessment ?? {}
-  const hasPost = Object.keys(post).length > 0
-  const postTx: FlowSheetMobilePostTx | undefined = hasPost
+  const hasPostV2 = postCamel && Object.keys(postCamel).length > 0 && (postCamel.bpSystolic !== undefined || postCamel.weight !== undefined || postCamel.pulse !== undefined)
+  const hasPostV1 = Object.keys(post).length > 0
+  const postTx: FlowSheetMobilePostTx | undefined = (hasPostV2 || hasPostV1)
     ? {
-        bpSystolic:          String(post.bp_sitting_systolic ?? ''),
-        bpDiastolic:         String(post.bp_sitting_diastolic ?? ''),
-        bpSite:              String(post.bp_sitting_site ?? ''),
-        pulse:               String(post.pulse ?? ''),
-        temp:                String(post.temp ?? ''),
-        tempMethod:          String(post.temp_method ?? ''),
-        spo2:                String(post.spo2 ?? ''),
-        rr:                  String(post.rr ?? ''),
-        rbs:                 String(post.rbs ?? ''),
-        weight:              String(post.weight ?? ''),
-        txHr:                String(post.tx_time_hr ?? ''),
-        dialysateL:          String(post.dialysate_l ?? ''),
-        uf:                  String(post.uf ?? ''),
-        blp:                 String(post.blp ?? ''),
-        ufNet:               String(post.uf_net ?? ''),
-        catheterLock:        String(post.catheter_lock ?? ''),
-        arterialAccess:      String(post.arterial_access ?? ''),
-        venousAccess:        String(post.venous_access ?? ''),
-        machineDisinfected:  post.machine_disinfected === 'yes' || post.machine_disinfected === true,
-        accessProblems:      String(post.access_problems ?? ''),
-        nonMedicalIncidence: String(post.non_medical_incidence ?? ''),
+        bpSystolic:          String(postCamel.bpSystolic ?? post.bp_sitting_systolic ?? ''),
+        bpDiastolic:         String(postCamel.bpDiastolic ?? post.bp_sitting_diastolic ?? ''),
+        bpSite:              String(postCamel.bpSite ?? post.bp_sitting_site ?? ''),
+        pulse:               String(postCamel.pulse ?? post.pulse ?? ''),
+        temp:                String(postCamel.temp ?? post.temp ?? ''),
+        tempMethod:          String(postCamel.tempMethod ?? post.temp_method ?? ''),
+        spo2:                String(postCamel.spo2 ?? post.spo2 ?? ''),
+        rr:                  String(postCamel.rr ?? post.rr ?? ''),
+        rbs:                 String(postCamel.rbs ?? post.rbs ?? ''),
+        weight:              String(postCamel.weight ?? post.weight ?? ''),
+        txHr:                String(postCamel.txHr ?? post.tx_time_hr ?? ''),
+        dialysateL:          String(postCamel.dialysateL ?? post.dialysate_l ?? ''),
+        uf:                  String(postCamel.uf ?? post.uf ?? ''),
+        blp:                 String(postCamel.blp ?? post.blp ?? ''),
+        ufNet:               String(postCamel.ufNet ?? post.uf_net ?? ''),
+        catheterLock:        String(postCamel.catheterLock ?? post.catheter_lock ?? ''),
+        arterialAccess:      String(postCamel.arterialAccess ?? post.arterial_access ?? ''),
+        venousAccess:        String(postCamel.venousAccess ?? post.venous_access ?? ''),
+        machineDisinfected:  postCamel.machineDisinfected === true ||
+                             post.machine_disinfected === 'yes' ||
+                             post.machine_disinfected === true,
+        accessProblems:      String(postCamel.accessProblems ?? post.access_problems ?? ''),
+        nonMedicalIncidence: String(postCamel.nonMedicalIncidence ?? post.non_medical_incidence ?? ''),
       }
     : undefined
 
   // ── Medication admin ──────────────────────────────────────────────────────
-  const dm = v.dialysis_medications ?? {}
+  // v2: top-level key `medications.medAdmin`. Legacy: `dialysis_medications`.
+  const dm = v.medications ?? v.dialysis_medications ?? {}
   const medAdmin: Record<number, FlowSheetMedicationAdmin> | undefined =
     dm && typeof dm === 'object' && !Array.isArray(dm) && Object.keys(dm).length > 0
       ? (dm.medAdmin ?? dm.med_admin ?? dm.medications)
@@ -209,8 +233,8 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   return {
     visitId,
     ...(hasVitals ? { vitals } : {}),
-    bpSite:     ptv.bp_site ?? ptv.bpSite ?? undefined,
-    method:     ptv.temp_method ?? ptv.method ?? undefined,
+    bpSite:     ptvWrap.bpSite ?? ptv.bp_site ?? ptv.bpSite ?? undefined,
+    method:     ptvWrap.method ?? ptv.temp_method ?? ptv.method ?? undefined,
     machine:    (typeof v.machines === 'string' ? v.machines : v.machines?.machine) ?? undefined,
     pain:       pa.pain ?? undefined,
     painDetails: pa.painDetails ?? pa.pain_details ?? undefined,
@@ -310,22 +334,23 @@ export type FlowSheetSection =
 // Map FE section slug → top-level snake_case key inside the flowsheet form
 // `value`. Backend is a Class-A (shallow merge) endpoint, so we send the
 // section under its key and untouched keys stay intact.
+// Updated for v2 Postman contract — see API_CONFLICTS.md §8.1.
 const FLOWSHEET_SECTION_KEY: Record<FlowSheetSection, string> = {
   'outside-dialysis': 'outside_dialysis',
-  'pre-treatment-vitals': 'pre_treatment_vital',
+  'pre-treatment-vitals': 'pre_treatment_vitals',
   'machines': 'machines',
   'pain-assessment': 'pain_assessment',
-  'fall-risk': 'fall_risk_assessment',
-  'nursing-actions': 'nursing_action',
-  'dialysis-parameters': 'hemodialysis',
+  'fall-risk': 'fall_risk',
+  'nursing-actions': 'nursing_actions',
+  'dialysis-parameters': 'dialysis_parameters',
   'alarms-test': 'alarms_test',
   'intake-output': 'intake_output',
   'car': 'car',
   'access': 'access',
   'dialysate': 'dialysate',
   'anticoagulation': 'anticoagulation',
-  'medications': 'dialysis_medications',
-  'post-treatment': 'post_assessment',
+  'medications': 'medications',
+  'post-treatment': 'post_treatment',
 }
 
 /**
@@ -437,36 +462,12 @@ function dataUrlToFile(dataUrl: string, name: string) {
   } as unknown as Blob
 }
 
-function serializePostTx(pt: FlowSheetMobilePostTx) {
-  return {
-    bp_sitting_systolic:  pt.bpSystolic,
-    bp_sitting_diastolic: pt.bpDiastolic,
-    bp_sitting_site:      pt.bpSite,
-    pulse:                pt.pulse,
-    temp:                 pt.temp,
-    temp_method:          pt.tempMethod,
-    spo2:                 pt.spo2,
-    rr:                   pt.rr,
-    rbs:                  pt.rbs,
-    weight:               pt.weight,
-    tx_time_hr:           pt.txHr,
-    dialysate_l:          pt.dialysateL,
-    uf:                   pt.uf,
-    blp:                  pt.blp,
-    uf_net:               pt.ufNet,
-    catheter_lock:        pt.catheterLock,
-    arterial_access:      pt.arterialAccess,
-    venous_access:        pt.venousAccess,
-    machine_disinfected:  pt.machineDisinfected ? 'yes' : 'no',
-    access_problems:      pt.accessProblems,
-    non_medical_incidence: pt.nonMedicalIncidence,
-  }
-}
-
 /**
  * Post-treatment save. Uses multipart/form-data only when at least one
  * signature PNG is present; falls back to plain JSON otherwise so the clinical
  * data is persisted even when the backend media-upload table is unavailable.
+ *
+ * v2 contract: payload is `{ post_treatment: { postTx: <camelCase fields> } }`.
  */
 export async function submitFlowSheetPostTreatment(
   visitId: number | string,
@@ -478,7 +479,7 @@ export async function submitFlowSheetPostTreatment(
   const hasNurseSig   = !!body.nurseSignature?.dataUrl
   const needsMultipart = hasPatientSig || hasNurseSig
 
-  const postPayload = { post_assessment: serializePostTx(body.postTx) }
+  const postPayload = { post_treatment: { postTx: body.postTx } }
 
   if (!needsMultipart) {
     const res = await apiClient.post(
@@ -519,9 +520,10 @@ export async function submitNursingProgressNote(
     await mockSubmitNursingProgressNote(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  // v2 contract: body is `{ note }` (singular).
   const res = await apiClient.post(
     `/visits/${payload.visitId}/forms/nursing-progress-note`,
-    { notes: payload.note },
+    { note: payload.note },
   )
   return unwrapVisit(res.data)
 }
@@ -533,14 +535,14 @@ export async function submitDoctorProgressNote(
     await mockSubmitDoctorProgressNote(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  // v2 contract: { type: "doctor", note, isAddendum, parentNoteId }
   const res = await apiClient.post(
     `/visits/${payload.visitId}/forms/progress-notes`,
     {
-      type: 'in_visit',
-      notes: payload.note,
-      addenda: payload.isAddendum
-        ? [{ parentNoteId: payload.parentNoteId, notes: payload.note }]
-        : [],
+      type: 'doctor',
+      note: payload.note,
+      isAddendum: payload.isAddendum,
+      parentNoteId: payload.parentNoteId ?? null,
     },
   )
   return unwrapVisit(res.data)
@@ -553,9 +555,11 @@ export async function submitSariScreening(
     await mockSubmitSariScreening(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  // v2 contract: visitId is in the URL only — strip it from the body.
+  const { visitId: _visitId, ...body } = payload
   const res = await apiClient.post(
     `/visits/${payload.visitId}/forms/sari_screening`,
-    payload,
+    body,
   )
   return unwrapVisit(res.data)
 }
@@ -665,12 +669,13 @@ export async function submitSocialWorkerProgressNote(
     await mockSubmitSocialWorkerProgressNote(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  // v2 contract: { type: "social_worker", note, location }
   const res = await apiClient.post(
     `/visits/${payload.visitId}/forms/progress-notes`,
     {
-      type: payload.location === 'on_call' ? 'outside_visit' : 'in_visit',
-      notes: payload.note,
-      addenda: [],
+      type: 'social_worker',
+      note: payload.note,
+      location: payload.location,
     },
   )
   return unwrapVisit(res.data)

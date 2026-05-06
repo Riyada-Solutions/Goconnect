@@ -2,7 +2,7 @@ import type { CareTeamMember } from './careTeam'
 import type { DoctorProgressNote } from './doctorProgressNote'
 import type { FlowSheet } from './flowSheet'
 import type { NursingProgressNote } from './nursingProgressNote'
-import type { Patient, PatientAlert } from './patient'
+import type { Patient, PatientAlert, PatientAlertSummary } from './patient'
 import type { Referral } from './referral'
 import type { Refusal } from './refusal'
 import type { SariScreening } from './sariScreening'
@@ -80,9 +80,13 @@ export interface Visit {
    *  card directly from this — no second `/patients/{id}` round-trip. */
   patient?: Patient | null
   /** Embedded patient alert summary (allergies, isolation, contamination,
-   *  special instructions). Driven the "alerts" card on the visit screen.
-   *  `null` when the patient has no alerts on file. */
-  patientAlerts?: PatientAlert[] | PatientAlert | null
+   *  special instructions). Drives the "alerts" card on the visit screen.
+   *  `null` when the patient has no alerts on file.
+   *
+   *  v2 contract: this is the summary **object** shape. The legacy
+   *  array/single-event shapes are kept in the union only for the mock
+   *  fixtures that still emit them. */
+  patientAlerts?: PatientAlertSummary | PatientAlert[] | PatientAlert | null
 
   /** Full flow sheet snapshot (vitals, pain, fall risk, dialysis params, post-tx,
    *  signatures, **and pre-treatment vitals**). Grows incrementally as the nurse

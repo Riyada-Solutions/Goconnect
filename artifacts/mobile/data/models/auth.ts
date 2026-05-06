@@ -33,16 +33,18 @@ export interface VerifyFaceRequest {
 export interface RegisterRequest {
   registerCode?: string
   phone: string
-  username: string
-  name: string
+  /** v2 contract: full display name. Replaces the old `name` + `username`
+   *  + `password`/`password_confirmation` fields — registration is now
+   *  identifier-only and the password is set later via OTP. */
+  fullName: string
   email: string
-  password: string
-  password_confirmation: string
 }
 
 export interface VerifyOtpRequest {
   purpose: 'register' | 'reset_password'
-  email: string
+  /** v2 contract: server uses a generic `identifier` (email **or** phone).
+   *  The mobile app currently always sends an email here. */
+  identifier: string
   otp: string
 }
 

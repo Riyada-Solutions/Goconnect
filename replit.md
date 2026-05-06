@@ -22,15 +22,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/mobile/` — GoConnect / CareConnect Nurse Expo app
+  - `data/` — repositories + models (single source of truth for API contracts mobile-side)
+  - `data/models/auth.ts`, `data/models/patient.ts`, `data/models/visit.ts`, `data/models/flowSheet.ts`
+  - `data/visit_repository.ts` — flow-sheet, progress notes, refusal, SARI, inventory
+  - `app/` — Expo Router screens
+- `artifacts/mobile/API_CONFLICTS.md` — full mapping of v2 Postman API contract vs. mobile code, with per-section action notes.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Flow-sheet is a single backend form (`POST /visits/{id}/forms/flowsheet`) that the mobile UI saves one section at a time; section keys live in `FLOWSHEET_SECTION_KEY`.
+- Visit detail response is the single source of truth: it embeds patient, patient alerts (summary), flow sheet, progress notes, etc. The visit-detail screen does not refetch alerts separately.
+- `mapFlowSheetFromApi` accepts both v2 (nested camelCase) and legacy (flat snake_case) shapes so screens stay backwards-compatible while the backend rolls forward.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+GoConnect Nurse — Expo mobile app for in-home dialysis nurses to run a visit (scheduler → check-in → flow sheet → progress notes → refusal/SARI → inventory).
 
 ## User preferences
 

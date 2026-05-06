@@ -34,7 +34,9 @@ export default function OtpScreen() {
     setLoading(true);
     try {
       const code = otp.join("");
-      const res = await verifyOtp({ purpose, email, otp: code });
+      // v2 contract: server expects `identifier` (email or phone). Mobile
+      // currently always passes the user's email here.
+      const res = await verifyOtp({ purpose, identifier: email, otp: code });
       if (purpose === "reset_password") {
         router.push({
           pathname: "/(auth)/new-password",
