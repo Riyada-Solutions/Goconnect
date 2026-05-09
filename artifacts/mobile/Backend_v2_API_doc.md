@@ -110,15 +110,90 @@ v2 returns the legacy field names below; the new names the app would prefer are 
 
 ## 3. v2 endpoints with no UI counterpart yet
 
-These exist in v2 but the mobile app has no screens for them. We will add them when the matching screens land — no backend action required, just flagging so they don't get deprecated:
+These exist in v2 but the mobile app has no screens for them. We will add them when the matching screens land — no backend action required, just flagging so they don't get deprecated. Body shapes from the v2 collection are reproduced below so the mobile team has the contract to build against.
 
-| v2 endpoint | Captures |
-|---|---|
-| `POST /visits/{id}/forms/allergies` | Patient allergies as a visit form |
-| `POST /visits/{id}/forms/social-assessment` | Social-worker intake |
-| `POST /visits/{id}/forms/incidents` | Adverse-event report |
-| `POST /visits/{id}/forms/blood-sugar` | Blood-sugar reading log |
-| `POST /visits/{id}/forms/visual-triage-checklist` | Visual triage checklist |
+### 3.1 `POST /visits/{id}/forms/allergies` (Class A — Merge)
+```json
+{
+  "drug_allergies": "Penicillin",
+  "food_allergies": "Peanuts",
+  "general_allergies": "Latex",
+  "contamination": "None known"
+}
+```
+
+### 3.2 `POST /visits/{id}/forms/social-assessment` (Class A — Merge)
+```json
+{
+  "patient_id": "P10327368",
+  "profession": "unemployed",
+  "data_source": "Facilities",
+  "marital_status": "married",
+  "primary_doctor": "ahmed.fatouha",
+  "assessment_type": "re_assessment",
+  "education_level": "university",
+  "facility_status": "medium",
+  "limited_ability": "aware",
+  "physical_status": "able_to_move",
+  "social_assessment": "The patient was seen during the round and assessed as stable"
+}
+```
+
+### 3.3 `POST /visits/{id}/forms/incidents` (Class B — Append)
+```json
+{
+  "description": "Absence of a family member to attend the session",
+  "patient_dob": "1962-04-06",
+  "patient_mrn": "120113",
+  "reported_at": "2026-04-28T12:00:00Z",
+  "reported_by": "salma.abdalla",
+  "patient_name": "Saleh Hammad Al Anizi",
+  "physician_id": 85,
+  "incident_type": "Patient Safety",
+  "supervisor_id": "96",
+  "reported_by_id": 93,
+  "severity_level": "high",
+  "immediate_actions": "Contacted team leader. Patient session paused.",
+  "dialysis_session_time": "11:45"
+}
+```
+
+### 3.4 `POST /visits/{id}/forms/blood-sugar` (Class B — Append)
+```json
+{
+  "blood_sugar_monitor": [
+    {
+      "name": "Sara Ahmed",
+      "action": "No Action",
+      "random": true,
+      "result": "298",
+      "fasting": false,
+      "signed_at": "2026-04-28T08:00:00Z",
+      "signed_by": 98
+    }
+  ],
+  "relevant_medication": "Insulin",
+  "other_relevant_medication": ""
+}
+```
+
+### 3.5 `POST /visits/{id}/forms/visual-triage-checklist` (Class B — Append)
+```json
+{
+  "mrn": "120113",
+  "date": "2026/04/28",
+  "time": "14:34",
+  "score": "1",
+  "total_score": 0,
+  "patient_name": "Saleh Hammad Al Anizi",
+  "national_id": "1002126",
+  "hospital": "Prince Sultan Military Medical City",
+  "ad_cough": "", "ad_fever": "", "ad_renal": "", "ad_nausea": "", "ad_headache": "", "ad_shortness": "",
+  "pe_cough": "", "pe_fever": "", "pe_renal": "", "pe_nausea": "", "pe_headache": "", "pe_shortness": ""
+}
+```
+
+> Naming inconsistency note for backend: the existing visit-form endpoints mix kebab-case (`nursing-progress-note`, `progress-notes`, `social-assessment`, `blood-sugar`, `visual-triage-checklist`) and snake_case (`sari_screening`, `inventory_usage`). Not blocking, but worth standardising in a future revision.
 
 ---
 
@@ -155,7 +230,7 @@ For your reference, the mobile app has been updated to match the v2 contract for
 
 ### Auth
 - `POST /auth/register` — body is now `{ registerCode?, phone, fullName, email }` (no `username` / `password` / `password_confirmation`).
-- `POST /auth/verify-otp` — sends `identifier` (email or phone), not `email`.
+- `POST /auth/verify-otp` — sends `{ purpose: "register" | "reset_password", identifier, otp }`. The new `purpose` field is wired up end-to-end (register screen → OTP screen → request body).
 
 ### Patients
 - `GET /patients/{id}/alerts` — read as the object `{ allergies, contamination, instructions, isolation }`.
