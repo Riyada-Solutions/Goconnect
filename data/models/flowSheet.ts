@@ -115,27 +115,11 @@ export interface FlowSheetPostTx {
 }
 
 export interface FlowSheetMobilePostTx {
-  bpSystolic: string       // bp_sitting_systolic
-  bpDiastolic: string      // bp_sitting_diastolic
-  bpSite: string           // bp_sitting_site
-  pulse: string
-  temp: string
-  tempMethod: string       // temp_method
-  spo2: string
-  rr: string
-  rbs: string
-  weight: string
-  txHr: string             // tx_time_hr
-  dialysateL: string       // dialysate_l
-  uf: string
-  blp: string
-  ufNet: string            // uf_net
-  catheterLock: string     // catheter_lock
-  arterialAccess: string   // arterial_access
-  venousAccess: string     // venous_access
-  machineDisinfected: boolean  // machine_disinfected ("yes"/"no")
-  accessProblems: string   // access_problems
-  nonMedicalIncidence: string  // non_medical_incidence
+  postWeight: string
+  lastBp: string
+  lastPulse: string
+  condition: string
+  notes: string
 }
 
 export interface MorseFallScale {

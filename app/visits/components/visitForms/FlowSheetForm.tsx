@@ -82,14 +82,11 @@ const EMPTY_DIALYSIS: FlowSheetDialysisParam = {
 const EMPTY_CAR: FlowSheetCar = { ffPercent: "", dialyzer: "", temp: "" };
 const EMPTY_DIALYSATE: FlowSheetDialysate = { na: "", hco3: "", k: "", glucose: "" };
 const EMPTY_POST: FlowSheetFormPostTx = {
-  bpSystolic: "", bpDiastolic: "", bpSite: "",
-  pulse: "", temp: "", tempMethod: "",
-  spo2: "", rr: "", rbs: "",
-  weight: "", txHr: "", dialysateL: "",
-  uf: "", blp: "", ufNet: "",
-  catheterLock: "", arterialAccess: "", venousAccess: "",
-  machineDisinfected: false,
-  accessProblems: "", nonMedicalIncidence: "",
+  postWeight: "",
+  lastBp: "",
+  lastPulse: "",
+  condition: "",
+  notes: "",
 };
 
 const ALL_SECTIONS_OPEN: Record<string, boolean> = {

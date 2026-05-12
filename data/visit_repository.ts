@@ -81,17 +81,27 @@ export async function getVisitById(
  * used directly and the mapping is skipped.
  */
 function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
-  // If the backend already returns the documented camelCase shape, use it.
-  const direct = raw?.flowSheet
-  if (direct && Object.keys(direct).length > 1) return direct as FlowSheet
+  // Backend (real) returns flat `flowSheet` with snake_case section keys.
+  // Legacy Postman spec returns `forms.flowsheet[0].value`.
+  // Both share the same section-key vocabulary, so we map them through the
+  // same transformer.
+  let entry: any = null
+  let v: Record<string, any> = {}
 
-  // Otherwise map from forms.flowsheet[0] (snake_case backend format).
-  const fsArr = Array.isArray(raw?.forms?.flowsheet) ? raw.forms.flowsheet : null
-  if (!fsArr || fsArr.length === 0) return undefined
+  if (raw?.flowSheet && typeof raw.flowSheet === 'object') {
+    v = raw.flowSheet
+  } else if (Array.isArray(raw?.forms?.flowsheet) && raw.forms.flowsheet.length > 0) {
+    entry = raw.forms.flowsheet[0]
+    v = entry?.value ?? {}
+  } else {
+    return undefined
+  }
 
-  const entry = fsArr[0]
-  const v: Record<string, any> = entry?.value ?? {}
-  const visitId = Number(raw?.id)
+  // Bail early if the only key is `visitId` (no sections persisted yet).
+  const sectionKeys = Object.keys(v).filter(k => k !== 'visitId')
+  if (sectionKeys.length === 0) return undefined
+
+  const visitId = Number(raw?.id ?? v.visitId)
 
   // ── Pre-treatment vitals ──────────────────────────────────────────────────
   const ptv = v.pre_treatment_vital ?? {}
@@ -171,33 +181,34 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     : (Array.isArray(naRaw.nursingActions) ? naRaw.nursingActions : undefined)
 
   // ── Post treatment ────────────────────────────────────────────────────────
-  const post = v.post_assessment ?? {}
-  const hasPost = Object.keys(post).length > 0
-  const postTx: FlowSheetMobilePostTx | undefined = hasPost
-    ? {
-        bpSystolic:          String(post.bp_sitting_systolic ?? ''),
-        bpDiastolic:         String(post.bp_sitting_diastolic ?? ''),
-        bpSite:              String(post.bp_sitting_site ?? ''),
-        pulse:               String(post.pulse ?? ''),
-        temp:                String(post.temp ?? ''),
-        tempMethod:          String(post.temp_method ?? ''),
-        spo2:                String(post.spo2 ?? ''),
-        rr:                  String(post.rr ?? ''),
-        rbs:                 String(post.rbs ?? ''),
-        weight:              String(post.weight ?? ''),
-        txHr:                String(post.tx_time_hr ?? ''),
-        dialysateL:          String(post.dialysate_l ?? ''),
-        uf:                  String(post.uf ?? ''),
-        blp:                 String(post.blp ?? ''),
-        ufNet:               String(post.uf_net ?? ''),
-        catheterLock:        String(post.catheter_lock ?? ''),
-        arterialAccess:      String(post.arterial_access ?? ''),
-        venousAccess:        String(post.venous_access ?? ''),
-        machineDisinfected:  post.machine_disinfected === 'yes' || post.machine_disinfected === true,
-        accessProblems:      String(post.access_problems ?? ''),
-        nonMedicalIncidence: String(post.non_medical_incidence ?? ''),
+  // New shape:    flowSheet.post_treatment.postTx = { postWeight, lastBp, lastPulse, condition, notes }
+  // Legacy shape: flowSheet.post_assessment       = { weight, bp_sitting_systolic, bp_sitting_diastolic, pulse, ... }
+  // We try new first, then fall back to legacy with field-name translation.
+  let postTx: FlowSheetMobilePostTx | undefined
+  const ptNew = v.post_treatment?.postTx
+  if (ptNew && Object.keys(ptNew).length > 0) {
+    postTx = {
+      postWeight: String(ptNew.postWeight ?? ''),
+      lastBp:     String(ptNew.lastBp ?? ''),
+      lastPulse:  String(ptNew.lastPulse ?? ''),
+      condition:  String(ptNew.condition ?? ''),
+      notes:      String(ptNew.notes ?? ''),
+    }
+  } else {
+    const pa = v.post_assessment ?? {}
+    if (Object.keys(pa).length > 0) {
+      const sys = pa.bp_sitting_systolic ?? ''
+      const dia = pa.bp_sitting_diastolic ?? ''
+      const bp = sys || dia ? `${sys}/${dia}` : ''
+      postTx = {
+        postWeight: String(pa.weight ?? ''),
+        lastBp:     String(bp || pa.blp || ''),
+        lastPulse:  String(pa.pulse ?? ''),
+        condition:  String(pa.condition ?? ''),
+        notes:      String(pa.notes ?? pa.non_medical_incidence ?? ''),
       }
-    : undefined
+    }
+  }
 
   // ── Medication admin ──────────────────────────────────────────────────────
   const dm = v.dialysis_medications ?? {}
@@ -316,7 +327,7 @@ const FLOWSHEET_SECTION_KEY: Record<FlowSheetSection, string> = {
   'machines': 'machines',
   'pain-assessment': 'pain_assessment',
   'fall-risk': 'fall_risk_assessment',
-  'nursing-actions': 'nursing_action',
+  'nursing-actions': 'nursing_actions',
   'dialysis-parameters': 'hemodialysis',
   'alarms-test': 'alarms_test',
   'intake-output': 'intake_output',
@@ -439,27 +450,11 @@ function dataUrlToFile(dataUrl: string, name: string) {
 
 function serializePostTx(pt: FlowSheetMobilePostTx) {
   return {
-    bp_sitting_systolic:  pt.bpSystolic,
-    bp_sitting_diastolic: pt.bpDiastolic,
-    bp_sitting_site:      pt.bpSite,
-    pulse:                pt.pulse,
-    temp:                 pt.temp,
-    temp_method:          pt.tempMethod,
-    spo2:                 pt.spo2,
-    rr:                   pt.rr,
-    rbs:                  pt.rbs,
-    weight:               pt.weight,
-    tx_time_hr:           pt.txHr,
-    dialysate_l:          pt.dialysateL,
-    uf:                   pt.uf,
-    blp:                  pt.blp,
-    uf_net:               pt.ufNet,
-    catheter_lock:        pt.catheterLock,
-    arterial_access:      pt.arterialAccess,
-    venous_access:        pt.venousAccess,
-    machine_disinfected:  pt.machineDisinfected ? 'yes' : 'no',
-    access_problems:      pt.accessProblems,
-    non_medical_incidence: pt.nonMedicalIncidence,
+    postWeight: pt.postWeight,
+    lastBp:     pt.lastBp,
+    lastPulse:  pt.lastPulse,
+    condition:  pt.condition,
+    notes:      pt.notes,
   }
 }
 
@@ -478,7 +473,8 @@ export async function submitFlowSheetPostTreatment(
   const hasNurseSig   = !!body.nurseSignature?.dataUrl
   const needsMultipart = hasPatientSig || hasNurseSig
 
-  const postPayload = { post_assessment: serializePostTx(body.postTx) }
+  // Backend accepts section key `post_treatment` with the body nested under `postTx`.
+  const postPayload = { post_treatment: { postTx: serializePostTx(body.postTx) } }
 
   if (!needsMultipart) {
     const res = await apiClient.post(

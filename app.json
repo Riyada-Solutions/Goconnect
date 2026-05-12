@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.goconnect.nurse",
+      "bundleIdentifier": "com.careconnectksa.nurse",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -29,7 +29,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#2DAAAE"
       },
-      "package": "com.goconnect.nurse",
+      "package": "com.careconnectksa.nurse",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -52,7 +52,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "6bfe6c40-362a-44b9-9179-1fc531eb4fd5"
+      },
+      "router": {
+        "origin": "https://replit.com/"
       }
     }
   }

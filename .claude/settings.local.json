@@ -2,11 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(pnpm install:*)",
-      "Bash(cp -r artifacts/mobile/app ./app_new)",
-      "Bash(cp -r artifacts/mobile/components ./components)",
-      "Bash(cp -r artifacts/mobile/constants ./constants)",
-      "Bash(cp -r artifacts/mobile/context ./context)",
-      "Bash(cp -r artifacts/mobile/data ./data)"
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -H 'Authorization: Bearer 129|C4t0UogJ46C7oWaHCDBw5H249VlnrEHrCpZgqStg3e5c390a' -H 'Accept: application/json' https://nurse-app.careconnectksa.com/api/visits/137)"
     ]
   }
 }

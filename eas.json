@@ -15,6 +15,9 @@
     "preview": {
       "distribution": "internal",
       "prebuildCommand": "expo prebuild --clean",
+      "android": {
+        "buildType": "apk"
+      },
       "ios": {
         "simulator": false
       }
