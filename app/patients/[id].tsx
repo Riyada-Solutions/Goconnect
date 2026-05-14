@@ -159,7 +159,7 @@ export default function PatientDetailScreen() {
                   style={[styles.heroIdText, { color: colors.textSecondary }]}
                   numberOfLines={1}
                 >
-                  {patient.patientId}
+                  {patient.id.toString()}
                 </Text>
               </View>
               <View style={styles.heroBadgeRow}>
@@ -210,8 +210,8 @@ export default function PatientDetailScreen() {
               <GridItem
                 icon="hash"
                 label={t("patientId")}
-                value={patient.patientId}
-                textColor={colors.text}
+                  value={patient.id.toString()}
+                  textColor={colors.text}
                 secondaryColor={colors.textSecondary}
               />
               <GridItem

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
+  cancelAppointment,
   checkInAppointment,
   confirmAppointment,
+  confirmAppointmentForNurse,
   getSlotById,
   getSlots,
   type SlotsQuery,
@@ -21,7 +23,10 @@ export function useSlot(id: number) {
   return useQuery({
     queryKey: ['slots', id],
     queryFn: () => getSlotById(id),
-    staleTime: 30_000,
+    staleTime: 0,
+    // Always refetch on mount so reopening the appointment detail screen
+    // shows the skeleton and pulls fresh data from the API.
+    refetchOnMount: 'always',
     enabled: !!id,
   })
 }
@@ -41,3 +46,27 @@ function useSlotStatusMutation(
 
 export const useConfirmAppointment = () => useSlotStatusMutation(confirmAppointment)
 export const useCheckInAppointment = () => useSlotStatusMutation(checkInAppointment)
+
+export function useConfirmAppointmentForNurse() {
+  const qc = useQueryClient()
+  return useMutation<Slot, Error, { slotId: number; nurseId: number | string }>({
+    mutationFn: ({ slotId, nurseId }) => confirmAppointmentForNurse(slotId, nurseId),
+    onSuccess: (slot) => {
+      qc.setQueryData(['slots', slot.id], slot)
+      qc.invalidateQueries({ queryKey: ['slots'] })
+    },
+  })
+}
+
+/** Cancel takes both the slot id and a free-text `reason` that the backend
+ *  requires (`{ reason: string }` in the POST body). */
+export function useCancelAppointment() {
+  const qc = useQueryClient()
+  return useMutation<Slot, Error, { id: number; reason: string }>({
+    mutationFn: ({ id, reason }) => cancelAppointment(id, reason),
+    onSuccess: (slot) => {
+      qc.setQueryData(['slots', slot.id], slot)
+      qc.invalidateQueries({ queryKey: ['slots'] })
+    },
+  })
+}

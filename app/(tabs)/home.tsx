@@ -18,7 +18,7 @@ import AppBarBackground from "@/assets/svg/appbar-background.svg";
 import BackgroundCare from "@/assets/svg/background-care.svg";
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
-import { PatientCard } from "@/components/common/PatientCard";
+import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
@@ -44,12 +44,14 @@ export default function HomeScreen() {
   const { data: home } = useHome();
   const stats = home?.stats;
   const todayVisits = home?.todayVisits ?? [];
-  const recentPatients = home?.recentPatients ?? [];
+  const appointments = home?.appointments ?? [];
+  const notificationCount = home?.notificationCount ?? 0;
+  const hasContent = todayVisits.length > 0 || appointments.length > 0;
 
   const STAT_CARDS = [
     {
       label: "totalPatients",
-      value: stats?.totalPatients ?? 0,
+      value: stats?.totalActivePatients ?? stats?.totalPatients ?? 0,
       icon: "users",
       iconLib: "feather" as const,
       color: Colors.primary,
@@ -72,9 +74,9 @@ export default function HomeScreen() {
       bg: "#E8FDF5",
     },
     {
-      label: "pendingSchedules",
-      value: stats?.pendingSchedules ?? 0,
-      icon: "clock",
+      label: "todayAppointments",
+      value: stats?.todayAppointments ?? stats?.pendingSchedules ?? 0,
+      icon: "calendar",
       iconLib: "feather" as const,
       color: "#F59E0B",
       bg: "#FEF9C3",
@@ -151,9 +153,13 @@ export default function HomeScreen() {
               style={styles.bellBtn}
             >
               <Feather name="bell" size={22} color="#fff" />
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>3</Text>
-              </View>
+              {notificationCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </Text>
+                </View>
+              )}
             </Pressable>
             {/* Avatar / Settings */}
             <Pressable
@@ -218,7 +224,7 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {t("upcomingVisits")}
+            {t("todayVisits")}
           </Text>
           <Pressable
             onPress={() => {
@@ -299,17 +305,17 @@ export default function HomeScreen() {
       </View>
       )}
 
-      {/* Recent Patients — hidden when the list is empty */}
-      {recentPatients.length > 0 && (
+      {/* Upcoming Appointments — driven by `dashboard.appointments` */}
+      {appointments.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {t("recentPatients")}
+            {t("upcomingAppointments")}
           </Text>
           <Pressable
             onPress={() => {
               Haptics.selectionAsync();
-              router.push("/(tabs)/patients");
+              router.push("/(tabs)/scheduler");
             }}
           >
             <Text style={[styles.viewAll, { color: Colors.primary }]}>
@@ -318,17 +324,69 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.patientList}>
-          {recentPatients.map((p, i) => (
-            <Animated.View
-              key={p.id}
-              entering={FadeInDown.delay(100 + i * 60).springify()}
+        {appointments.map((appt, i) => (
+          <Animated.View
+            key={appt.id}
+            entering={FadeInDown.delay(i * 80).springify()}
+          >
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                router.push({
+                  pathname: "/appointments/[id]",
+                  params: { id: appt.id },
+                });
+              }}
             >
-              <PatientCard patient={p} />
-            </Animated.View>
-          ))}
-        </View>
+              <Card style={styles.visitCard}>
+                <View style={styles.visitCardRow}>
+                  <View
+                    style={[
+                      styles.visitTimeBox,
+                      { backgroundColor: Colors.accentLight },
+                    ]}
+                  >
+                    <Text style={[styles.visitTime, { color: Colors.primaryDark }]}>
+                      {appt.time}
+                    </Text>
+                    <Text style={[styles.visitDuration, { color: Colors.primaryDark }]}>
+                      {appt.endTime}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.visitPatient, { color: colors.text }]}>
+                      {appt.patientName}
+                    </Text>
+                    <Text style={[styles.visitProvider, { color: colors.textSecondary }]}>
+                      {appt.type}
+                    </Text>
+                    {appt.address ? (
+                      <Text
+                        style={[styles.visitAddress, { color: colors.textTertiary }]}
+                        numberOfLines={1}
+                      >
+                        {appt.address}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <StatusBadge status={appt.status} size="sm" />
+                </View>
+              </Card>
+            </Pressable>
+          </Animated.View>
+        ))}
       </View>
+      )}
+
+      {/* Empty state — nothing to do today */}
+      {!hasContent && (
+        <View style={styles.section}>
+          <EmptyState
+            icon="calendar"
+            title={t("noScheduledToday")}
+            description={t("noScheduledTodayDescription")}
+          />
+        </View>
       )}
     </ScrollView>
     </View>
@@ -462,7 +520,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: "Inter_700Bold",
   },
   viewAll: {

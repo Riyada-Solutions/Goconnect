@@ -180,7 +180,7 @@ function VisitDetailScreenInner() {
 
   // Inventory modal — medications + inventory now ride on Visit (single source of truth).
   const [useModalVisible, setUseModalVisible] = useState(false);
-  const medications = (record as any)?.medications ?? [];
+  const medications = (record as any)?.flowSheet?.dialysisMedications ?? [];
   const inventoryData: InventoryItem[] = (record as any)?.inventory ?? [];
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);

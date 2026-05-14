@@ -8,7 +8,7 @@ export async function getLabResultsByPatient(
 ): Promise<LabResult[]> {
   if (ENV.USE_MOCK_DATA) return mockGetLabResultsByPatient(patientId)
   const { data } = await apiClient.get<{ data: LabResult[] } | LabResult[]>(
-    `/patients/${patientId}/lab-results`,
+    `/patients/${patientId}/lab-orders`,
   )
   return Array.isArray(data) ? data : data.data
 }

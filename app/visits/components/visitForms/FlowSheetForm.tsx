@@ -1,11 +1,13 @@
-import { Feather } from "@expo/vector-icons";
+﻿import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { type SignatureValue } from "@/components/ui/SignatureField";
 import { useApp } from "@/context/AppContext";
+import type { Visit } from "@/data/models/visit";
 import type {
   FlowSheet,
   FlowSheetCar,
@@ -17,7 +19,7 @@ import type {
   FlowSheetPainDetails,
 } from "@/data/models/flowSheet";
 import type { RuleAction } from "@/data/models/rules";
-import type { DialysisMedication } from "@/data/models/visit";
+import type { FlowSheetDialysisMedication } from "@/data/models/flowSheet";
 import {
   submitFlowSheetAccess,
   submitFlowSheetAlarmsTest,
@@ -82,11 +84,12 @@ const EMPTY_DIALYSIS: FlowSheetDialysisParam = {
 const EMPTY_CAR: FlowSheetCar = { ffPercent: "", dialyzer: "", temp: "" };
 const EMPTY_DIALYSATE: FlowSheetDialysate = { na: "", hco3: "", k: "", glucose: "" };
 const EMPTY_POST: FlowSheetFormPostTx = {
-  postWeight: "",
-  lastBp: "",
-  lastPulse: "",
-  condition: "",
-  notes: "",
+  bpSystolic: "", bpDiastolic: "", bpSite: "", pulse: "", temp: "", tempMethod: "",
+  spo2: "", rr: "", rbs: "", weight: "",
+  txTimeHr: "", txTimeMin: "", txTimeL: "", dialysateL: "", uf: "", blp: "",
+  catheterLock: "", arterialAccess: "", venousAccess: "",
+  needleSitesHeld: "", accessProblems: "", machineDisinfected: "",
+  medicalComplaints: "", nonMedicalIncidence: "", initials: "",
 };
 
 const ALL_SECTIONS_OPEN: Record<string, boolean> = {
@@ -114,18 +117,18 @@ export interface FlowSheetFormData {
   dialysate: FlowSheetDialysate;
   access: string;
   anticoagType: string;
-  postTx: FlowSheetFormPostTx;
+  postAssessment: FlowSheetFormPostTx;
 }
 
 interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
-  /** ID of the visit this flow sheet belongs to — required for per-section saves. */
+  /** ID of the visit this flow sheet belongs to â€” required for per-section saves. */
   visitId: number;
   /** Previously-saved Flow Sheet to pre-fill the form. */
   initial?: FlowSheet;
-  medications: DialysisMedication[];
+  medications: FlowSheetDialysisMedication[];
   medAdmin: MedAdminMap;
   onMedAction: (medId: number, action: "yes" | "no") => void;
   morseTotal: number;
@@ -142,16 +145,20 @@ function SectionSaveBar({
   label,
   save,
   onClear,
+  visitId,
 }: {
   rule: RuleAction;
   label: string;
   /** Caller-provided typed save call (e.g. `submitFlowSheetVitals(visitId, body)`).
-   *  Resolves to whatever the underlying repo function returns (typically the
-   *  updated `Visit`); we ignore the value here. */
-  save: () => Promise<unknown>;
+   *  Each repo function returns the **full updated Visit** â€” we push it into
+   *  the React Query cache so the visit-detail screen re-renders with the
+   *  fresh data without needing a manual refetch. */
+  save: () => Promise<Visit | unknown>;
   onClear: () => void;
+  visitId: number;
 }) {
   const { can, t } = useApp();
+  const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const allowed = can(rule);
   const { dialogProps, show: showDialog } = useFeedbackDialog();
@@ -165,7 +172,14 @@ function SectionSaveBar({
     }
     setBusy(true);
     try {
-      await save();
+      const result = (await save()) as Visit | undefined;
+      // Push the updated visit into the cache so the parent screen reflects
+      // the change immediately, and invalidate the list so list views refresh.
+      if (result && (result as Visit).id != null) {
+        qc.setQueryData(['visits', visitId], result);
+      }
+      qc.invalidateQueries({ queryKey: ['visits', visitId] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showDialog({ variant: "success", title: "Saved", message: `${sectionName} saved successfully.` });
     } catch (err: any) {
@@ -263,9 +277,27 @@ export function FlowSheetForm(props: Props) {
   const [dialysate, setDialysate] = useState<FlowSheetDialysate>(init?.dialysate ?? EMPTY_DIALYSATE);
   const [access, setAccess] = useState(init?.access ?? "");
   const [anticoagType, setAnticoagType] = useState(init?.anticoagType ?? "");
-  const [postTx, setPostTx] = useState<FlowSheetFormPostTx>(init?.postTx ?? EMPTY_POST);
+  const initPostTx = (): FlowSheetFormPostTx => {
+    const pa = init?.postAssessment
+    if (!pa) return EMPTY_POST
+    return {
+      bpSystolic: pa.bpSystolic ?? '', bpDiastolic: pa.bpDiastolic ?? '',
+      bpSite: pa.bpSite ?? '', pulse: pa.pulse ?? '', temp: pa.temp ?? '',
+      tempMethod: pa.tempMethod ?? '', spo2: pa.spo2 ?? '', rr: pa.rr ?? '',
+      rbs: pa.rbs ?? '', weight: pa.weight ?? '',
+      txTimeHr: pa.txTimeHr ?? '', txTimeMin: pa.txTimeMin ?? '',
+      txTimeL: pa.txTimeL ?? '', dialysateL: pa.dialysateL ?? '',
+      uf: pa.uf ?? '', blp: pa.blp ?? '',
+      catheterLock: pa.catheterLock ?? '', arterialAccess: pa.arterialAccess ?? '',
+      venousAccess: pa.venousAccess ?? '', needleSitesHeld: pa.needleSitesHeld ?? '',
+      accessProblems: pa.accessProblems ?? '', machineDisinfected: pa.machineDisinfected ?? '',
+      medicalComplaints: pa.medicalComplaints ?? '',
+      nonMedicalIncidence: pa.nonMedicalIncidence ?? '', initials: pa.initials ?? '',
+    }
+  }
+  const [postTx, setPostTx] = useState<FlowSheetFormPostTx>(initPostTx);
   // Note: response now returns `url` (CDN/S3 link), not inline base64. We feed
-  // the URL into the local SignatureValue via the same `dataUrl` field — the
+  // the URL into the local SignatureValue via the same `dataUrl` field â€” the
   // SignaturePad WebView can render an http(s) URL identically.
   const [patientSignature, setPatientSignature] = useState<SignatureValue>(
     init?.patientSignature
@@ -320,8 +352,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Outside Dialysis" color="#0EA5E9" done={outsideDialysis} isOpen={!!sections.outside} onToggle={() => toggle("outside")} colors={colors} isReadOnly={isReadOnly}>
             <OutsideDialysisForm value={outsideDialysis} onChange={setOutsideDialysis} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_outside_dialysis"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_outside_dialysis"
                 label="Save Outside Dialysis"
                 save={() => submitFlowSheetOutsideDialysis(visitId, { outsideDialysis })}
                 onClear={() => setOutsideDialysis(false)}
@@ -332,8 +363,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Pre-Treatment Vitals" color="#2DAAAE" done={vitalsDone} isOpen={!!sections.vitals} onToggle={() => toggle("vitals")} colors={colors} isReadOnly={isReadOnly}>
             <VitalsForm vitals={vitals} bpSite={bpSite} method={method} onVitalChange={updateVital} onBpSiteChange={setBpSite} onMethodChange={setMethod} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_pre_treatment_vitals"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_pre_treatment_vitals"
                 label="Save Vitals"
                 save={() => submitFlowSheetVitals(visitId, { vitals, bpSite, method })}
                 onClear={() => { setVitals(EMPTY_VITALS); setBpSite(""); setMethod(""); }}
@@ -344,8 +374,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Machines" color="#8B5CF6" done={machineDone} isOpen={!!sections.machines} onToggle={() => toggle("machines")} colors={colors} isReadOnly={isReadOnly}>
             <MachinesForm machine={machine} onChange={setMachine} colors={colors} disabled={isReadOnly} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_machines"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_machines"
                 label="Save Machines"
                 save={() => submitFlowSheetMachines(visitId, { machine })}
                 onClear={() => setMachine("")}
@@ -356,8 +385,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Pain Assessment" color="#EF4444" done={painDone} isOpen={!!sections.pain} onToggle={() => toggle("pain")} colors={colors} isReadOnly={isReadOnly}>
             <PainForm painScore={pain} painDetails={painDetails} onScoreChange={setPain} onDetailsChange={setPainDetails} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_pain_assessment"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_pain_assessment"
                 label="Save Pain Assessment"
                 save={() => submitFlowSheetPain(visitId, { pain, painDetails })}
                 onClear={() => { setPain(""); setPainDetails(EMPTY_PAIN); }}
@@ -379,8 +407,7 @@ export function FlowSheetForm(props: Props) {
               colors={colors}
             />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_fall_risk"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_fall_risk"
                 label="Save Fall Risk"
                 save={() => submitFlowSheetFallRisk(visitId, {
                   fallRisk,
@@ -396,8 +423,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Nursing Action" color="#10B981" done={nursingDone} isOpen={!!sections.nursing} onToggle={() => toggle("nursing")} colors={colors} isReadOnly={isReadOnly}>
             <NursingActionForm rows={nursingActions} onChange={setNursingActions} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_nursing_actions"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_nursing_actions"
                 label="Save Nursing Action"
                 save={() => submitFlowSheetNursingActions(visitId, { nursingActions })}
                 onClear={() => setNursingActions([{ ...EMPTY_NURSING }])}
@@ -408,8 +434,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Dialysis Parameters" color="#3B82F6" done={dialysisDone} isOpen={!!sections.dialysis} onToggle={() => toggle("dialysis")} colors={colors} isReadOnly={isReadOnly}>
             <DialysisParamsForm rows={dialysisParams} onChange={setDialysisParams} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_dialysis_parameters"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_dialysis_parameters"
                 label="Save Dialysis Parameters"
                 save={() => submitFlowSheetDialysisParams(visitId, { dialysisParams })}
                 onClear={() => setDialysisParams([{ ...EMPTY_DIALYSIS }])}
@@ -420,8 +445,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Alarms Test" color="#F97316" done={alarmsTest} isOpen={!!sections.alarms} onToggle={() => toggle("alarms")} colors={colors} isReadOnly={isReadOnly}>
             <AlarmsTestForm passed={alarmsTest} onChange={setAlarmsTest} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_alarms_test"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_alarms_test"
                 label="Save Alarms Test"
                 save={() => submitFlowSheetAlarmsTest(visitId, { alarmsTest })}
                 onClear={() => setAlarmsTest(false)}
@@ -432,8 +456,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Intake / Output" color="#06B6D4" done={intakeDone} isOpen={!!sections.intake} onToggle={() => toggle("intake")} colors={colors} isReadOnly={isReadOnly}>
             <IntakeOutputForm intake={intake} output={output} onIntakeChange={setIntake} onOutputChange={setOutput} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_intake_output"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_intake_output"
                 label="Save Intake / Output"
                 save={() => submitFlowSheetIntakeOutput(visitId, { intake, output })}
                 onClear={() => { setIntake(""); setOutput(""); }}
@@ -444,8 +467,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="CAR" color="#8B5CF6" done={carDone} isOpen={!!sections.car} onToggle={() => toggle("car")} colors={colors} isReadOnly={isReadOnly}>
             <CarForm car={car} onChange={setCar} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_car"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_car"
                 label="Save CAR"
                 save={() => submitFlowSheetCar(visitId, { car })}
                 onClear={() => setCar(EMPTY_CAR)}
@@ -456,8 +478,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Access / Location" color="#10B981" done={accessDone} isOpen={!!sections.access} onToggle={() => toggle("access")} colors={colors} isReadOnly={isReadOnly}>
             <AccessForm value={access} onChange={setAccess} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_access"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_access"
                 label="Save Access"
                 save={() => submitFlowSheetAccess(visitId, { access })}
                 onClear={() => setAccess("")}
@@ -468,8 +489,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Dialysate" color="#3B82F6" done={dialysateDone} isOpen={!!sections.dialysate} onToggle={() => toggle("dialysate")} colors={colors} isReadOnly={isReadOnly}>
             <DialysateForm dialysate={dialysate} onChange={setDialysate} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_dialysate"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_dialysate"
                 label="Save Dialysate"
                 save={() => submitFlowSheetDialysate(visitId, { dialysate })}
                 onClear={() => setDialysate(EMPTY_DIALYSATE)}
@@ -480,8 +500,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Anticoagulation" color="#EF4444" done={anticoagDone} isOpen={!!sections.anticoag} onToggle={() => toggle("anticoag")} colors={colors} isReadOnly={isReadOnly}>
             <AnticoagForm type={anticoagType} onChange={setAnticoagType} colors={colors} disabled={isReadOnly} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_anticoagulation"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_anticoagulation"
                 label="Save Anticoagulation"
                 save={() => submitFlowSheetAnticoagulation(visitId, { anticoagType })}
                 onClear={() => setAnticoagType("")}
@@ -492,8 +511,7 @@ export function FlowSheetForm(props: Props) {
           <Acc title="Dialysis Medications" color="#0891B2" done={medsDone} isOpen={!!sections.meds} onToggle={() => toggle("meds")} colors={colors} isReadOnly={isReadOnly}>
             <DialysisMedsForm medications={props.medications} medAdmin={props.medAdmin} onAction={props.onMedAction} colors={colors} />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_medications"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_medications"
                 label="Save Medications"
                 save={() => submitFlowSheetMedications(visitId, { medAdmin: props.medAdmin })}
                 onClear={() => {
@@ -515,11 +533,10 @@ export function FlowSheetForm(props: Props) {
               colors={colors}
             />
             {!isReadOnly && (
-              <SectionSaveBar
-                rule="submit_flow_sheet_post_treatment"
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_post_treatment"
                 label="Save Post Treatment"
                 save={() => submitFlowSheetPostTreatment(visitId, {
-                  postTx,
+                  postAssessment: postTx,
                   patientSignature: toSaved(patientSignature),
                   nurseSignature: toSaved(nurseSignature),
                 })}

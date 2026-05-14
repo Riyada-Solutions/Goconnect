@@ -22,19 +22,21 @@ import type {
   FlowSheetCar,
   FlowSheetDialysateSectionInput,
   FlowSheetDialysate,
+  FlowSheetDialysisMedication,
   FlowSheetDialysisParam,
   FlowSheetDialysisParamsInput,
   FlowSheetFallRiskInput,
   FlowSheetIntakeOutputInput,
   FlowSheetMachinesInput,
-  FlowSheetMedicationAdmin,
   FlowSheetMedicationsInput,
   FlowSheetMobilePostTx,
   FlowSheetMobileVitals,
   FlowSheetNursingAction,
   FlowSheetNursingActionsInput,
   FlowSheetOutsideDialysisInput,
+  FlowSheetPainDetails,
   FlowSheetPainSectionInput,
+  FlowSheetPostAssessment,
   FlowSheetPostTreatmentInput,
   FlowSheetVitalsSectionInput,
 } from './models/flowSheet'
@@ -73,31 +75,18 @@ export async function getVisitById(
 }
 
 /**
- * Maps the actual backend response to the canonical `FlowSheet` model.
+ * Maps `GET /visits/{id}` response into the canonical `FlowSheet` model.
  *
- * The backend currently stores the flow sheet inside `forms.flowsheet[0].value`
- * with snake_case keys. If the backend is already returning a populated
- * top-level `flowSheet` object (camelCase, as documented in §8.2), that is
- * used directly and the mapping is skipped.
+ * The backend returns a flat `flowSheet` object with snake_case section keys
+ * (alarms_test, hemodialysis, post_assessment, outside_dialysis,
+ * pre_treatment_vital, dialysis_medications, …). Each section is optional and
+ * may be missing when the nurse hasn't saved it yet.
  */
 function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
-  // Backend (real) returns flat `flowSheet` with snake_case section keys.
-  // Legacy Postman spec returns `forms.flowsheet[0].value`.
-  // Both share the same section-key vocabulary, so we map them through the
-  // same transformer.
-  let entry: any = null
-  let v: Record<string, any> = {}
+  const v: Record<string, any> | undefined =
+    raw?.flowSheet && typeof raw.flowSheet === 'object' ? raw.flowSheet : undefined
+  if (!v) return undefined
 
-  if (raw?.flowSheet && typeof raw.flowSheet === 'object') {
-    v = raw.flowSheet
-  } else if (Array.isArray(raw?.forms?.flowsheet) && raw.forms.flowsheet.length > 0) {
-    entry = raw.forms.flowsheet[0]
-    v = entry?.value ?? {}
-  } else {
-    return undefined
-  }
-
-  // Bail early if the only key is `visitId` (no sections persisted yet).
   const sectionKeys = Object.keys(v).filter(k => k !== 'visitId')
   if (sectionKeys.length === 0) return undefined
 
@@ -107,29 +96,51 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   const ptv = v.pre_treatment_vital ?? {}
   const vitals: FlowSheetMobileVitals = {
     height:      String(ptv.height ?? ''),
-    preWeight:   String(ptv.weight ?? ptv.pre_weight ?? ''),
-    dryWeight:   String(ptv.weight_dry ?? ptv.dry_weight ?? ''),
+    preWeight:   String(ptv.weight ?? ''),
+    dryWeight:   String(ptv.weight_dry ?? ''),
     ufGoal:      String(ptv.uf_goal ?? ''),
     bpSystolic:  String(ptv.bp_systolic ?? ''),
     bpDiastolic: String(ptv.bp_diastolic ?? ''),
-    temperature: String(ptv.temp ?? ptv.temperature ?? ''),
+    temperature: String(ptv.temp ?? ''),
     spo2:        String(ptv.spo2 ?? ''),
-    hr:          String(ptv.pr_value ?? ptv.hr ?? ptv.pulse ?? ''),
+    hr:          String(ptv.pr_value ?? ''),
     rr:          String(ptv.rr ?? ''),
     rbs:         String(ptv.rbs ?? ''),
+    bmi:         ptv.bmi != null ? String(ptv.bmi) : undefined,
+    bmiCategory: ptv.bmi_category ?? undefined,
+    prSite:      ptv.pr ?? undefined,
   }
-  const hasVitals = Object.values(vitals).some(x => x !== '')
+  const hasVitals = Object.values(vitals).some(x => x !== '' && x !== undefined)
 
-  // ── Pain assessment ───────────────────────────────────────────────────────
+  // ── Pain assessment (flat snake_case structure) ───────────────────────────
   const pa = v.pain_assessment ?? {}
+  const hasPain = Object.keys(pa).length > 0
+  const painDetails: FlowSheetPainDetails | undefined = hasPain
+    ? {
+        toolUsed:    String(pa.pain_present_tool_used ?? ''),
+        location:    String(pa.location ?? ''),
+        frequency:   String(pa.frequency ?? ''),
+        radiatingTo: String(pa.radiating ?? ''),
+        painType:    String(pa.type ?? ''),
+        occurs:      String(pa.occurs ?? ''),
+        ambulating:  String(pa.ambulating ?? ''),
+        resting:     String(pa.resting ?? ''),
+        eating:      String(pa.eating ?? ''),
+        relievedBy:  String(pa.relieved ?? ''),
+        worsensBy:   String(pa.worsens ?? ''),
+      }
+    : undefined
 
-  // ── Fall risk ─────────────────────────────────────────────────────────────
+  // ── Fall risk (score / high_risk shape) ───────────────────────────────────
   const fra = v.fall_risk_assessment ?? {}
+  const fallRisk: string | undefined    = fra.score != null ? String(fra.score) : undefined
+  const highFallRisk: boolean | undefined =
+    fra.high_risk != null ? (fra.high_risk === '1' || fra.high_risk === true || fra.high_risk === 1) : undefined
 
   // ── Alarms test ───────────────────────────────────────────────────────────
   const at = v.alarms_test ?? {}
 
-  // ── CAR (ff%, dialyzer, temp) — may be its own key or inside alarms_test ──
+  // ── CAR (ff%, dialyzer, temp) ─────────────────────────────────────────────
   const carRaw = v.car ?? {}
   const carFfPct = carRaw.ff_percent ?? at.ff_percent
   const car: FlowSheetCar | undefined =
@@ -144,7 +155,7 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   // ── Dialysate ─────────────────────────────────────────────────────────────
   const dsRaw = v.dialysate ?? {}
   const dialysate: FlowSheetDialysate | undefined =
-    (dsRaw.na || dsRaw.hco3 || dsRaw.k || dsRaw.glucose || at.k || at.glucose)
+    (dsRaw.na || dsRaw.hco3 || dsRaw.k || dsRaw.glucose || at.k || at.na || at.hco3 || at.glucose)
       ? {
           na:      String(dsRaw.na ?? at.na ?? ''),
           hco3:    String(dsRaw.hco3 ?? at.hco3 ?? ''),
@@ -153,6 +164,21 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
         }
       : undefined
 
+  // ── Access ────────────────────────────────────────────────────────────────
+  const access: string | undefined =
+    typeof v.access === 'string' ? v.access
+    : v.access?.access ?? at.vascular ?? undefined
+
+  // ── Intake / output (bundled inside alarms_test) ──────────────────────────
+  const intake  = at.intake  != null ? String(at.intake)  : (v.intake_output?.intake  ?? undefined)
+  const output  = at.output  != null ? String(at.output)  : (v.intake_output?.output  ?? undefined)
+
+  // ── Machine ───────────────────────────────────────────────────────────────
+  const machine: string | undefined =
+    v.machine_id != null ? String(v.machine_id)
+    : typeof v.machines === 'string' ? v.machines
+    : (v.machines?.machine ?? undefined)
+
   // ── Dialysis parameters ───────────────────────────────────────────────────
   const hd = v.hemodialysis ?? {}
   const rawRows: any[] = hd.dialysis ?? hd.dialysis_parameters ?? []
@@ -160,7 +186,8 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     time:          String(row.time ?? ''),
     systolic:      String(row.blood_pressure_systolic ?? row.systolic ?? ''),
     diastolic:     String(row.blood_pressure_diastolic ?? row.diastolic ?? ''),
-    site:          String(row.site ?? ''),
+    site:          String(row.bp_site ?? row.site ?? ''),
+    bpSite:        String(row.bp_site ?? row.site ?? ''),
     pulse:         String(row.pulse ?? ''),
     dialysateRate: String(row.dialysate_rate ?? row.dialysateRate ?? ''),
     uf:            String(row.uf_rate ?? row.uf ?? ''),
@@ -172,84 +199,123 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     access:        String(row.access ?? ''),
     alarms:        String(row.alarms ?? ''),
     initials:      String(row.initials ?? ''),
+    comments:      row.comments != null ? String(row.comments) : undefined,
   }))
 
-  // ── Nursing actions ───────────────────────────────────────────────────────
-  const naRaw = v.nursing_action ?? v.nursing_actions ?? {}
-  const nursingActions: FlowSheetNursingAction[] | undefined = Array.isArray(naRaw)
-    ? naRaw
-    : (Array.isArray(naRaw.nursingActions) ? naRaw.nursingActions : undefined)
-
-  // ── Post treatment ────────────────────────────────────────────────────────
-  // New shape:    flowSheet.post_treatment.postTx = { postWeight, lastBp, lastPulse, condition, notes }
-  // Legacy shape: flowSheet.post_assessment       = { weight, bp_sitting_systolic, bp_sitting_diastolic, pulse, ... }
-  // We try new first, then fall back to legacy with field-name translation.
-  let postTx: FlowSheetMobilePostTx | undefined
-  const ptNew = v.post_treatment?.postTx
-  if (ptNew && Object.keys(ptNew).length > 0) {
-    postTx = {
-      postWeight: String(ptNew.postWeight ?? ''),
-      lastBp:     String(ptNew.lastBp ?? ''),
-      lastPulse:  String(ptNew.lastPulse ?? ''),
-      condition:  String(ptNew.condition ?? ''),
-      notes:      String(ptNew.notes ?? ''),
-    }
-  } else {
-    const pa = v.post_assessment ?? {}
-    if (Object.keys(pa).length > 0) {
-      const sys = pa.bp_sitting_systolic ?? ''
-      const dia = pa.bp_sitting_diastolic ?? ''
-      const bp = sys || dia ? `${sys}/${dia}` : ''
-      postTx = {
-        postWeight: String(pa.weight ?? ''),
-        lastBp:     String(bp || pa.blp || ''),
-        lastPulse:  String(pa.pulse ?? ''),
-        condition:  String(pa.condition ?? ''),
-        notes:      String(pa.notes ?? pa.non_medical_incidence ?? ''),
-      }
-    }
-  }
-
-  // ── Medication admin ──────────────────────────────────────────────────────
-  const dm = v.dialysis_medications ?? {}
-  const medAdmin: Record<number, FlowSheetMedicationAdmin> | undefined =
-    dm && typeof dm === 'object' && !Array.isArray(dm) && Object.keys(dm).length > 0
-      ? (dm.medAdmin ?? dm.med_admin ?? dm.medications)
+  // ── Nursing actions (stored under hemodialysis.nursing_action) ────────────
+  const naRaw: any[] = Array.isArray(hd.nursing_action) ? hd.nursing_action
+    : Array.isArray(v.nursing_action) ? v.nursing_action
+    : Array.isArray(v.nursing_actions) ? v.nursing_actions
+    : []
+  const nursingActions: FlowSheetNursingAction[] | undefined =
+    naRaw.length > 0
+      ? naRaw.map((r: any) => ({
+          time:       String(r.time ?? ''),
+          focus:      String(r.focus ?? ''),
+          action:     String(r.nursing_action ?? r.action ?? ''),
+          evaluation: String(r.evaluation ?? ''),
+          name:       String(r.name ?? ''),
+        }))
       : undefined
+
+  // ── Post assessment (rich shape from new API) ─────────────────────────────
+  const paRaw = v.post_assessment ?? {}
+  const postAssessment: FlowSheetPostAssessment | undefined =
+    Object.keys(paRaw).length > 0
+      ? {
+          bpSystolic:          paRaw.bp_sitting_systolic ?? null,
+          bpDiastolic:         paRaw.bp_sitting_diastolic ?? null,
+          bpSite:              paRaw.bp_sitting_site ?? null,
+          pulse:               paRaw.pulse ?? null,
+          temp:                paRaw.temp ?? null,
+          tempMethod:          paRaw.temp_method ?? null,
+          spo2:                paRaw.spo2 ?? null,
+          rr:                  paRaw.rr ?? null,
+          rbs:                 paRaw.rbs ?? null,
+          weight:              paRaw.weight ?? null,
+          txTimeHr:            paRaw.tx_time_hr ?? null,
+          txTimeMin:           paRaw.tx_time_min ?? null,
+          txTimeL:             paRaw.tx_time_l ?? null,
+          dialysateL:          paRaw.dialysate_l ?? null,
+          uf:                  paRaw.uf ?? null,
+          blp:                 paRaw.blp ?? null,
+          catheterLock:        paRaw.catheter_lock ?? null,
+          arterialAccess:      paRaw.arterial_access ?? null,
+          venousAccess:        paRaw.venous_access ?? null,
+          needleSitesHeld:     paRaw.needle_sites_held ?? null,
+          accessProblems:      paRaw.access_problems ?? null,
+          machineDisinfected:  paRaw.machine_disinfected ?? null,
+          medicalComplaints:   paRaw.medical_complaints ?? null,
+          nonMedicalIncidence: paRaw.non_medical_incidence ?? null,
+          initials:            paRaw.initials ?? null,
+          signatureDate:       paRaw.signature_date ?? null,
+          signatureImage:      paRaw.signature_image ?? null,
+          signatureEmployeeId: paRaw.signature_employee_id ?? null,
+          signatureEmployeeName: paRaw.signature_employee_name ?? null,
+        }
+      : undefined
+
+  // ── Prescribed dialysis medications ───────────────────────────────────────
+  const dmRaw = v.dialysis_medications
+  const dialysisMedications: FlowSheetDialysisMedication[] | undefined =
+    Array.isArray(dmRaw) && dmRaw.length > 0
+      ? dmRaw.map((m: any) => ({
+          id:                 String(m.id),
+          drugId:             m.drug_id != null ? String(m.drug_id) : undefined,
+          drugName:           String(m.drug_name ?? ''),
+          form:               m.form ?? undefined,
+          dosage:             m.dosage ?? undefined,
+          route:              m.route ?? undefined,
+          frequency:          m.frequency ?? undefined,
+          duration:           m.duration ?? undefined,
+          instructions:       m.instructions ?? undefined,
+          administrationType: m.administration_type ?? undefined,
+        }))
+      : undefined
+
+  // ── Outside dialysis ──────────────────────────────────────────────────────
+  const od = v.outside_dialysis
+  const outsideDialysis: boolean =
+    od === true || od === '1' || od === 1
+    || (od && typeof od === 'object' && (od.outsideDialysis === true || od.outsideDialysis === '1' || od.outsideDialysis === 1))
+
+  // ── Patient signature (key uses a hyphen in the API response) ────────────
+  const pSig = v['patient-signature'] ?? {}
+  const patientSignature = pSig.patient_signature_signature_url
+    ? {
+        url:      String(pSig.patient_signature_signature_url),
+        signedAt: String(pSig.patient_signature_signed_at ?? ''),
+      }
+    : undefined
 
   return {
     visitId,
     ...(hasVitals ? { vitals } : {}),
-    bpSite:     ptv.bp_site ?? ptv.bpSite ?? undefined,
-    method:     ptv.temp_method ?? ptv.method ?? undefined,
-    machine:    (typeof v.machines === 'string' ? v.machines : v.machines?.machine) ?? undefined,
-    pain:       pa.pain ?? undefined,
-    painDetails: pa.painDetails ?? pa.pain_details ?? undefined,
-    fallRisk:    fra.fallRisk ?? fra.fall_risk ?? undefined,
-    highFallRisk: fra.highFallRisk ?? fra.high_fall_risk ?? undefined,
+    bpSite:      ptv.bp_site ?? ptv.bpSite ?? undefined,
+    method:      ptv.temp_method ?? ptv.method ?? undefined,
+    machine,
+    pain:        pa.rating != null ? String(pa.rating) : undefined,
+    painDetails,
+    fallRisk,
+    highFallRisk,
     morseValues: fra.morseValues ?? fra.morse_values ?? undefined,
     morseTotal:  fra.morseTotal ?? fra.morse_total ?? undefined,
-    outsideDialysis:
-      v.outside_dialysis === '1' || v.outside_dialysis === true || v.outside_dialysis === 1,
-    alarmsTest:
-      at.passed === '1' || at.passed === true || at.alarmsTest === true,
-    intake:  v.intake_output?.intake ?? undefined,
-    output:  v.intake_output?.output ?? undefined,
+    outsideDialysis,
+    alarmsTest:  at.passed === '1' || at.passed === true,
+    intake,
+    output,
     car,
     dialysate,
-    access:
-      typeof v.access === 'string'
-        ? v.access
-        : (v.access?.access ?? undefined),
+    access,
     anticoagType:
       typeof v.anticoagulation === 'string'
         ? v.anticoagulation
         : (v.anticoagulation?.anticoagType ?? undefined),
     dialysisParams: dialysisParams.length > 0 ? dialysisParams : undefined,
-    medAdmin,
+    dialysisMedications,
     nursingActions,
-    postTx,
-    submittedAt: entry?.updatedAt ?? entry?.updated_at ?? undefined,
+    postAssessment,
+    patientSignature,
   }
 }
 
@@ -318,25 +384,22 @@ export type FlowSheetSection =
   | 'medications'
   | 'post-treatment'
 
-// Map FE section slug → top-level snake_case key inside the flowsheet form
-// `value`. Backend is a Class-A (shallow merge) endpoint, so we send the
-// section under its key and untouched keys stay intact.
 const FLOWSHEET_SECTION_KEY: Record<FlowSheetSection, string> = {
-  'outside-dialysis': 'outside_dialysis',
-  'pre-treatment-vitals': 'pre_treatment_vital',
-  'machines': 'machines',
-  'pain-assessment': 'pain_assessment',
-  'fall-risk': 'fall_risk_assessment',
-  'nursing-actions': 'nursing_actions',
+  'outside-dialysis':    'outside_dialysis',
+  'pre-treatment-vitals':'pre_treatment_vital',
+  'machines':            'machine_id',
+  'pain-assessment':     'pain_assessment',
+  'fall-risk':           'fall_risk_assessment',
+  'nursing-actions':     'hemodialysis',
   'dialysis-parameters': 'hemodialysis',
-  'alarms-test': 'alarms_test',
-  'intake-output': 'intake_output',
-  'car': 'car',
-  'access': 'access',
-  'dialysate': 'dialysate',
-  'anticoagulation': 'anticoagulation',
-  'medications': 'dialysis_medications',
-  'post-treatment': 'post_assessment',
+  'alarms-test':         'alarms_test',
+  'intake-output':       'alarms_test',
+  'car':                 'alarms_test',
+  'access':              'alarms_test',
+  'dialysate':           'alarms_test',
+  'anticoagulation':     'anticoagulation',
+  'medications':         'dialysis_medications',
+  'post-treatment':      'post_assessment',
 }
 
 /**
@@ -368,62 +431,136 @@ export async function submitFlowSheetSection(
 export const submitFlowSheetOutsideDialysis = (
   visitId: number | string,
   body: FlowSheetOutsideDialysisInput,
-) => submitFlowSheetSection(visitId, 'outside-dialysis', body)
+) => submitFlowSheetSection(visitId, 'outside-dialysis', body.outsideDialysis ? '1' : '0')
 
 export const submitFlowSheetVitals = (
   visitId: number | string,
   body: FlowSheetVitalsSectionInput,
-) => submitFlowSheetSection(visitId, 'pre-treatment-vitals', body)
+) => submitFlowSheetSection(visitId, 'pre-treatment-vitals', {
+  height:      body.vitals.height,
+  weight:      body.vitals.preWeight,
+  weight_dry:  body.vitals.dryWeight,
+  uf_goal:     body.vitals.ufGoal,
+  bp_systolic: body.vitals.bpSystolic,
+  bp_diastolic:body.vitals.bpDiastolic,
+  temp:        body.vitals.temperature,
+  spo2:        body.vitals.spo2,
+  pr_value:    body.vitals.hr,
+  rr:          body.vitals.rr,
+  rbs:         body.vitals.rbs,
+  bp_site:     body.bpSite,
+  temp_method: body.method,
+})
 
+// machine_id is a top-level key in the flowsheet — send the value directly
 export const submitFlowSheetMachines = (
   visitId: number | string,
   body: FlowSheetMachinesInput,
-) => submitFlowSheetSection(visitId, 'machines', body)
+) => submitFlowSheetSection(visitId, 'machines', body.machine)
 
 export const submitFlowSheetPain = (
   visitId: number | string,
   body: FlowSheetPainSectionInput,
-) => submitFlowSheetSection(visitId, 'pain-assessment', body)
+) => submitFlowSheetSection(visitId, 'pain-assessment', {
+  rating:                 body.pain,
+  pain_present_tool_used: body.painDetails.toolUsed,
+  location:               body.painDetails.location,
+  frequency:              body.painDetails.frequency,
+  radiating:              body.painDetails.radiatingTo,
+  type:                   body.painDetails.painType,
+  occurs:                 body.painDetails.occurs,
+  ambulating:             body.painDetails.ambulating,
+  resting:                body.painDetails.resting,
+  eating:                 body.painDetails.eating,
+  relieved:               body.painDetails.relievedBy,
+  worsens:                body.painDetails.worsensBy,
+})
 
 export const submitFlowSheetFallRisk = (
   visitId: number | string,
   body: FlowSheetFallRiskInput,
-) => submitFlowSheetSection(visitId, 'fall-risk', body)
+) => submitFlowSheetSection(visitId, 'fall-risk', {
+  score:     body.fallRisk,
+  high_risk: body.highFallRisk ? '1' : '0',
+})
 
 export const submitFlowSheetNursingActions = (
   visitId: number | string,
   body: FlowSheetNursingActionsInput,
-) => submitFlowSheetSection(visitId, 'nursing-actions', body)
+) => submitFlowSheetSection(visitId, 'nursing-actions', {
+  nursing_action: body.nursingActions.map(a => ({
+    name:           a.name,
+    time:           a.time,
+    focus:          a.focus,
+    evaluation:     a.evaluation,
+    nursing_action: a.action,
+  })),
+})
 
 export const submitFlowSheetDialysisParams = (
   visitId: number | string,
   body: FlowSheetDialysisParamsInput,
-) => submitFlowSheetSection(visitId, 'dialysis-parameters', body)
+) => submitFlowSheetSection(visitId, 'dialysis-parameters', {
+  dialysis: body.dialysisParams.map(p => ({
+    time:                     p.time,
+    blood_pressure_systolic:  p.systolic,
+    blood_pressure_diastolic: p.diastolic,
+    bp_site:                  p.bpSite ?? p.site,
+    pulse:                    p.pulse,
+    dialysate_rate:            p.dialysateRate,
+    uf_rate:                  p.uf,
+    bfr:                      p.bfr,
+    dialysate_volume:          p.dialysateVol,
+    uf_volume:                p.ufVol,
+    venous:                   p.venous,
+    effluent:                 p.effluent,
+    access:                   p.access,
+    initials:                 p.initials,
+    comments:                 p.comments,
+  })),
+})
 
 export const submitFlowSheetAlarmsTest = (
   visitId: number | string,
   body: FlowSheetAlarmsTestInput,
-) => submitFlowSheetSection(visitId, 'alarms-test', body)
+) => submitFlowSheetSection(visitId, 'alarms-test', {
+  passed: body.alarmsTest ? '1' : '0',
+})
 
 export const submitFlowSheetIntakeOutput = (
   visitId: number | string,
   body: FlowSheetIntakeOutputInput,
-) => submitFlowSheetSection(visitId, 'intake-output', body)
+) => submitFlowSheetSection(visitId, 'intake-output', {
+  intake: body.intake,
+  output: body.output,
+})
 
+// car fields (ff_percent, dialyzer, temp) are stored inside alarms_test
 export const submitFlowSheetCar = (
   visitId: number | string,
   body: FlowSheetCarSectionInput,
-) => submitFlowSheetSection(visitId, 'car', body)
+) => submitFlowSheetSection(visitId, 'car', {
+  ff_percent: body.car.ffPercent,
+  dialyzer:   body.car.dialyzer,
+  temp:       body.car.temp,
+})
 
+// access (vascular type) is stored as alarms_test.vascular
 export const submitFlowSheetAccess = (
   visitId: number | string,
   body: FlowSheetAccessInput,
-) => submitFlowSheetSection(visitId, 'access', body)
+) => submitFlowSheetSection(visitId, 'access', { vascular: body.access })
 
+// dialysate fields (k, na, hco3, glucose) are stored inside alarms_test
 export const submitFlowSheetDialysate = (
   visitId: number | string,
   body: FlowSheetDialysateSectionInput,
-) => submitFlowSheetSection(visitId, 'dialysate', body)
+) => submitFlowSheetSection(visitId, 'dialysate', {
+  k:       body.dialysate.k,
+  na:      body.dialysate.na,
+  hco3:    body.dialysate.hco3,
+  glucose: body.dialysate.glucose,
+})
 
 export const submitFlowSheetAnticoagulation = (
   visitId: number | string,
@@ -448,20 +585,39 @@ function dataUrlToFile(dataUrl: string, name: string) {
   } as unknown as Blob
 }
 
-function serializePostTx(pt: FlowSheetMobilePostTx) {
+function serializePostAssessment(pt: FlowSheetMobilePostTx) {
   return {
-    postWeight: pt.postWeight,
-    lastBp:     pt.lastBp,
-    lastPulse:  pt.lastPulse,
-    condition:  pt.condition,
-    notes:      pt.notes,
+    bp_sitting_systolic:  pt.bpSystolic,
+    bp_sitting_diastolic: pt.bpDiastolic,
+    bp_sitting_site:      pt.bpSite,
+    pulse:                pt.pulse,
+    temp:                 pt.temp,
+    temp_method:          pt.tempMethod,
+    spo2:                 pt.spo2,
+    rr:                   pt.rr,
+    rbs:                  pt.rbs,
+    weight:               pt.weight,
+    tx_time_hr:           pt.txTimeHr,
+    tx_time_min:          pt.txTimeMin,
+    tx_time_l:            pt.txTimeL,
+    dialysate_l:          pt.dialysateL,
+    uf:                   pt.uf,
+    blp:                  pt.blp,
+    catheter_lock:        pt.catheterLock,
+    arterial_access:      pt.arterialAccess,
+    venous_access:        pt.venousAccess,
+    needle_sites_held:    pt.needleSitesHeld,
+    access_problems:      pt.accessProblems,
+    machine_disinfected:  pt.machineDisinfected,
+    medical_complaints:   pt.medicalComplaints,
+    non_medical_incidence:pt.nonMedicalIncidence,
+    initials:             pt.initials,
   }
 }
 
 /**
- * Post-treatment save. Uses multipart/form-data only when at least one
- * signature PNG is present; falls back to plain JSON otherwise so the clinical
- * data is persisted even when the backend media-upload table is unavailable.
+ * Post-treatment save. Uses multipart/form-data only when a patient signature
+ * PNG is present; falls back to plain JSON otherwise.
  */
 export async function submitFlowSheetPostTreatment(
   visitId: number | string,
@@ -469,12 +625,11 @@ export async function submitFlowSheetPostTreatment(
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
 
-  const hasPatientSig = !!body.patientSignature?.dataUrl
-  const hasNurseSig   = !!body.nurseSignature?.dataUrl
+  const hasPatientSig  = !!body.patientSignature?.dataUrl
+  const hasNurseSig    = !!body.nurseSignature?.dataUrl
   const needsMultipart = hasPatientSig || hasNurseSig
 
-  // Backend accepts section key `post_treatment` with the body nested under `postTx`.
-  const postPayload = { post_treatment: { postTx: serializePostTx(body.postTx) } }
+  const postPayload = { post_assessment: serializePostAssessment(body.postAssessment) }
 
   if (!needsMultipart) {
     const res = await apiClient.post(

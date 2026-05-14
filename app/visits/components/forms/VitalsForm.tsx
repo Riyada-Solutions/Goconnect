@@ -2,8 +2,11 @@ import React from "react";
 import { Text, View } from "react-native";
 
 import type { FlowSheetMobileVitals } from "@/data/models/flowSheet";
+import { SelectField } from "@/components/ui/SelectField";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
+
+const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temporal"] as const;
 
 interface Props {
   vitals: FlowSheetMobileVitals;
@@ -34,7 +37,15 @@ export function VitalsForm({ vitals, bpSite, method, onVitalChange, onBpSiteChan
       <FormField label="Site" value={bpSite} onChangeText={onBpSiteChange} colors={colors} placeholder="e.g. Left Arm" />
       <View style={s.formRow}>
         <FormField label="Temperature (°C)" value={vitals.temperature} onChangeText={(v) => onVitalChange("temperature", v)} colors={colors} half keyboardType="decimal-pad" />
-        <FormField label="Method" value={method} onChangeText={onMethodChange} colors={colors} half placeholder="e.g. Oral" />
+        <View style={{ flex: 1 }}>
+          <SelectField
+            label="Method"
+            value={method || null}
+            options={METHOD_OPTIONS}
+            placeholder="Select method..."
+            onChange={onMethodChange}
+          />
+        </View>
       </View>
       <View style={s.formRow}>
         <FormField label="SpO2 (%)" value={vitals.spo2} onChangeText={(v) => onVitalChange("spo2", v)} colors={colors} half keyboardType="numeric" />

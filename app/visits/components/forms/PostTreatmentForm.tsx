@@ -9,7 +9,12 @@ import type { FlowSheetMobilePostTx } from "@/data/models/flowSheet";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
 
-const CONDITION_OPTIONS = ["Stable", "Improved", "Unchanged", "Deteriorated"] as const;
+const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temporal"] as const;
+const BP_SITE_OPTIONS = [
+  "Right Upper Arm", "Left Upper Arm", "Right Forearm", "Left Forearm",
+  "Right Wrist", "Left Wrist", "Right Thigh", "Left Thigh", "Right Ankle", "Left Ankle",
+] as const;
+const MACHINE_DISINFECTED_OPTIONS = ["yes", "no"] as const;
 
 interface Props {
   postTx: FlowSheetMobilePostTx;
@@ -23,7 +28,7 @@ interface Props {
   disabled?: boolean;
 }
 
-function set<K extends keyof FlowSheetMobilePostTx>(
+function upd<K extends keyof FlowSheetMobilePostTx>(
   postTx: FlowSheetMobilePostTx,
   onChange: (v: FlowSheetMobilePostTx) => void,
   key: K,
@@ -33,75 +38,73 @@ function set<K extends keyof FlowSheetMobilePostTx>(
 }
 
 export function PostTreatmentForm({
-  postTx,
-  patientSignature,
-  nurseSignature,
-  onChange,
-  onPatientSignatureChange,
-  onNurseSignatureChange,
-  onSignatureSaved,
-  colors,
-  disabled,
+  postTx, patientSignature, nurseSignature,
+  onChange, onPatientSignatureChange, onNurseSignatureChange,
+  onSignatureSaved, colors, disabled,
 }: Props) {
-  const upd = <K extends keyof FlowSheetMobilePostTx>(key: K) =>
-    (value: FlowSheetMobilePostTx[K]) => set(postTx, onChange, key, value);
+  const set = <K extends keyof FlowSheetMobilePostTx>(key: K) =>
+    (value: FlowSheetMobilePostTx[K]) => upd(postTx, onChange, key, value);
 
   return (
     <>
-      {/* ── Post Weight / Last BP ─────────────────────────────────── */}
+      {/* ── Post BP ───────────────────────────────────────────────── */}
       <View style={s.formRow}>
-        <FormField
-          label="Post Weight (Kg)"
-          value={postTx.postWeight}
-          onChangeText={upd("postWeight")}
-          colors={colors}
-          half
-          keyboardType="numeric"
-          editable={!disabled}
-        />
-        <FormField
-          label="Last BP (mmHg)"
-          value={postTx.lastBp}
-          onChangeText={upd("lastBp")}
-          colors={colors}
-          half
-          placeholder="e.g. 120/80"
-          editable={!disabled}
-        />
+        <FormField label="Systolic" value={postTx.bpSystolic} onChangeText={set("bpSystolic")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="Diastolic" value={postTx.bpDiastolic} onChangeText={set("bpDiastolic")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+      </View>
+      <View style={{ marginBottom: 8 }}>
+        <SelectField label="BP Site" value={postTx.bpSite || null} options={BP_SITE_OPTIONS} placeholder="Choose site..." onChange={set("bpSite")} disabled={disabled} />
       </View>
 
-      {/* ── Last Pulse / Condition ────────────────────────────────── */}
+      {/* ── Post Vitals ───────────────────────────────────────────── */}
       <View style={s.formRow}>
-        <FormField
-          label="Last Pulse (bpm)"
-          value={postTx.lastPulse}
-          onChangeText={upd("lastPulse")}
-          colors={colors}
-          half
-          keyboardType="numeric"
-          editable={!disabled}
-        />
+        <FormField label="Pulse (bpm)" value={postTx.pulse} onChangeText={set("pulse")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="Temperature (°C)" value={postTx.temp} onChangeText={set("temp")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+      </View>
+      <View style={s.formRow}>
         <View style={{ flex: 1 }}>
-          <SelectField
-            label="Condition"
-            value={postTx.condition || null}
-            options={CONDITION_OPTIONS}
-            placeholder="Select..."
-            onChange={upd("condition")}
-            disabled={disabled}
-          />
+          <SelectField label="Temp Method" value={postTx.tempMethod || null} options={METHOD_OPTIONS} placeholder="Choose..." onChange={set("tempMethod")} disabled={disabled} />
         </View>
+        <FormField label="SpO2 (%)" value={postTx.spo2} onChangeText={set("spo2")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+      </View>
+      <View style={s.formRow}>
+        <FormField label="RR (cpm)" value={postTx.rr} onChangeText={set("rr")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="RBS (mg/dl)" value={postTx.rbs} onChangeText={set("rbs")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+      </View>
+      <FormField label="Post Weight (Kg)" value={postTx.weight} onChangeText={set("weight")} colors={colors} keyboardType="decimal-pad" editable={!disabled} />
+
+      {/* ── Treatment Summary ─────────────────────────────────────── */}
+      <View style={s.formRow}>
+        <FormField label="Tx Time Hr" value={postTx.txTimeHr} onChangeText={set("txTimeHr")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="Tx Time Min" value={postTx.txTimeMin} onChangeText={set("txTimeMin")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+      </View>
+      <View style={s.formRow}>
+        <FormField label="Tx Time (L)" value={postTx.txTimeL} onChangeText={set("txTimeL")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+        <FormField label="Dialysate (L)" value={postTx.dialysateL} onChangeText={set("dialysateL")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+      </View>
+      <View style={s.formRow}>
+        <FormField label="UF" value={postTx.uf} onChangeText={set("uf")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+        <FormField label="BLP" value={postTx.blp} onChangeText={set("blp")} colors={colors} half keyboardType="numeric" editable={!disabled} />
       </View>
 
-      {/* ── Notes ─────────────────────────────────────────────────── */}
-      <FormField
-        label="Notes"
-        value={postTx.notes}
-        onChangeText={upd("notes")}
-        colors={colors}
-        placeholder="e.g. Tolerated well"
-        editable={!disabled}
-      />
+      {/* ── Access & Machine ──────────────────────────────────────── */}
+      <View style={s.formRow}>
+        <FormField label="Catheter Lock" value={postTx.catheterLock} onChangeText={set("catheterLock")} colors={colors} half editable={!disabled} />
+        <FormField label="Arterial Access" value={postTx.arterialAccess} onChangeText={set("arterialAccess")} colors={colors} half editable={!disabled} />
+      </View>
+      <View style={s.formRow}>
+        <FormField label="Venous Access" value={postTx.venousAccess} onChangeText={set("venousAccess")} colors={colors} half editable={!disabled} />
+        <FormField label="Needle Sites Held" value={postTx.needleSitesHeld} onChangeText={set("needleSitesHeld")} colors={colors} half editable={!disabled} />
+      </View>
+      <FormField label="Access Problems" value={postTx.accessProblems} onChangeText={set("accessProblems")} colors={colors} editable={!disabled} />
+      <View style={{ marginBottom: 8 }}>
+        <SelectField label="Machine Disinfected" value={postTx.machineDisinfected || null} options={MACHINE_DISINFECTED_OPTIONS} placeholder="Select..." onChange={set("machineDisinfected")} disabled={disabled} />
+      </View>
+
+      {/* ── Incidents ─────────────────────────────────────────────── */}
+      <FormField label="Medical Complaints" value={postTx.medicalComplaints} onChangeText={set("medicalComplaints")} colors={colors} editable={!disabled} />
+      <FormField label="Non-Medical Incidence" value={postTx.nonMedicalIncidence} onChangeText={set("nonMedicalIncidence")} colors={colors} editable={!disabled} />
+      <FormField label="Initials" value={postTx.initials} onChangeText={set("initials")} colors={colors} editable={!disabled} />
 
       {/* ── Signatures ───────────────────────────────────────────── */}
       <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>

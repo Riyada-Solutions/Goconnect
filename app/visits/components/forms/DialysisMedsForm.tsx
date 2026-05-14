@@ -2,14 +2,14 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 
-import type { DialysisMedication } from "@/data/models/visit";
+import type { FlowSheetDialysisMedication } from "@/data/models/flowSheet";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 
 export type MedAdminEntry = { status: "yes" | "no" | null; timestamp: string; reason: string };
 export type MedAdminMap = Record<number, MedAdminEntry>;
 
 interface Props {
-  medications: DialysisMedication[];
+  medications: FlowSheetDialysisMedication[];
   medAdmin: MedAdminMap;
   onAction: (medId: number, action: "yes" | "no") => void;
   colors: any;
@@ -30,7 +30,8 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors }: Pr
   return (
     <>
       {medications.map((med) => {
-        const admin = medAdmin[med.id];
+        const medId = Number(med.id);
+        const admin = medAdmin[medId];
         return (
           <View key={med.id} style={[s.dynRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -61,10 +62,10 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors }: Pr
             </Text>
             {!admin?.status && (
               <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
-                <Pressable onPress={() => onAction(med.id, "yes")} style={[s.medAdminBtn, { backgroundColor: "#22C55E" }]}>
+                <Pressable onPress={() => onAction(medId, "yes")} style={[s.medAdminBtn, { backgroundColor: "#22C55E" }]}>
                   <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>Yes</Text>
                 </Pressable>
-                <Pressable onPress={() => onAction(med.id, "no")} style={[s.medAdminBtn, { backgroundColor: "#EF4444" }]}>
+                <Pressable onPress={() => onAction(medId, "no")} style={[s.medAdminBtn, { backgroundColor: "#EF4444" }]}>
                   <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>No</Text>
                 </Pressable>
               </View>

@@ -3,31 +3,39 @@ import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { Card } from "@/components/common/Card";
 import { CareTeamView } from "@/components/common/CareTeamView";
+import { CustomButton } from "@/components/common/CustomButton";
+import { RuleGate } from "@/components/common/RuleGate";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PatientCard } from "@/components/common/PatientCard";
+import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { AppointmentDetailSkeleton } from "@/components/skeletons";
-import { Colors } from "@/theme/colors";
+import { CARD_BG_ALPHA, Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import {
+  useCancelAppointment,
   useCheckInAppointment,
   useConfirmAppointment,
+  useConfirmAppointmentForNurse,
   useSlot,
 } from "@/hooks/useScheduler";
+import { AppointmentStatus, appointmentStatusLabel, normalizeAppointmentStatus } from "@/data/models/scheduler";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
@@ -36,32 +44,34 @@ import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialo
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t } = useApp();
+  const { t, can } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad, horizontal, gap, insets } = useScreenPadding({
     hasActionBar: true,
   });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
 
-  const { data: record, isLoading, isError, refetch } = useSlot(Number(id));
+  const { data: record, isLoading, isFetching, isError, refetch } = useSlot(Number(id));
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   // Patient hero card data rides on the slot response (single source of truth).
   const patientRecord = (record as any)?.patient ?? null;
 
-  const [status, setStatus] = useState<"pending" | "confirmed" | "checked-in">(
-    record?.status === "confirmed" ? "confirmed" : "pending",
-  );
+  // Derive status straight from the server record so it stays in sync after
+  // refetches/mutations.
+  const status: AppointmentStatus =
+    normalizeAppointmentStatus(record?.status) ?? AppointmentStatus.Pending;
 
   const confirmMutation = useConfirmAppointment();
   const checkInMutation = useCheckInAppointment();
+  const cancelMutation = useCancelAppointment();
+  const confirmForNurseMutation = useConfirmAppointmentForNurse();
+  const canConfirmForOthers = can('confirm_for_others');
 
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     confirmMutation.mutate(Number(id), {
-      onSuccess: () => {
-        setStatus("confirmed");
-        showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") });
-      },
+      onSuccess: () =>
+        showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") }),
       onError: (err) =>
         showDialog({ variant: "error", title: t("error"), message: err.message }),
     });
@@ -70,13 +80,44 @@ export default function AppointmentDetailScreen() {
   const handleCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     checkInMutation.mutate(Number(id), {
-      onSuccess: () => {
-        setStatus("checked-in");
-        showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") });
-      },
+      onSuccess: () =>
+        showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") }),
       onError: (err) =>
         showDialog({ variant: "error", title: t("error"), message: err.message }),
     });
+  };
+
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const handleCancel = () => {
+    Haptics.selectionAsync();
+    setCancelReason("");
+    setCancelError(null);
+    setCancelOpen(true);
+  };
+
+  const performCancel = () => {
+    const reason = cancelReason.trim();
+    if (!reason) {
+      setCancelError(t("cancelReasonRequired"));
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    cancelMutation.mutate(
+      { id: Number(id), reason },
+      {
+        onSuccess: () => {
+          setCancelOpen(false);
+          showDialog({ variant: "success", title: t("canceled"), message: t("appointmentCanceledMessage") });
+        },
+        onError: (err) => {
+          setCancelOpen(false);
+          showDialog({ variant: "error", title: t("error"), message: err.message });
+        },
+      },
+    );
   };
 
   const careTeam = record?.careTeam ?? [];
@@ -95,9 +136,10 @@ export default function AppointmentDetailScreen() {
     </View>
   );
 
-  if (isLoading || refreshing) {
+  if (isLoading || isFetching || refreshing) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
+        <ScreenBackground />
         {renderHeader()}
         <AppointmentDetailSkeleton />
       </View>
@@ -107,6 +149,7 @@ export default function AppointmentDetailScreen() {
   if (isError) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
+        <ScreenBackground />
         {renderHeader()}
         <ErrorState onRetry={() => refetch()} />
       </View>
@@ -116,6 +159,7 @@ export default function AppointmentDetailScreen() {
   if (!record) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
+        <ScreenBackground />
         {renderHeader()}
         <EmptyState
           icon="calendar"
@@ -130,11 +174,87 @@ export default function AppointmentDetailScreen() {
 
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
+      <ScreenBackground />
       <FeedbackDialog {...dialogProps} />
+      <Modal
+        visible={cancelOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !cancelMutation.isPending && setCancelOpen(false)}
+      >
+        <Pressable
+          style={s.modalOverlay}
+          onPress={() => !cancelMutation.isPending && setCancelOpen(false)}
+        >
+          <Pressable
+            style={[s.modalCard, { backgroundColor: colors.card }]}
+            onPress={() => {}}
+          >
+            <Text style={[s.modalTitle, { color: colors.text }]}>
+              {t("cancelAppointment")}
+            </Text>
+            <Text style={[s.modalMessage, { color: colors.textSecondary }]}>
+              {t("cancelAppointmentConfirm")}
+            </Text>
+            <Text style={[s.modalLabel, { color: colors.textSecondary }]}>
+              {t("cancelReason")}
+              <Text style={{ color: "#EF4444" }}> *</Text>
+            </Text>
+            <TextInput
+              value={cancelReason}
+              onChangeText={(v) => { setCancelReason(v); if (cancelError) setCancelError(null); }}
+              placeholder={t("cancelReasonPlaceholder")}
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              numberOfLines={3}
+              style={[
+                s.modalInput,
+                {
+                  color: colors.text,
+                  borderColor: cancelError ? "#EF4444" : colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            />
+            {cancelError ? (
+              <Text style={s.modalError}>{cancelError}</Text>
+            ) : null}
+            <View style={s.modalActions}>
+              <CustomButton
+                onPress={() => setCancelOpen(false)}
+                title={t("no")}
+                variant="outlined"
+                color={colors.border}
+                textColor={colors.text}
+                enable={!cancelMutation.isPending}
+                style={{ flex: 1 }}
+              />
+              <CustomButton
+                onPress={performCancel}
+                title={t("yesCancel")}
+                color="#EF4444"
+                loading={cancelMutation.isPending}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
       {renderHeader()}
 
       <ScrollView
-        contentContainerStyle={{ padding: horizontal, paddingBottom: botPad, gap }}
+        contentContainerStyle={{
+          padding: horizontal,
+          // The bottom action bar can stack two buttons (Confirm + Cancel) on
+          // New/Confirmed states; reserve extra room so the last care-team
+          // member isn't hidden behind it.
+          paddingBottom: botPad + (
+            status === AppointmentStatus.New || status === AppointmentStatus.Confirmed
+              ? 70
+              : 0
+          ),
+          gap,
+        }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -162,9 +282,7 @@ export default function AppointmentDetailScreen() {
                 <View style={[s.typeDot, { backgroundColor: typeColor }]} />
                 <Text style={[s.typeText, { color: typeColor }]}>{record.type}</Text>
               </View>
-              <StatusBadge
-                status={status === "checked-in" ? t("checkedIn") : status === "confirmed" ? t("confirmed") : t("pending")}
-              />
+              <StatusBadge status={status} label={appointmentStatusLabel(status, t)} />
             </View>
 
             <View style={s.divider} />
@@ -198,7 +316,34 @@ export default function AppointmentDetailScreen() {
 
 
         {/* ─── Care Team ─────────────────────────────────────────────── */}
-        <CareTeamView animDelay={150} members={careTeam} />
+        <View style={{ opacity: 0.7 }}>
+          <CareTeamView
+            animDelay={150}
+            members={careTeam}
+            confirmedLabel={t("confirmed")}
+            onConfirmMember={
+              canConfirmForOthers && status === AppointmentStatus.New
+                ? (member) => {
+                    if (member.id == null) return;
+                    confirmForNurseMutation.mutate(
+                      { slotId: Number(id), nurseId: member.id },
+                      {
+                        onSuccess: () =>
+                          showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") }),
+                        onError: (err) =>
+                          showDialog({ variant: "error", title: t("error"), message: err.message }),
+                      },
+                    );
+                  }
+                : undefined
+            }
+            confirmingMemberId={
+              confirmForNurseMutation.isPending
+                ? confirmForNurseMutation.variables?.nurseId ?? null
+                : null
+            }
+          />
+        </View>
 
         {/* ─── Additional Info ────────────────────────────────────────── */}
         {/* <Animated.View entering={FadeInDown.delay(200).springify()}>
@@ -226,24 +371,64 @@ export default function AppointmentDetailScreen() {
       </ScrollView>
 
       {/* ─── Bottom Action Button ─────────────────────────────────────── */}
-      <View style={[s.bottomBar, { paddingBottom: Math.max(insets.bottom, 16), backgroundColor: colors.card, borderTopColor: colors.borderLight }]}>
-        {status === "pending" && (
-          <Pressable onPress={handleConfirm} style={[s.actionBtn, { backgroundColor: Colors.primary }]}>
-            <Feather name="check" size={20} color="#fff" />
-            <Text style={s.actionBtnText}>{t("confirmAppointment")}</Text>
-          </Pressable>
+      <View style={[s.bottomBar, { paddingBottom: Math.max(insets.bottom, 16), backgroundColor: `${colors.card}${CARD_BG_ALPHA}`, borderTopColor: colors.borderLight, gap: 10 }]}>
+        {status === AppointmentStatus.New && (
+          <CustomButton
+            onPress={handleConfirm}
+            title={t("confirmAppointment")}
+            icon="check"
+            loading={confirmMutation.isPending}
+          />
         )}
-        {status === "confirmed" && (
-          <Pressable onPress={handleCheckIn} style={[s.actionBtn, { backgroundColor: "#22C55E" }]}>
-            <Feather name="log-in" size={20} color="#fff" />
-            <Text style={s.actionBtnText}>{t("checkInPatient")}</Text>
-          </Pressable>
+        {status === AppointmentStatus.Confirmed && (
+          <CustomButton
+            onPress={handleCheckIn}
+            title={t("checkIn")}
+            icon="log-in"
+            color="#22C55E"
+            loading={checkInMutation.isPending}
+          />
         )}
-        {status === "checked-in" && (
-          <View style={[s.actionBtn, { backgroundColor: "#E0E7FF" }]}>
-            <Feather name="check-circle" size={20} color="#6366F1" />
-            <Text style={[s.actionBtnText, { color: "#6366F1" }]}>{t("patientCheckedIn")}</Text>
-          </View>
+        {(status === AppointmentStatus.New
+          || status === AppointmentStatus.Pending
+          || status === AppointmentStatus.Confirmed) && (
+          <RuleGate action="cancel_appointment">
+            <CustomButton
+              onPress={handleCancel}
+              title={t("cancelAppointment")}
+              icon="x"
+              color="#FEE2E2"
+              textColor="#B91C1C"
+              loading={cancelMutation.isPending}
+            />
+          </RuleGate>
+        )}
+        {status === AppointmentStatus.CheckedIn && (() => {
+          const rawVisitId =
+            (record as any)?.visit_id ?? (record as any)?.visitId ?? null;
+          if (rawVisitId == null) return null;
+          return (
+            <CustomButton
+              onPress={() => {
+                router.push({
+                  pathname: "/visits/[id]",
+                  params: { id: String(rawVisitId) },
+                });
+              }}
+              title={t("viewVisit")}
+              icon="external-link"
+            />
+          );
+        })()}
+        {status === AppointmentStatus.NoShow && (
+          <CustomButton
+            onPress={() => {}}
+            enable={false}
+            title={t("noShow")}
+            icon="user-x"
+            color="#F1F5F9"
+            textColor="#64748B"
+          />
         )}
       </View>
     </View>
@@ -261,7 +446,7 @@ const s = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
 
-  summaryCard: { padding: 16, gap: 12 },
+  summaryCard: { padding: 16, gap: 12, opacity: 0.7 },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   instructionsBlock: { gap: 4 },
   typeBadge: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
@@ -316,6 +501,56 @@ const s = StyleSheet.create({
   },
   actionBtnText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
 
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 20,
+    padding: 24,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+  },
+  modalMessage: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 20,
+  },
+  modalLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    marginTop: 8,
+  },
+  modalInput: {
+    minHeight: 80,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textAlignVertical: "top",
+  },
+  modalError: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: "#EF4444",
+    marginTop: -4,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+
   heroCard: { padding: 20 },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 14 },
   heroName: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 4 },
@@ -327,4 +562,13 @@ const s = StyleSheet.create({
   bloodBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#F3F4F6", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   bloodText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   heroActions: { flexDirection: "row", gap: 10, paddingTop: 12, marginTop: 12, borderTopWidth: 1 },
+  memberPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  memberPickerName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  memberPickerRole: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

@@ -4,9 +4,23 @@ import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
 import { DateTimeField } from "@/components/ui/DateTimeField";
+import { SelectField } from "@/components/ui/SelectField";
 import type { FlowSheetDialysisParam } from "@/data/models/flowSheet";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
+
+const BP_SITE_OPTIONS = [
+  "Right Upper Arm",
+  "Left Upper Arm",
+  "Right Forearm",
+  "Left Forearm",
+  "Right Wrist",
+  "Left Wrist",
+  "Right Thigh",
+  "Left Thigh",
+  "Right Ankle",
+  "Left Ankle",
+] as const;
 
 interface Props {
   rows: FlowSheetDialysisParam[];
@@ -15,7 +29,7 @@ interface Props {
 }
 
 const EMPTY_ROW: FlowSheetDialysisParam = {
-  time: "", systolic: "", diastolic: "", site: "", pulse: "", dialysateRate: "",
+  time: "", systolic: "", diastolic: "", site: "", bpSite: "", pulse: "", dialysateRate: "",
   uf: "", bfr: "", dialysateVol: "", ufVol: "", venous: "", effluent: "",
   access: "", alarms: "", initials: "",
 };
@@ -49,7 +63,15 @@ export function DialysisParamsForm({ rows, onChange, colors }: Props) {
             <FormField label="Diastolic" value={row.diastolic} onChangeText={(v) => updateRow(idx, { diastolic: v })} colors={colors} half keyboardType="numeric" />
           </View>
           <View style={s.formRow}>
-            <FormField label="Site" value={row.site} onChangeText={(v) => updateRow(idx, { site: v })} colors={colors} half placeholder="Choose" />
+            <View style={{ flex: 1 }}>
+              <SelectField
+                label="Site"
+                value={row.bpSite || null}
+                options={BP_SITE_OPTIONS}
+                placeholder="Choose"
+                onChange={(v) => updateRow(idx, { bpSite: v, site: v })}
+              />
+            </View>
             <FormField label="Pulse (bpm)" value={row.pulse} onChangeText={(v) => updateRow(idx, { pulse: v })} colors={colors} half keyboardType="numeric" />
           </View>
           <Text style={[ms.subLabel, { color: colors.text }]}>Rates</Text>

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Goconnect",
-    "slug": "mobile",
+    "slug": "CareConnectNurse",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "displayName": "Goconnect",
       "bundleIdentifier": "com.careconnectksa.nurse",
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -52,7 +53,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "6bfe6c40-362a-44b9-9179-1fc531eb4fd5"
+        "projectId": "58b171f5-5148-4ba1-933a-59746d4314c3"
       },
       "router": {
         "origin": "https://replit.com/"

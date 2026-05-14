@@ -48,19 +48,69 @@ async function patchMockSlot(id: number, status: string): Promise<Slot> {
   return current
 }
 
+/**
+ * Status-transition POST endpoints (confirm / check-in / cancel) return the
+ * same Slot shape as `GET /scheduler/slots/{id}` when they succeed. When the
+ * response is missing, malformed, or doesn't include an `id`, we fall back to
+ * a fresh GET so the caller always receives a fully-populated Slot.
+ */
+async function postSlotTransition(
+  slotId: number | string,
+  path: 'confirm' | 'check-in' | 'cancel',
+  body?: unknown,
+): Promise<Slot> {
+  const res = await apiClient.post(
+    `/scheduler/slots/${slotId}/${path}`,
+    body,
+    // Don't throw on non-2xx — we'll fall back to GET instead.
+    { validateStatus: () => true },
+  )
+  const ok = res.status >= 200 && res.status < 300
+  const candidate = ok ? unwrap(res.data) : undefined
+  if (candidate && (candidate as any).id != null) return candidate
+
+  const fallback = await getSlotById(slotId)
+  if (!fallback) throw new Error('Slot not found after transition')
+  return fallback
+}
+
 export async function confirmAppointment(
   slotId: number | string,
 ): Promise<Slot> {
   if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'confirmed')
-  const res = await apiClient.post(`/scheduler/slots/${slotId}/confirm`)
-  return unwrap(res.data)
+  return postSlotTransition(slotId, 'confirm')
+}
+
+export async function confirmAppointmentForNurse(
+  slotId: number | string,
+  nurseId: number | string,
+): Promise<Slot> {
+  if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'confirmed')
+  const res = await apiClient.post(
+    `/scheduler/slots/${slotId}/confirm/${nurseId}`,
+    undefined,
+    { validateStatus: () => true },
+  )
+  const ok = res.status >= 200 && res.status < 300
+  const candidate = ok ? unwrap(res.data) : undefined
+  if (candidate && (candidate as any).id != null) return candidate
+  const fallback = await getSlotById(slotId)
+  if (!fallback) throw new Error('Slot not found after confirm')
+  return fallback
 }
 
 export async function checkInAppointment(
   slotId: number | string,
 ): Promise<Slot> {
   if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'checked_in')
-  const res = await apiClient.post(`/scheduler/slots/${slotId}/check-in`)
-  return unwrap(res.data)
+  return postSlotTransition(slotId, 'check-in')
+}
+
+export async function cancelAppointment(
+  slotId: number | string,
+  reason: string,
+): Promise<Slot> {
+  if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'canceled')
+  return postSlotTransition(slotId, 'cancel', { reason })
 }
 

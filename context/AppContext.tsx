@@ -19,7 +19,7 @@ import {
   updateMe,
 } from "@/data/auth_repository";
 import type { User } from "@/data/models/auth";
-import type { RuleAction } from "@/data/models/rules";
+import { isActionAllowed, type RuleAction } from "@/data/models/rules";
 import { getRules } from "@/data/rules_repository";
 import { RULES_QUERY_KEY } from "@/hooks/useRules";
 
@@ -46,7 +46,7 @@ interface AppContextValue {
   theme: Theme;
   isDark: boolean;
   /** Action keys the user is allowed to perform. */
-  rules: Set<RuleAction>;
+  rules: Set<string>;
   /** True when `action` is in the rules list. Use this to gate buttons/screens. */
   can: (action: RuleAction) => boolean;
   t: (key: keyof typeof translations.en) => string;
@@ -71,7 +71,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [language, setLanguageState] = useState<Language>("en");
   const [theme, setThemeState] = useState<Theme>("system");
-  const [rules, setRules] = useState<Set<RuleAction>>(new Set());
+  const [rules, setRules] = useState<Set<string>>(new Set());
   // Wildcard mode: backend returns an empty rules array for super-admin /
   // role-less accounts. Treat that as "all actions permitted" so admins can
   // exercise the app instead of being silently locked out.
@@ -169,7 +169,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const can = useCallback(
-    (action: RuleAction) => allowAll || rules.has(action),
+    (action: RuleAction) => allowAll || isActionAllowed(action, rules),
     [rules, allowAll],
   );
 

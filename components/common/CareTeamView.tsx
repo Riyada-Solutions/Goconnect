@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { ActionButton } from "@/components/common/ActionButton";
@@ -17,6 +18,13 @@ interface CareTeamViewProps {
   title?: string;
   animDelay?: number;
   showHeader?: boolean;
+  /** When provided and a member has an `id` and `confirmed !== true`,
+   *  an inline confirm button appears on that member's row. */
+  onConfirmMember?: (member: CareTeamMember) => void;
+  /** The `id` of the member currently being confirmed — shows a spinner. */
+  confirmingMemberId?: string | number | null;
+  /** Label for the confirmed badge. Defaults to "Confirmed". */
+  confirmedLabel?: string;
 }
 
 function roleColor(role: string): { bg: string; label: string; dot: string } {
@@ -38,11 +46,51 @@ function roleColor(role: string): { bg: string; label: string; dot: string } {
   return { bg: "#9CA3AF20", label: "#D1D5DB", dot: "#9CA3AF" };
 }
 
+function MemberAction({
+  member,
+  onConfirmMember,
+  confirmingMemberId,
+  confirmedLabel = "Confirmed",
+}: {
+  member: CareTeamMember;
+  onConfirmMember?: (m: CareTeamMember) => void;
+  confirmingMemberId?: string | number | null;
+  confirmedLabel?: string;
+}) {
+  if (member.confirmed) {
+    return (
+      <View style={styles.confirmedBadge}>
+        <Feather name="check" size={11} color="#00A67E" />
+        <Text style={styles.confirmedText}>{confirmedLabel}</Text>
+      </View>
+    );
+  }
+  if (onConfirmMember && member.id != null) {
+    const isLoading = confirmingMemberId != null && confirmingMemberId === member.id;
+    return (
+      <Pressable
+        onPress={() => !isLoading && onConfirmMember(member)}
+        style={styles.confirmBtn}
+      >
+        {isLoading ? (
+          <ActivityIndicator size={14} color={Colors.primary} />
+        ) : (
+          <Feather name="check" size={14} color={Colors.primary} />
+        )}
+      </Pressable>
+    );
+  }
+  return null;
+}
+
 export function CareTeamView({
   members,
   title = "Care Team",
   animDelay = 140,
   showHeader = true,
+  onConfirmMember,
+  confirmingMemberId,
+  confirmedLabel = "Confirmed",
 }: CareTeamViewProps) {
   const { colors } = useTheme();
   const list = members.filter((m) => m && m.name);
@@ -76,6 +124,12 @@ export function CareTeamView({
               </View>
             </View>
             {primary.phone ? <ActionButton type="call" value={primary.phone} /> : null}
+            <MemberAction
+              member={primary}
+              onConfirmMember={onConfirmMember}
+              confirmingMemberId={confirmingMemberId}
+              confirmedLabel={confirmedLabel}
+            />
           </View>
         )}
 
@@ -85,9 +139,7 @@ export function CareTeamView({
           return (
             <View key={`${member.name}-${idx}`}>
               {showDivider && (
-                <View
-                  style={[styles.divider, { backgroundColor: colors.borderLight }]}
-                />
+                <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
               )}
               <View style={styles.memberRow}>
                 <Avatar name={member.name} imageUrl={member.avatarUrl} size={40} />
@@ -105,6 +157,11 @@ export function CareTeamView({
                   </View>
                 </View>
                 {member.phone ? <ActionButton type="call" value={member.phone} /> : null}
+                <MemberAction
+                  member={member}
+                  onConfirmMember={onConfirmMember}
+                  confirmingMemberId={confirmingMemberId}
+                />
               </View>
             </View>
           );
@@ -115,33 +172,6 @@ export function CareTeamView({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  headerAccent: {
-    width: 3,
-    height: 18,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-  },
-  headerCount: {
-    backgroundColor: `${Colors.primary}18`,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  headerCountText: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.primary,
-  },
   card: {
     padding: 0,
     overflow: "hidden",
@@ -204,5 +234,27 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginHorizontal: 14,
+  },
+  confirmBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${Colors.primary}15`,
+  },
+  confirmedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#E6F9F2",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  confirmedText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "#00A67E",
   },
 });

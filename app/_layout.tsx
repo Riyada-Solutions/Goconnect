@@ -110,8 +110,9 @@ function RootLayoutNav() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index"          options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)"        options={{ headerShown: false }} />
+        <Stack.Screen name="index"              options={{ headerShown: false }} />
+        <Stack.Screen name="biometric-unlock"  options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="(auth)"            options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)"        options={{ headerShown: false }} />
         <Stack.Screen
           name="(settings)"

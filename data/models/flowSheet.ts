@@ -30,6 +30,12 @@ export interface FlowSheetMobileVitals {
   hr: string
   rr: string
   rbs: string
+  /** BMI computed by the backend from height + preWeight. */
+  bmi?: string
+  /** BMI category label (e.g. "Obesity Class I"). */
+  bmiCategory?: string
+  /** Pulse site / palpation location (e.g. "Carotid"). */
+  prSite?: string
 }
 
 export interface FlowSheetPainDetails {
@@ -59,6 +65,7 @@ export interface FlowSheetDialysisParam {
   systolic: string
   diastolic: string
   site: string
+  bpSite?: string
   pulse: string
   dialysateRate: string
   uf: string
@@ -70,6 +77,7 @@ export interface FlowSheetDialysisParam {
   access: string
   alarms: string
   initials: string
+  comments?: string
 }
 
 export interface FlowSheetCar {
@@ -115,11 +123,70 @@ export interface FlowSheetPostTx {
 }
 
 export interface FlowSheetMobilePostTx {
-  postWeight: string
-  lastBp: string
-  lastPulse: string
-  condition: string
-  notes: string
+  // Post vitals
+  bpSystolic: string       // → bp_sitting_systolic
+  bpDiastolic: string      // → bp_sitting_diastolic
+  bpSite: string           // → bp_sitting_site
+  pulse: string
+  temp: string
+  tempMethod: string       // → temp_method
+  spo2: string
+  rr: string
+  rbs: string
+  weight: string
+  // Treatment summary
+  txTimeHr: string         // → tx_time_hr
+  txTimeMin: string        // → tx_time_min
+  txTimeL: string          // → tx_time_l
+  dialysateL: string       // → dialysate_l
+  uf: string
+  blp: string
+  // Access & machine
+  catheterLock: string     // → catheter_lock
+  arterialAccess: string   // → arterial_access
+  venousAccess: string     // → venous_access
+  needleSitesHeld: string  // → needle_sites_held
+  accessProblems: string   // → access_problems
+  machineDisinfected: string // → machine_disinfected
+  // Incidents
+  medicalComplaints: string   // → medical_complaints
+  nonMedicalIncidence: string // → non_medical_incidence
+  initials: string
+}
+
+/**
+ * Server-side post-assessment shape returned inside `flowSheet.post_assessment`.
+ */
+export interface FlowSheetPostAssessment {
+  bpSystolic: string | null
+  bpDiastolic: string | null
+  bpSite: string | null
+  pulse: string | null
+  temp: string | null
+  tempMethod: string | null
+  spo2: string | null
+  rr: string | null
+  rbs: string | null
+  weight: string | null
+  txTimeHr: string | null
+  txTimeMin: string | null
+  txTimeL: string | null
+  dialysateL: string | null
+  uf: string | null
+  blp: string | null
+  catheterLock: string | null
+  arterialAccess: string | null
+  venousAccess: string | null
+  needleSitesHeld: string | null
+  accessProblems: string | null
+  machineDisinfected: string | null
+  medicalComplaints: string | null
+  nonMedicalIncidence: string | null
+  initials: string | null
+  signatureDate: string | null
+  signatureImage: string | null
+  signatureEmployeeId: number | null
+  signatureEmployeeName: string | null
 }
 
 export interface MorseFallScale {
@@ -245,6 +312,24 @@ export interface FlowSheetMedicationAdmin {
   reason: string
 }
 
+/**
+ * One row inside `flowSheet.dialysis_medications` as returned by the API. This
+ * is the prescription snapshot for the visit — `administration_type` indicates
+ * when the dose is meant to be given (pre / during / post dialysis).
+ */
+export interface FlowSheetDialysisMedication {
+  id: string
+  drugId?: string
+  drugName: string
+  form?: string
+  dosage?: string
+  route?: string
+  frequency?: string
+  duration?: string
+  instructions?: string
+  administrationType?: string
+}
+
 export interface FlowSheetMedicationsInput {
   /** Keyed by medication id. */
   medAdmin: Record<number, FlowSheetMedicationAdmin>
@@ -252,7 +337,7 @@ export interface FlowSheetMedicationsInput {
 }
 
 export interface FlowSheetPostTreatmentInput {
-  postTx: FlowSheetMobilePostTx
+  postAssessment: FlowSheetMobilePostTx
   /** Patient consent signature — captured at the bottom of post-treatment. */
   patientSignature?: SavedSignature
   /** Nurse witness signature — captured at the bottom of post-treatment. */
@@ -308,7 +393,11 @@ export interface FlowSheet {
   /** Per-medication administration record from the last meds save (§9.1.14).
    *  Keyed by medication id. */
   medAdmin?: Record<number, FlowSheetMedicationAdmin>
-  postTx?: FlowSheetMobilePostTx
+  /** Prescribed medications scheduled for this visit, as returned in the
+   *  `flowSheet.dialysis_medications` array (each carries its own
+   *  `administration_type` — pre/during/post dialysis). */
+  dialysisMedications?: FlowSheetDialysisMedication[]
+  postAssessment?: FlowSheetPostAssessment
   patientSignature?: StoredSignature
   nurseSignature?: StoredSignature
   submittedAt?: string // ISO 8601

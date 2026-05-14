@@ -25,6 +25,11 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlots } from "@/hooks/useScheduler";
 import { useTheme } from "@/hooks/useTheme";
+import {
+  AppointmentStatus,
+  appointmentStatusLabel,
+  normalizeAppointmentStatus,
+} from "@/data/models/scheduler";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TODAY_INDEX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
@@ -377,9 +382,17 @@ export default function SchedulerScreen() {
                           {slot.type}
                         </Text>
                       </View>
-                      {hasPatient && (
-                        <StatusBadge status={slot.status} size="sm" />
-                      )}
+                      {hasPatient && (() => {
+                        const canonical =
+                          normalizeAppointmentStatus(slot.status) ?? AppointmentStatus.Pending;
+                        return (
+                          <StatusBadge
+                            status={canonical}
+                            label={appointmentStatusLabel(canonical, t)}
+                            size="sm"
+                          />
+                        );
+                      })()}
                     </View>
                   </View>
                 </Card>

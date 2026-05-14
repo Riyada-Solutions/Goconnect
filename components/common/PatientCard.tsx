@@ -59,7 +59,7 @@ export function PatientCard({
                 style={[styles.idText, { color: colors.textSecondary }]}
                 numberOfLines={1}
               >
-                {patient.patientId}
+                {patient.id.toString()}
               </Text>
             </View>
           </View>

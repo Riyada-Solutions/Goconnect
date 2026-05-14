@@ -36,6 +36,9 @@ export function useVisit(id: number) {
     queryKey: ['visits', id],
     queryFn: () => getVisitById(id),
     staleTime: 0,
+    // Always refetch when the visit detail screen mounts so closing and
+    // reopening it shows the loading state and pulls fresh data from the API.
+    refetchOnMount: 'always',
     enabled: !!id,
   })
 }

@@ -114,12 +114,14 @@ export default function AppSettingsScreen() {
       try {
         const compatible = await LocalAuthentication.hasHardwareAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
-        setBiometricAvailable(compatible && enrolled);
+        // Only show the toggle when hardware is present AND the login API
+        // returned a face_token (meaning the backend supports biometric auth).
+        setBiometricAvailable(compatible && enrolled && !!user?.face_token);
         const stored = await AsyncStorage.getItem("@goconnect/biometric");
         if (stored === "true") setBiometricEnabled(true);
       } catch {}
     })();
-  }, []);
+  }, [user?.face_token]);
 
   const toggleBiometric = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
