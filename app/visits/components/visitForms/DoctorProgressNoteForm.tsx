@@ -11,6 +11,7 @@ import type {
 } from "@/data/models/doctorProgressNote";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { ProgressNoteItem } from "./ProgressNoteItem";
 
@@ -83,7 +84,8 @@ export function DoctorProgressNoteForm({
                     copyLabel={t("copy")}
                     onCopy={() => {
                       Haptics.selectionAsync();
-                      setCurrentNote(n.note);
+                      // Tolerate the new-shape API where text lives under `notes` not `note`.
+                      setCurrentNote(String((n as any).note ?? (n as any).notes ?? ""));
                     }}
                     colors={colors}
                   />
@@ -166,7 +168,7 @@ export function DoctorProgressNoteForm({
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && body}
+      <CollapsibleBody open={open}>{body}</CollapsibleBody>
     </Card>
   );
 }

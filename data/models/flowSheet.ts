@@ -140,6 +140,7 @@ export interface FlowSheetMobilePostTx {
   txTimeL: string          // → tx_time_l
   dialysateL: string       // → dialysate_l
   uf: string
+  ufNet: string            // → uf_net
   blp: string
   // Access & machine
   catheterLock: string     // → catheter_lock
@@ -173,6 +174,7 @@ export interface FlowSheetPostAssessment {
   txTimeL: string | null
   dialysateL: string | null
   uf: string | null
+  ufNet: string | null
   blp: string | null
   catheterLock: string | null
   arterialAccess: string | null
@@ -265,13 +267,24 @@ export interface FlowSheetFallRiskInput {
   signature?: SavedSignature
 }
 
+/**
+ * Both Nursing Actions and Dialysis Parameters live inside the same
+ * `hemodialysis` envelope on the backend. We always send both arrays in every
+ * save so the backend can't accidentally wipe one when only the other was
+ * edited — the caller passes the current snapshot of both, and the unedited
+ * side simply round-trips.
+ */
 export interface FlowSheetNursingActionsInput {
   nursingActions: FlowSheetNursingAction[]
+  /** Current dialysis-params rows — sent alongside so they aren't dropped. */
+  dialysisParams?: FlowSheetDialysisParam[]
   signature?: SavedSignature
 }
 
 export interface FlowSheetDialysisParamsInput {
   dialysisParams: FlowSheetDialysisParam[]
+  /** Current nursing-action rows — sent alongside so they aren't dropped. */
+  nursingActions?: FlowSheetNursingAction[]
   signature?: SavedSignature
 }
 
@@ -313,9 +326,26 @@ export interface FlowSheetMedicationAdmin {
 }
 
 /**
+ * The administration action returned by the backend for a medication row.
+ * `data.action` is `1` when the medication WAS administered (Yes) and `0` when
+ * it was not (No, with a `reason`). The action is created by
+ * `POST /actions/patient-medications/{medicationId}` and echoed back inside
+ * each medication on the visit response.
+ */
+export interface MedicationAdministeredAction {
+  action: 'administered_by'
+  data: { action: 0 | 1; reason: string | null }
+  action_by?: { id: number; name: string }
+  created_at?: string
+}
+
+/**
  * One row inside `flowSheet.dialysis_medications` as returned by the API. This
  * is the prescription snapshot for the visit — `administration_type` indicates
  * when the dose is meant to be given (pre / during / post dialysis).
+ *
+ * `administered` is present once the nurse has marked the medication as given
+ * (or skipped) for the current visit.
  */
 export interface FlowSheetDialysisMedication {
   id: string
@@ -326,8 +356,10 @@ export interface FlowSheetDialysisMedication {
   route?: string
   frequency?: string
   duration?: string
+  durationPeriod?: string
   instructions?: string
   administrationType?: string
+  administered?: MedicationAdministeredAction
 }
 
 export interface FlowSheetMedicationsInput {
@@ -380,6 +412,8 @@ export interface FlowSheet {
   }
   /** Sum of `morseValues.a..f`. */
   morseTotal?: number
+  /** Recommended actions keyed by the UI's short ids (see ACTION_UI_TO_API). */
+  morseActions?: Record<string, boolean>
   outsideDialysis?: boolean
   alarmsTest?: boolean
   nursingActions?: FlowSheetNursingAction[]

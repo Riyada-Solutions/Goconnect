@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
 import { SignatureConfirmSheet } from "@/app/visits/components/visitForms/refusal/SignatureConfirmSheet";
@@ -33,10 +33,11 @@ interface Props {
 }
 
 /**
- * Full signature capture field — button + bottom-sheet in one.
- * Shows a tile with a signed / pending state; tapping opens the signature sheet
- * where the user draws their signature with their finger. On confirm, the signed
- * flag and base64 PNG data URL are emitted via `onChange`.
+ * Signature capture field with three states:
+ *  • Unsigned — dashed tile + "Sign here" prompt. Tap to open the pad.
+ *  • Signed   — shows the captured PNG as a thumbnail with an edit icon
+ *               (tap the tile to re-sign) and a clear icon (resets to unsigned
+ *               so the next save submits no signature).
  */
 export function SignatureField({
   label,
@@ -57,70 +58,157 @@ export function SignatureField({
   const [open, setOpen] = useState(false);
 
   const signedColor = "#22C55E";
-  const showSigned = value.signed;
+  const showSigned = value.signed && !!value.dataUrl;
+
+  const openSheet = () => {
+    if (disabled) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setOpen(true);
+  };
 
   return (
     <View style={{ flex: 1 }}>
-      <Pressable
-        onPress={() => {
-          if (disabled) return;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setOpen(true);
-        }}
-        disabled={disabled}
-        style={{
-          padding: 12,
-          borderWidth: 1.5,
-          borderColor: showSigned ? signedColor : accentColor,
-          borderRadius: 12,
-          borderStyle: showSigned ? "solid" : "dashed",
-          backgroundColor: showSigned ? `${signedColor}18` : `${accentColor}15`,
-          alignItems: "center",
-          gap: 6,
-          opacity: disabled ? 0.6 : 1,
-        }}
-      >
+      {showSigned ? (
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: showSigned ? signedColor : accentColor,
-            alignItems: "center",
-            justifyContent: "center",
+            borderWidth: 1.5,
+            borderColor: signedColor,
+            borderRadius: 12,
+            backgroundColor: `${signedColor}10`,
+            overflow: "hidden",
+            opacity: disabled ? 0.6 : 1,
           }}
         >
-          <Feather name={showSigned ? "check" : iconIdle} size={16} color="#fff" />
-        </View>
-        <Text
-          style={{
-            fontFamily: "Inter_700Bold",
-            fontSize: 13,
-            color: showSigned ? signedColor : colors.text,
-            textAlign: "center",
-          }}
-        >
-          {label}
-        </Text>
-        <View
-          style={{
-            backgroundColor: showSigned ? signedColor : colors.border,
-            borderRadius: 6,
-            paddingHorizontal: 8,
-            paddingVertical: 2,
-          }}
-        >
-          <Text
+          {/* Header strip with label + status pill */}
+          <View
             style={{
-              color: showSigned ? "#fff" : colors.textSecondary,
-              fontFamily: "Inter_700Bold",
-              fontSize: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              backgroundColor: `${signedColor}1F`,
             }}
           >
-            {showSigned ? signedLabel : pendingLabel}
-          </Text>
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                fontFamily: "Inter_700Bold",
+                fontSize: 12,
+                color: signedColor,
+              }}
+            >
+              {label.replace(/\n/g, " ")}
+            </Text>
+            <View
+              style={{
+                backgroundColor: signedColor,
+                borderRadius: 6,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontFamily: "Inter_700Bold",
+                  fontSize: 9,
+                }}
+              >
+                {signedLabel}
+              </Text>
+            </View>
+          </View>
+
+          {/* Signature image preview — tap to re-sign */}
+          <Pressable onPress={openSheet} disabled={disabled}>
+            <Image
+              source={{ uri: value.dataUrl }}
+              resizeMode="contain"
+              style={{ width: "100%", height: 80, backgroundColor: "#fff" }}
+            />
+          </Pressable>
+
+          {/* Action row: Edit only (tap preview also re-opens the pad). */}
+          <View
+            style={{
+              flexDirection: "row",
+              borderTopWidth: 1,
+              borderTopColor: `${signedColor}33`,
+            }}
+          >
+            <Pressable
+              onPress={openSheet}
+              disabled={disabled}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                paddingVertical: 8,
+              }}
+            >
+              <Feather name="edit-2" size={12} color={accentColor} />
+              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: accentColor }}>
+                Edit
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </Pressable>
+      ) : (
+        <Pressable
+          onPress={openSheet}
+          disabled={disabled}
+          style={{
+            padding: 12,
+            borderWidth: 1.5,
+            borderColor: accentColor,
+            borderRadius: 12,
+            borderStyle: "dashed",
+            backgroundColor: `${accentColor}15`,
+            alignItems: "center",
+            gap: 6,
+            opacity: disabled ? 0.6 : 1,
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: accentColor,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name={iconIdle} size={16} color="#fff" />
+          </View>
+          <Text
+            style={{
+              fontFamily: "Inter_700Bold",
+              fontSize: 13,
+              color: colors.text,
+              textAlign: "center",
+            }}
+          >
+            {label}
+          </Text>
+          <View
+            style={{
+              backgroundColor: colors.border,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}
+          >
+            <Text style={{ color: colors.textSecondary, fontFamily: "Inter_700Bold", fontSize: 10 }}>
+              {pendingLabel}
+            </Text>
+          </View>
+        </Pressable>
+      )}
 
       <SignatureConfirmSheet
         visible={open}

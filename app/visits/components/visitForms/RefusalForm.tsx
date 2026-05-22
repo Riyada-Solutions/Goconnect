@@ -15,6 +15,7 @@ import {
 } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { PartyInfoSection } from "./refusal/PartyInfoSection";
 import { RefusalMainSection } from "./refusal/RefusalMainSection";
@@ -267,8 +268,7 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, t }: 
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && (
-        <View style={{ padding: 14, gap: 20 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+      <CollapsibleBody open={open} style={{ padding: 14, gap: 20 }} pointerEvents={isReadOnly ? "none" : "auto"}>
           <RefusalFormSide lang="en" data={enData} setData={setEnData} colors={colors} />
 
           <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
@@ -289,8 +289,7 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, t }: 
               <Text style={s.mainBtnText}>{t("clear")}</Text>
             </Pressable>
           </View>
-        </View>
-      )}
+      </CollapsibleBody>
     </Card>
   );
 }

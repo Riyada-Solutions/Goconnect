@@ -2,10 +2,11 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { Link, router } from "expo-router";
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,7 +21,11 @@ import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { VisitCardSkeleton } from "@/components/skeletons/VisitCardSkeleton";
+import { Shimmer } from "@/components/ui/Shimmer";
 import { Colors } from "@/theme/colors";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { useApp } from "@/context/AppContext";
 import { useHome } from "@/hooks/useHome";
 import { useTheme } from "@/hooks/useTheme";
@@ -41,7 +46,29 @@ export default function HomeScreen() {
     | "goodAfternoon"
     | "goodEvening";
 
-  const { data: home } = useHome();
+  const { data: home, refetch: refetchHome, isFetching } = useHome();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  // Pulling on Home should refresh everything the dashboard renders. The
+  // `/dashboard` rollup covers stats, today's visits, appointments and the
+  // notification count — but other tabs read the same data through separate
+  // queries (`['visits']`, `['scheduler']`, `['notifications']`), so we
+  // invalidate those alongside the home query to keep the app fully fresh.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchHome(),
+        qc.invalidateQueries({ queryKey: ['visits'] }),
+        qc.invalidateQueries({ queryKey: ['patients'] }),
+        qc.invalidateQueries({ queryKey: ['scheduler'] }),
+        qc.invalidateQueries({ queryKey: ['notifications'] }),
+        qc.invalidateQueries({ queryKey: ['rules'] }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchHome, qc]);
   const stats = home?.stats;
   const todayVisits = home?.todayVisits ?? [];
   const appointments = home?.appointments ?? [];
@@ -86,6 +113,11 @@ export default function HomeScreen() {
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
 
+  // Show shimmer skeletons whenever the home query is fetching — covers the
+  // first load and every pull-to-refresh. The cached content is hidden behind
+  // the shimmers so the user gets unambiguous "loading" feedback each time.
+  const showSkeleton = isFetching;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.screenBg} pointerEvents="none">
@@ -110,6 +142,14 @@ export default function HomeScreen() {
       style={{ flex: 1, backgroundColor: "transparent" }}
       contentContainerStyle={{ paddingBottom: botPad }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={Colors.primary}
+          colors={[Colors.primary]}
+        />
+      }
     >
       {/* Header */}
       <LinearGradient
@@ -211,7 +251,18 @@ export default function HomeScreen() {
                     <Feather name={s.icon as any} size={18} color="#fff" />
                   )}
                 </View>
-                <Text style={styles.statValue}>{s.value}</Text>
+                {showSkeleton ? (
+                  <Shimmer
+                    width={44}
+                    height={26}
+                    radius={6}
+                    baseColor="rgba(255,255,255,0.25)"
+                    highlightColor="rgba(255,255,255,0.45)"
+                    style={{ marginTop: 4, marginBottom: 2 }}
+                  />
+                ) : (
+                  <Text style={styles.statValue}>{s.value}</Text>
+                )}
                 <Text style={styles.statLabel}>{t(s.label as any)}</Text>
               </View>
             </Animated.View>
@@ -219,8 +270,27 @@ export default function HomeScreen() {
         </ScrollView>
       </LinearGradient>
 
+      {/* Skeleton — visits + appointments shimmer while fetching */}
+      {showSkeleton && (
+        <>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("todayVisits")}</Text>
+            </View>
+            <VisitCardSkeleton />
+            <VisitCardSkeleton />
+          </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("todayAppointments")}</Text>
+            </View>
+            <VisitCardSkeleton />
+          </View>
+        </>
+      )}
+
       {/* Upcoming Visits — hidden when there's nothing to show */}
-      {todayVisits.length > 0 && (
+      {!showSkeleton && todayVisits.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -306,7 +376,7 @@ export default function HomeScreen() {
       )}
 
       {/* Upcoming Appointments — driven by `dashboard.appointments` */}
-      {appointments.length > 0 && (
+      {!showSkeleton && appointments.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -378,8 +448,8 @@ export default function HomeScreen() {
       </View>
       )}
 
-      {/* Empty state — nothing to do today */}
-      {!hasContent && (
+      {/* Empty state — nothing to do today (skipped while skeletons are up) */}
+      {!showSkeleton && !hasContent && (
         <View style={styles.section}>
           <EmptyState
             icon="calendar"

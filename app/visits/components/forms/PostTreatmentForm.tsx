@@ -1,12 +1,12 @@
-import React from "react";
-import { View } from "react-native";
+import React, { useEffect } from "react";
+import { Text, View } from "react-native";
 
-import { SelectField } from "@/components/ui/SelectField";
+import { SelectField, type SelectOption } from "@/components/ui/SelectField";
 import { SignatureField, type SignatureValue } from "@/components/ui/SignatureField";
 import { Colors } from "@/theme/colors";
 import type { FlowSheetMobilePostTx } from "@/data/models/flowSheet";
 
-import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
 
 const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temporal"] as const;
@@ -14,10 +14,18 @@ const BP_SITE_OPTIONS = [
   "Right Upper Arm", "Left Upper Arm", "Right Forearm", "Left Forearm",
   "Right Wrist", "Left Wrist", "Right Thigh", "Left Thigh", "Right Ankle", "Left Ankle",
 ] as const;
-const MACHINE_DISINFECTED_OPTIONS = ["yes", "no"] as const;
+
+/** Value stored lowercase (matches the web form's submit value), label shown uppercase. */
+const MACHINE_DISINFECTED_OPTIONS: SelectOption[] = [
+  { value: "yes", label: "YES" },
+  { value: "no",  label: "NO"  },
+];
 
 interface Props {
   postTx: FlowSheetMobilePostTx;
+  /** Computed in Pre-Treatment Vitals (preWeight − dryWeight). UF Net is a
+   *  view-only mirror of this value in the Post Treatment Assessment. */
+  ufGoal: string;
   patientSignature: SignatureValue;
   nurseSignature: SignatureValue;
   onChange: (postTx: FlowSheetMobilePostTx) => void;
@@ -38,72 +46,85 @@ function upd<K extends keyof FlowSheetMobilePostTx>(
 }
 
 export function PostTreatmentForm({
-  postTx, patientSignature, nurseSignature,
+  postTx, ufGoal, patientSignature, nurseSignature,
   onChange, onPatientSignatureChange, onNurseSignatureChange,
   onSignatureSaved, colors, disabled,
 }: Props) {
   const set = <K extends keyof FlowSheetMobilePostTx>(key: K) =>
     (value: FlowSheetMobilePostTx[K]) => upd(postTx, onChange, key, value);
 
+  // UF Net mirrors the Pre-Treatment Vitals UF Goal — nurse never edits it
+  // directly. Keep the persisted value in sync so it round-trips on save.
+  useEffect(() => {
+    if ((postTx.ufNet ?? "") !== (ufGoal ?? "")) {
+      onChange({ ...postTx, ufNet: ufGoal ?? "" });
+    }
+  }, [ufGoal, postTx, onChange]);
+
   return (
     <>
-      {/* ── Post BP ───────────────────────────────────────────────── */}
+      {/* ── BP Sitting (mmHg) ──────────────────────────────────────── */}
+      <Text style={[ms.subLabel, { color: colors.text }]}>BP Sitting (mmHg)</Text>
       <View style={s.formRow}>
         <FormField label="Systolic" value={postTx.bpSystolic} onChangeText={set("bpSystolic")} colors={colors} half keyboardType="numeric" editable={!disabled} />
         <FormField label="Diastolic" value={postTx.bpDiastolic} onChangeText={set("bpDiastolic")} colors={colors} half keyboardType="numeric" editable={!disabled} />
       </View>
       <View style={{ marginBottom: 8 }}>
-        <SelectField label="BP Site" value={postTx.bpSite || null} options={BP_SITE_OPTIONS} placeholder="Choose site..." onChange={set("bpSite")} disabled={disabled} />
+        <SelectField label="Site" value={postTx.bpSite || null} options={BP_SITE_OPTIONS} placeholder="Choose site..." onChange={set("bpSite")} disabled={disabled} />
       </View>
 
-      {/* ── Post Vitals ───────────────────────────────────────────── */}
+      {/* ── Vitals row ─────────────────────────────────────────────── */}
       <View style={s.formRow}>
         <FormField label="Pulse (bpm)" value={postTx.pulse} onChangeText={set("pulse")} colors={colors} half keyboardType="numeric" editable={!disabled} />
-        <FormField label="Temperature (°C)" value={postTx.temp} onChangeText={set("temp")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+        <FormField label="Temp" value={postTx.temp} onChangeText={set("temp")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
       </View>
       <View style={s.formRow}>
         <View style={{ flex: 1 }}>
-          <SelectField label="Temp Method" value={postTx.tempMethod || null} options={METHOD_OPTIONS} placeholder="Choose..." onChange={set("tempMethod")} disabled={disabled} />
+          <SelectField label="Method" value={postTx.tempMethod || null} options={METHOD_OPTIONS} placeholder="Choose..." onChange={set("tempMethod")} disabled={disabled} />
         </View>
         <FormField label="SpO2 (%)" value={postTx.spo2} onChangeText={set("spo2")} colors={colors} half keyboardType="numeric" editable={!disabled} />
       </View>
       <View style={s.formRow}>
-        <FormField label="RR (cpm)" value={postTx.rr} onChangeText={set("rr")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="RR (Rpm)" value={postTx.rr} onChangeText={set("rr")} colors={colors} half keyboardType="numeric" editable={!disabled} />
         <FormField label="RBS (mg/dl)" value={postTx.rbs} onChangeText={set("rbs")} colors={colors} half keyboardType="numeric" editable={!disabled} />
       </View>
-      <FormField label="Post Weight (Kg)" value={postTx.weight} onChangeText={set("weight")} colors={colors} keyboardType="decimal-pad" editable={!disabled} />
+      <FormField label="Weight (Kg)" value={postTx.weight} onChangeText={set("weight")} colors={colors} keyboardType="decimal-pad" editable={!disabled} />
 
-      {/* ── Treatment Summary ─────────────────────────────────────── */}
+      {/* ── Tx Time ────────────────────────────────────────────────── */}
+      <Text style={[ms.subLabel, { color: colors.text }]}>Tx Time</Text>
       <View style={s.formRow}>
-        <FormField label="Tx Time Hr" value={postTx.txTimeHr} onChangeText={set("txTimeHr")} colors={colors} half keyboardType="numeric" editable={!disabled} />
-        <FormField label="Tx Time Min" value={postTx.txTimeMin} onChangeText={set("txTimeMin")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="Hr" value={postTx.txTimeHr} onChangeText={set("txTimeHr")} colors={colors} half keyboardType="numeric" editable={!disabled} />
+        <FormField label="Min" value={postTx.txTimeMin} onChangeText={set("txTimeMin")} colors={colors} half keyboardType="numeric" editable={!disabled} />
       </View>
+      <FormField label="L" value={postTx.txTimeL} onChangeText={set("txTimeL")} colors={colors} keyboardType="decimal-pad" editable={!disabled} />
+
+      {/* ── Treatment totals ──────────────────────────────────────── */}
       <View style={s.formRow}>
-        <FormField label="Tx Time (L)" value={postTx.txTimeL} onChangeText={set("txTimeL")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
         <FormField label="Dialysate (L)" value={postTx.dialysateL} onChangeText={set("dialysateL")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+        <FormField label="UF" value={postTx.uf} onChangeText={set("uf")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
       </View>
       <View style={s.formRow}>
-        <FormField label="UF" value={postTx.uf} onChangeText={set("uf")} colors={colors} half keyboardType="decimal-pad" editable={!disabled} />
+        <FormField label="UF Net — auto" value={postTx.ufNet} onChangeText={() => {}} colors={colors} half keyboardType="decimal-pad" editable={false} />
         <FormField label="BLP" value={postTx.blp} onChangeText={set("blp")} colors={colors} half keyboardType="numeric" editable={!disabled} />
       </View>
 
       {/* ── Access & Machine ──────────────────────────────────────── */}
       <View style={s.formRow}>
-        <FormField label="Catheter Lock" value={postTx.catheterLock} onChangeText={set("catheterLock")} colors={colors} half editable={!disabled} />
+        <FormField label="Catheter Lock Used" value={postTx.catheterLock} onChangeText={set("catheterLock")} colors={colors} half editable={!disabled} />
         <FormField label="Arterial Access" value={postTx.arterialAccess} onChangeText={set("arterialAccess")} colors={colors} half editable={!disabled} />
       </View>
       <View style={s.formRow}>
         <FormField label="Venous Access" value={postTx.venousAccess} onChangeText={set("venousAccess")} colors={colors} half editable={!disabled} />
-        <FormField label="Needle Sites Held" value={postTx.needleSitesHeld} onChangeText={set("needleSitesHeld")} colors={colors} half editable={!disabled} />
+        <FormField label="Needle Held" value={postTx.needleSitesHeld} onChangeText={set("needleSitesHeld")} colors={colors} half editable={!disabled} />
       </View>
-      <FormField label="Access Problems" value={postTx.accessProblems} onChangeText={set("accessProblems")} colors={colors} editable={!disabled} />
       <View style={{ marginBottom: 8 }}>
         <SelectField label="Machine Disinfected" value={postTx.machineDisinfected || null} options={MACHINE_DISINFECTED_OPTIONS} placeholder="Select..." onChange={set("machineDisinfected")} disabled={disabled} />
       </View>
 
       {/* ── Incidents ─────────────────────────────────────────────── */}
-      <FormField label="Medical Complaints" value={postTx.medicalComplaints} onChangeText={set("medicalComplaints")} colors={colors} editable={!disabled} />
-      <FormField label="Non-Medical Incidence" value={postTx.nonMedicalIncidence} onChangeText={set("nonMedicalIncidence")} colors={colors} editable={!disabled} />
+      <FormField label="Access/Bleeding?" value={postTx.accessProblems} onChangeText={set("accessProblems")} colors={colors} editable={!disabled} />
+      <FormField label="Medical Complaints?" value={postTx.medicalComplaints} onChangeText={set("medicalComplaints")} colors={colors} editable={!disabled} />
+      <FormField label="Non-Medical Incidence?" value={postTx.nonMedicalIncidence} onChangeText={set("nonMedicalIncidence")} colors={colors} editable={!disabled} />
       <FormField label="Initials" value={postTx.initials} onChangeText={set("initials")} colors={colors} editable={!disabled} />
 
       {/* ── Signatures ───────────────────────────────────────────── */}

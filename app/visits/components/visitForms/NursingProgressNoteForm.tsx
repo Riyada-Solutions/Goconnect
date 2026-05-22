@@ -8,6 +8,7 @@ import { Colors } from "@/theme/colors";
 import type { NursingProgressNote } from "@/data/models/nursingProgressNote";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { ProgressNoteItem } from "./ProgressNoteItem";
 
@@ -118,7 +119,7 @@ export function NursingProgressNoteForm({
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && body}
+      <CollapsibleBody open={open}>{body}</CollapsibleBody>
     </Card>
   );
 }

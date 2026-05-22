@@ -2,9 +2,32 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
+import { SelectField } from "@/components/ui/SelectField";
 import type { FlowSheetPainDetails } from "@/data/models/flowSheet";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "../../visit-detail.styles";
 import { FormField } from "../FormField";
+
+/** Anatomical pain locations (maps to `pain_assessment.location` on the API). */
+const PAIN_LOCATION_OPTIONS = [
+  "Head", "Face", "Neck", "Shoulder", "Chest", "Back", "Abdomen", "Pelvis",
+  "Arm", "Elbow", "Wrist", "Hand", "Hip", "Thigh", "Knee", "Leg", "Ankle",
+  "Foot", "Generalized", "Other",
+] as const;
+
+/** Pain frequency (maps to `pain_assessment.frequency` on the API). */
+const PAIN_FREQUENCY_OPTIONS = [
+  "Once", "Daily", "Weekly", "Monthly", "Occasional", "Constant",
+] as const;
+
+/**
+ * Pain quality / type — the three radio options. Backend stores the value
+ * lowercase (e.g. `"dull"`), but we display Title Case to match the web form.
+ */
+const PAIN_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "constant", label: "Constant" },
+  { value: "dull",     label: "Dull"     },
+  { value: "sharp",    label: "Sharp"    },
+];
 
 interface Props {
   painScore: string;
@@ -22,16 +45,47 @@ export function PainForm({ painScore, painDetails, onScoreChange, onDetailsChang
     <>
       <View style={s.formRow}>
         <FormField label="Tool Used" value={painDetails.toolUsed} onChangeText={(v) => set("toolUsed", v)} colors={colors} half />
-        <FormField label="Location" value={painDetails.location} onChangeText={(v) => set("location", v)} colors={colors} half placeholder="Select Location" />
+        <View style={{ flex: 1 }}>
+          <SelectField
+            label="Location"
+            value={painDetails.location || null}
+            options={PAIN_LOCATION_OPTIONS}
+            placeholder="Select Location"
+            onChange={(v) => set("location", v)}
+          />
+        </View>
       </View>
       <View style={s.formRow}>
-        <FormField label="Frequency" value={painDetails.frequency} onChangeText={(v) => set("frequency", v)} colors={colors} half placeholder="Select Frequency" />
+        <View style={{ flex: 1 }}>
+          <SelectField
+            label="Frequency"
+            value={painDetails.frequency || null}
+            options={PAIN_FREQUENCY_OPTIONS}
+            placeholder="Select Frequency"
+            onChange={(v) => set("frequency", v)}
+          />
+        </View>
         <FormField label="Radiating To" value={painDetails.radiatingTo} onChangeText={(v) => set("radiatingTo", v)} colors={colors} half />
       </View>
-      <View style={s.formRow}>
-        <FormField label="Pain Type" value={painDetails.painType} onChangeText={(v) => set("painType", v)} colors={colors} half placeholder="e.g. Dull / Sharp" />
-        <FormField label="Occurs" value={painDetails.occurs} onChangeText={(v) => set("occurs", v)} colors={colors} half />
+      <View style={{ marginTop: 6 }}>
+        <Text style={[ms.subLabel, { color: colors.text }]}>Type</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+          {PAIN_TYPE_OPTIONS.map((opt) => {
+            // Case-insensitive match so legacy / mixed-case server values still highlight.
+            const selected = (painDetails.painType ?? "").trim().toLowerCase() === opt.value;
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => set("painType", opt.value)}
+                style={[ms.radioBtn, selected && { backgroundColor: Colors.primary, borderColor: Colors.primary }]}
+              >
+                <Text style={[ms.radioBtnText, selected && { color: "#fff" }]}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
+      <FormField label="Occurs" value={painDetails.occurs} onChangeText={(v) => set("occurs", v)} colors={colors} />
       <View style={s.formRow}>
         <FormField label="Ambulating" value={painDetails.ambulating} onChangeText={(v) => set("ambulating", v)} colors={colors} half />
         <FormField label="Resting" value={painDetails.resting} onChangeText={(v) => set("resting", v)} colors={colors} half />

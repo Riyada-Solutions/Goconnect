@@ -12,10 +12,13 @@ import { Colors } from "@/theme/colors";
 import {
   REFERRAL_HOSPITALS,
   REFERRAL_TYPES,
+  type Referral,
   type ReferralPrintOptions,
+  type ReferralStatus,
 } from "@/data/models/referral";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 
 const EMPTY_PRINT: ReferralPrintOptions = {
@@ -28,11 +31,15 @@ const EMPTY_PRINT: ReferralPrintOptions = {
 export interface ReferralFormData {
   referralDate: string;
   referralType: string;
-  referralHospital: string;
+  otherReferralType: string | null;
+  referralHospitalId: number;
   printOptions: ReferralPrintOptions;
   referralReason: string;
   completionDate: string;
   comments: string;
+  status: ReferralStatus;
+  referralBy: string;
+  primaryPhysician: string;
   attachmentUri?: string;
   attachmentName?: string;
 }
@@ -43,6 +50,8 @@ interface Props {
   initialExpanded?: boolean;
   primaryPhysician: string;
   referralBy: string;
+  /** Previously-submitted referrals for this visit (newest first). */
+  previousReferrals?: Referral[];
   onSave: (data: ReferralFormData) => void;
   t: (key: any) => string;
 }
@@ -58,19 +67,24 @@ export function ReferralForm({
   initialExpanded,
   primaryPhysician,
   referralBy,
+  previousReferrals,
   onSave,
   t,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [referralDate, setReferralDate] = useState(todayIso());
   const [referralType, setReferralType] = useState<string | null>(null);
-  const [referralHospital, setReferralHospital] = useState<string | null>(null);
+  // Hospital selection stores both the display name (for the dropdown) and
+  // the numeric id (which is what the backend wants).
+  const [referralHospitalName, setReferralHospitalName] = useState<string | null>(null);
+  const [referralHospitalId, setReferralHospitalId] = useState<number | null>(null);
   const [printOptions, setPrintOptions] = useState<ReferralPrintOptions>(EMPTY_PRINT);
   const [referralReason, setReferralReason] = useState("");
   const [completionDate, setCompletionDate] = useState("");
   const [comments, setComments] = useState("");
   const [attachmentName, setAttachmentName] = useState<string | undefined>();
   const [attachmentUri, setAttachmentUri] = useState<string | undefined>();
+  const hospitalOptions = REFERRAL_HOSPITALS.map(h => h.name);
 
   const setPrintOpt = (key: keyof ReferralPrintOptions, v: boolean) =>
     setPrintOptions((p) => ({ ...p, [key]: v }));
@@ -78,18 +92,22 @@ export function ReferralForm({
   const buildData = (): ReferralFormData => ({
     referralDate,
     referralType: referralType ?? "",
-    referralHospital: referralHospital ?? "",
+    otherReferralType: null,
+    referralHospitalId: referralHospitalId ?? 0,
     printOptions,
     referralReason,
     completionDate,
     comments,
+    status: "active",
+    referralBy,
+    primaryPhysician,
     attachmentUri,
     attachmentName,
   });
 
   const canSave =
     referralType !== null &&
-    referralHospital !== null &&
+    referralHospitalId !== null &&
     referralReason.trim() !== "";
 
   const handleSave = () => {
@@ -102,7 +120,8 @@ export function ReferralForm({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setReferralDate(todayIso());
     setReferralType(null);
-    setReferralHospital(null);
+    setReferralHospitalName(null);
+    setReferralHospitalId(null);
     setPrintOptions(EMPTY_PRINT);
     setReferralReason("");
     setCompletionDate("");
@@ -134,8 +153,7 @@ export function ReferralForm({
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && (
-        <View style={{ padding: 14, gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+      <CollapsibleBody open={open} style={{ padding: 14, gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
           <ReferralHeaderFields
             primaryPhysician={primaryPhysician}
             referralBy={referralBy}
@@ -155,10 +173,13 @@ export function ReferralForm({
 
           <SelectField
             label={t("referralHospital")}
-            value={referralHospital}
-            options={REFERRAL_HOSPITALS}
+            value={referralHospitalName}
+            options={hospitalOptions}
             placeholder={t("selectHospital")}
-            onChange={setReferralHospital}
+            onChange={(name) => {
+              setReferralHospitalName(name);
+              setReferralHospitalId(REFERRAL_HOSPITALS.find(h => h.name === name)?.id ?? null);
+            }}
           />
 
           <PrintSection options={printOptions} onChange={setPrintOpt} colors={colors} t={t} />
@@ -226,8 +247,7 @@ export function ReferralForm({
               <Text style={s.mainBtnText}>{t("clear")}</Text>
             </Pressable>
           </View>
-        </View>
-      )}
+      </CollapsibleBody>
     </Card>
   );
 }

@@ -92,7 +92,7 @@ export function DialysisParamsForm({ rows, onChange, colors }: Props) {
           </View>
           <FormField label="Access" value={row.access} onChangeText={(v) => updateRow(idx, { access: v })} colors={colors} keyboardType="numeric" />
           <View style={s.formRow}>
-            <FormField label="Alarms / Comments" value={row.alarms} onChangeText={(v) => updateRow(idx, { alarms: v })} colors={colors} half />
+            <FormField label="Comments" value={row.comments ?? ""} onChangeText={(v) => updateRow(idx, { comments: v })} colors={colors} half />
             <FormField label="Initials" value={row.initials} onChangeText={(v) => updateRow(idx, { initials: v })} colors={colors} half />
           </View>
           {rows.length > 1 && (

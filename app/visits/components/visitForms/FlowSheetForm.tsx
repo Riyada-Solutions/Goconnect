@@ -30,7 +30,6 @@ import {
   submitFlowSheetFallRisk,
   submitFlowSheetIntakeOutput,
   submitFlowSheetMachines,
-  submitFlowSheetMedications,
   submitFlowSheetNursingActions,
   submitFlowSheetOutsideDialysis,
   submitFlowSheetPain,
@@ -48,6 +47,7 @@ const toSaved = (v: SignatureValue) =>
 import { Card } from "@/components/common/Card";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { Acc } from "../Acc";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { AccessForm } from "../forms/AccessForm";
 import { AlarmsTestForm } from "../forms/AlarmsTestForm";
@@ -86,7 +86,7 @@ const EMPTY_DIALYSATE: FlowSheetDialysate = { na: "", hco3: "", k: "", glucose: 
 const EMPTY_POST: FlowSheetFormPostTx = {
   bpSystolic: "", bpDiastolic: "", bpSite: "", pulse: "", temp: "", tempMethod: "",
   spo2: "", rr: "", rbs: "", weight: "",
-  txTimeHr: "", txTimeMin: "", txTimeL: "", dialysateL: "", uf: "", blp: "",
+  txTimeHr: "", txTimeMin: "", txTimeL: "", dialysateL: "", uf: "", ufNet: "", blp: "",
   catheterLock: "", arterialAccess: "", venousAccess: "",
   needleSitesHeld: "", accessProblems: "", machineDisinfected: "",
   medicalComplaints: "", nonMedicalIncidence: "", initials: "",
@@ -130,7 +130,8 @@ interface Props {
   initial?: FlowSheet;
   medications: FlowSheetDialysisMedication[];
   medAdmin: MedAdminMap;
-  onMedAction: (medId: number, action: "yes" | "no") => void;
+  medBusyIds?: Set<number>;
+  onMedAction: (medId: number, action: "yes" | "no", reason?: string) => void;
   morseTotal: number;
   morseComplete: boolean;
   morseValues: { a: number | null; b: number | null; c: number | null; d: number | null; e: number | null; f: number | null };
@@ -287,7 +288,7 @@ export function FlowSheetForm(props: Props) {
       rbs: pa.rbs ?? '', weight: pa.weight ?? '',
       txTimeHr: pa.txTimeHr ?? '', txTimeMin: pa.txTimeMin ?? '',
       txTimeL: pa.txTimeL ?? '', dialysateL: pa.dialysateL ?? '',
-      uf: pa.uf ?? '', blp: pa.blp ?? '',
+      uf: pa.uf ?? '', ufNet: pa.ufNet ?? '', blp: pa.blp ?? '',
       catheterLock: pa.catheterLock ?? '', arterialAccess: pa.arterialAccess ?? '',
       venousAccess: pa.venousAccess ?? '', needleSitesHeld: pa.needleSitesHeld ?? '',
       accessProblems: pa.accessProblems ?? '', machineDisinfected: pa.machineDisinfected ?? '',
@@ -347,8 +348,7 @@ export function FlowSheetForm(props: Props) {
         onToggle={() => setOpen(!open)}
         colors={colors} 
       />
-      {open && (
-        <View style={{ padding: 14 }}>
+      <CollapsibleBody open={open} style={{ padding: 14 }}>
           <Acc title="Outside Dialysis" color="#0EA5E9" done={outsideDialysis} isOpen={!!sections.outside} onToggle={() => toggle("outside")} colors={colors} isReadOnly={isReadOnly}>
             <OutsideDialysisForm value={outsideDialysis} onChange={setOutsideDialysis} colors={colors} />
             {!isReadOnly && (
@@ -425,7 +425,7 @@ export function FlowSheetForm(props: Props) {
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_nursing_actions"
                 label="Save Nursing Action"
-                save={() => submitFlowSheetNursingActions(visitId, { nursingActions })}
+                save={() => submitFlowSheetNursingActions(visitId, { nursingActions, dialysisParams })}
                 onClear={() => setNursingActions([{ ...EMPTY_NURSING }])}
               />
             )}
@@ -436,7 +436,7 @@ export function FlowSheetForm(props: Props) {
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_dialysis_parameters"
                 label="Save Dialysis Parameters"
-                save={() => submitFlowSheetDialysisParams(visitId, { dialysisParams })}
+                save={() => submitFlowSheetDialysisParams(visitId, { dialysisParams, nursingActions })}
                 onClear={() => setDialysisParams([{ ...EMPTY_DIALYSIS }])}
               />
             )}
@@ -509,21 +509,15 @@ export function FlowSheetForm(props: Props) {
           </Acc>
 
           <Acc title="Dialysis Medications" color="#0891B2" done={medsDone} isOpen={!!sections.meds} onToggle={() => toggle("meds")} colors={colors} isReadOnly={isReadOnly}>
-            <DialysisMedsForm medications={props.medications} medAdmin={props.medAdmin} onAction={props.onMedAction} colors={colors} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_medications"
-                label="Save Medications"
-                save={() => submitFlowSheetMedications(visitId, { medAdmin: props.medAdmin })}
-                onClear={() => {
-                  // Medication state is controlled by parent; nothing local to clear.
-                }}
-              />
-            )}
+            {/* Each row's Yes/No tap calls `POST /actions/patient-medications/{id}`
+                directly via `onMedAction` — no section-level Save/Clear needed. */}
+            <DialysisMedsForm medications={props.medications} medAdmin={props.medAdmin} busyIds={props.medBusyIds} onAction={props.onMedAction} colors={colors} />
           </Acc>
 
           <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly}>
             <PostTreatmentForm
               postTx={postTx}
+              ufGoal={vitals.ufGoal}
               patientSignature={patientSignature}
               nurseSignature={nurseSignature}
               onChange={setPostTx}
@@ -548,8 +542,7 @@ export function FlowSheetForm(props: Props) {
               />
             )}
           </Acc>
-        </View>
-      )}
+      </CollapsibleBody>
     </Card>
   );
 }

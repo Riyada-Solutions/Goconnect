@@ -8,6 +8,7 @@ import { Colors } from "@/theme/colors";
 import type { InventoryItem } from "@/data/models/visit";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 
 interface Props {
@@ -31,8 +32,7 @@ export function PatientInventorySection({ items, expanded, onToggle, onSelectIte
           onToggle={onToggle}
           colors={colors}
         />
-        {expanded && (
-          <View style={{ padding: 12, gap: 8 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+        <CollapsibleBody open={expanded} style={{ padding: 12, gap: 8 }} pointerEvents={isReadOnly ? "none" : "auto"}>
             {items.length === 0 ? (
               <Text style={{ color: colors.textSecondary, fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", paddingVertical: 20 }}>
                 No inventory items assigned.
@@ -60,8 +60,7 @@ export function PatientInventorySection({ items, expanded, onToggle, onSelectIte
                 </View>
               ))
             )}
-          </View>
-        )}
+        </CollapsibleBody>
       </Card>
     </Animated.View>
   );

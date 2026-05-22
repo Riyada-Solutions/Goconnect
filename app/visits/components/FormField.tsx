@@ -31,9 +31,9 @@ export function FormField({
         style={[
           s.formInput,
           {
-            color: colors.text,
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
+            color: editable ? colors.text : colors.textSecondary,
+            backgroundColor: editable ? colors.surface : colors.borderLight,
+            borderColor: editable ? colors.border : colors.borderLight,
           },
         ]}
         value={value}

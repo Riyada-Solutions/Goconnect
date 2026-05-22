@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { visitDetailStyles as s } from "../visit-detail.styles";
 
@@ -32,6 +33,14 @@ export function CollapsibleHeader({
   onToggle,
   colors,
 }: Props) {
+  const rot = useSharedValue(expanded ? 1 : 0);
+  React.useEffect(() => {
+    rot.value = withTiming(expanded ? 1 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
+  }, [expanded, rot]);
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rot.value * 180}deg` }],
+  }));
+
   return (
     <Pressable
       onPress={() => {
@@ -50,12 +59,9 @@ export function CollapsibleHeader({
           <Text style={[s.badgeText, { color: b.fg }]}>{b.text}</Text>
         </View>
       ))}
-      <Feather
-        name={expanded ? "chevron-up" : "chevron-down"}
-        size={18}
-        color={colors.textTertiary}
-        style={{ marginLeft: "auto" }}
-      />
+      <Animated.View style={[{ marginLeft: "auto" }, chevronStyle]}>
+        <Feather name="chevron-down" size={18} color={colors.textTertiary} />
+      </Animated.View>
     </Pressable>
   );
 }

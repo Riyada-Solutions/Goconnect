@@ -18,6 +18,7 @@ import {
 } from "@/data/models/sariScreening";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 
 export interface SariScreeningFormData {
@@ -91,8 +92,7 @@ export function SariScreeningForm({
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && (
-        <View style={{ padding: 14, gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+      <CollapsibleBody open={open} style={{ padding: 14, gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
           <PhysiciansIntro colors={colors} t={t} />
 
           <View>
@@ -175,8 +175,7 @@ export function SariScreeningForm({
               <Text style={s.mainBtnText}>{t("clear")}</Text>
             </Pressable>
           </View>
-        </View>
-      )}
+      </CollapsibleBody>
     </Card>
   );
 }

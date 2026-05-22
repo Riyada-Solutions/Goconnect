@@ -1,4 +1,4 @@
-export type ReferralStatus = "Active" | "Completed" | "Cancelled"
+export type ReferralStatus = "active" | "in_progress" | "closed" | "cancelled"
 
 export interface ReferralPrintOptions {
   monthlyMedicalReport: boolean
@@ -7,33 +7,48 @@ export interface ReferralPrintOptions {
   last3FlowSheets: boolean
 }
 
+/**
+ * Referral as returned in `visit.referrals[]`. Snake_case keys on the wire
+ * are translated to camelCase here. `attachmentUrl` / `attachmentName` are
+ * present when the nurse uploaded a file; both are `null` otherwise.
+ */
 export interface Referral {
   id: number
   visitId: number
-  referralDate: string // YYYY-MM-DD
-  primaryPhysician: string
-  referralBy: string
-  status: ReferralStatus
+  referralDate: string                // YYYY-MM-DD
   referralType: string
-  referralHospital: string
-  printOptions: ReferralPrintOptions
+  otherReferralType: string | null
+  referralHospitalId: number | null
+  referralHospitalName: string | null
   referralReason: string
+  referralBy: string
+  primaryPhysician: string
   completionDate: string
-  comments: string
-  attachmentUri?: string
-  attachmentName?: string
-  createdAt: string
+  status: ReferralStatus
+  comments: string | null
+  printOptions: ReferralPrintOptions
+  attachmentUrl: string | null
+  attachmentName: string | null
+  createdAt: string                   // ISO 8601
 }
 
+/**
+ * Body passed to `submitReferral`. The repo translates this to the wire
+ * shape (snake_case + multipart attachment) inside `submitReferral`.
+ */
 export interface ReferralInput {
   visitId: number
   referralDate: string
   referralType: string
-  referralHospital: string
-  printOptions: ReferralPrintOptions
+  otherReferralType?: string | null
+  referralHospitalId: number
   referralReason: string
+  referralBy: string
+  primaryPhysician: string
   completionDate: string
-  comments: string
+  status: ReferralStatus
+  comments?: string
+  printOptions: ReferralPrintOptions
   attachmentUri?: string
   attachmentName?: string
 }
@@ -46,10 +61,18 @@ export const REFERRAL_TYPES = [
   "Specialist Consult",
 ] as const
 
-export const REFERRAL_HOSPITALS = [
-  "King Fahd Medical City",
-  "King Khalid University Hospital",
-  "King Faisal Specialist Hospital",
-  "Security Forces Hospital",
-  "National Guard Hospital",
-] as const
+/**
+ * Local hospital catalog. The `id` values must match the backend's
+ * `referral_hospital_id`. The only verified id so far is 9 → Aseer Central
+ * Hospital (from a real visit response); the others are placeholders that
+ * should be replaced with values from a real hospitals endpoint when one is
+ * wired up.
+ */
+export const REFERRAL_HOSPITALS: ReadonlyArray<{ id: number; name: string }> = [
+  { id: 1, name: "King Fahd Medical City" },
+  { id: 2, name: "King Khalid University Hospital" },
+  { id: 3, name: "King Faisal Specialist Hospital" },
+  { id: 4, name: "Security Forces Hospital" },
+  { id: 5, name: "National Guard Hospital" },
+  { id: 9, name: "Aseer Central Hospital" },
+]

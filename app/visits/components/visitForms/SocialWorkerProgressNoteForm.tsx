@@ -11,6 +11,7 @@ import type {
 } from "@/data/models/socialWorkerProgressNote";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { ProgressNoteItem } from "./ProgressNoteItem";
 
@@ -143,7 +144,7 @@ export function SocialWorkerProgressNoteForm({
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && body}
+      <CollapsibleBody open={open}>{body}</CollapsibleBody>
     </Card>
   );
 }

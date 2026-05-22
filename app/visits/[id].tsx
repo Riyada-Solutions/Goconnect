@@ -11,7 +11,7 @@ import { useApp } from "@/context/AppContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useEndVisit, useSaveProcedureTimes, useStartVisit, useSubmitDoctorProgressNote, useSubmitInventoryUsage, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote, useVisit } from "@/hooks/useVisits";
+import { useEndVisit, useSaveProcedureTimes, useStartVisit, useSubmitDoctorProgressNote, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import type { InventoryItem } from "@/data/models/visit";
@@ -144,18 +144,33 @@ function VisitDetailScreenInner() {
   const [nurseSigned, setNurseSigned] = useState(false);
   const [nurseSignatureConfirmed, setNurseSignatureConfirmed] = useState(false);
 
-  // Seed Morse values from loaded flowSheet when a new visit record arrives.
+  // Seed Morse values + recommended actions from the loaded flowSheet.
+  // Re-hydrates on every server-side change (new visit, refetch after save,
+  // pull-to-refresh) so the Fall Risk summary and Morse sheet always reflect
+  // the persisted state. We skip while the sheet is open to avoid clobbering
+  // the user's in-progress edits.
+  const mv = (record as any)?.flowSheet?.morseValues;
+  const macts = (record as any)?.flowSheet?.morseActions;
   useEffect(() => {
-    const mv = (record as any)?.flowSheet?.morseValues;
-    if (!mv) return;
-    setMorseA(mv.a ?? null);
-    setMorseB(mv.b ?? null);
-    setMorseC(mv.c ?? null);
-    setMorseD(mv.d ?? null);
-    setMorseE(mv.e ?? null);
-    setMorseF(mv.f ?? null);
+    if (morseSheetOpen) return;
+    if (mv) {
+      setMorseA(mv.a ?? null);
+      setMorseB(mv.b ?? null);
+      setMorseC(mv.c ?? null);
+      setMorseD(mv.d ?? null);
+      setMorseE(mv.e ?? null);
+      setMorseF(mv.f ?? null);
+    }
+    if (macts && typeof macts === 'object') {
+      setMorseActions(macts);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record?.id]);
+  }, [
+    record?.id,
+    mv?.a, mv?.b, mv?.c, mv?.d, mv?.e, mv?.f,
+    // Re-key when actions hash changes (count of true keys is a good-enough fingerprint).
+    macts ? Object.keys(macts).filter((k) => macts[k]).sort().join('|') : null,
+  ]);
 
   // Open physician modal only after Morse sheet has fully closed
   useEffect(() => {
@@ -166,17 +181,41 @@ function VisitDetailScreenInner() {
     }
   }, [morseSheetOpen, pendingPhysicianModal]);
 
-  // Dialysis Medications administered state
+  // Dialysis Medications administered state.
+  //
+  // The canonical persisted state lives on `med.administered` (set by
+  // `POST /actions/patient-medications/{id}`). `medAdmin` here is just a
+  // transient map used to display optimistic UI before the refetch lands.
   const [medAdmin, setMedAdmin] = useState<Record<number, { status: "yes" | "no" | null; timestamp: string; reason: string }>>({});
-  const handleMedAction = useCallback((medId: number, action: "yes" | "no") => {
-    if (action === "no") {
-      setMedAdmin((prev) => ({ ...prev, [medId]: { status: "no", timestamp: new Date().toLocaleString(), reason: "Declined" } }));
-      showDialog({ variant: "success", title: "Not Administered", message: "Medication marked as not administered." });
-    } else {
-      setMedAdmin((prev) => ({ ...prev, [medId]: { status: "yes", timestamp: new Date().toLocaleString(), reason: "" } }));
-    }
+  const [medBusyIds, setMedBusyIds] = useState<Set<number>>(new Set());
+  const submitMedAdministration = useSubmitMedicationAdministration(numId);
+  const handleMedAction = useCallback((medId: number, action: "yes" | "no", reason?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
+    // Optimistic local state so the row reflects the user's tap immediately.
+    setMedAdmin((prev) => ({
+      ...prev,
+      [medId]: { status: action, timestamp: new Date().toLocaleString(), reason: reason ?? "" },
+    }));
+    setMedBusyIds((prev) => { const next = new Set(prev); next.add(medId); return next; });
+    submitMedAdministration.mutate(
+      {
+        medicationId: medId,
+        action: action === "yes" ? 1 : 0,
+        reason: action === "no" ? (reason ?? "") : null,
+      },
+      {
+        onSettled: () => {
+          setMedBusyIds((prev) => { const next = new Set(prev); next.delete(medId); return next; });
+        },
+        onError: (err) =>
+          showDialog({
+            variant: "error",
+            title: t("error"),
+            message: err instanceof Error ? err.message : t("error"),
+          }),
+      },
+    );
+  }, [submitMedAdministration, showDialog, t]);
 
   // Inventory modal — medications + inventory now ride on Visit (single source of truth).
   const [useModalVisible, setUseModalVisible] = useState(false);
@@ -185,23 +224,41 @@ function VisitDetailScreenInner() {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
-  // Progress Notes — all three lists live under `Visit.progressNotes`.
+  // Progress Notes — `Visit.progressNotes` ships three buckets but the backend
+  // sometimes dumps every kind into `doctor` regardless of `type`. We also see
+  // a mix of legacy (`note`) and new (`notes`) field names per row. Normalize
+  // both: derive a guaranteed-string `note`, then route social_worker rows out
+  // of the doctor bucket.
   const progressNotes = (record as any)?.progressNotes;
-  const nursingProgressNotes = progressNotes?.nursing ?? [];
-  const socialWorkerProgressNotes = progressNotes?.socialWorker ?? [];
+  const normalizeNote = (n: any) => {
+    if (!n || typeof n !== 'object') return n;
+    return { ...n, note: String(n.note ?? n.notes ?? '') };
+  };
+  const rawNursing      = (progressNotes?.nursing       ?? []).map(normalizeNote);
+  const rawDoctorBucket = (progressNotes?.doctor        ?? []).map(normalizeNote);
+  const rawSocialBucket = (progressNotes?.socialWorker  ?? []).map(normalizeNote);
+  const nursingProgressNotes      = rawNursing;
+  const doctorProgressNotes       = rawDoctorBucket.filter((n: any) => n?.type !== 'social_worker');
+  const socialWorkerProgressNotes = [
+    ...rawSocialBucket,
+    ...rawDoctorBucket.filter((n: any) => n?.type === 'social_worker'),
+  ];
   const submitNursingProgressNote = useSubmitNursingProgressNote(numId);
   const submitSocialWorkerProgressNote = useSubmitSocialWorkerProgressNote(numId);
   const submitReferral = useSubmitReferral(numId);
   const submitDoctorProgressNote = useSubmitDoctorProgressNote(numId);
   const submitRefusal = useSubmitRefusal(numId);
   const submitSariScreening = useSubmitSariScreening(numId);
-  const doctorProgressNotes = progressNotes?.doctor ?? [];
+  const submitMorseFallsRisk = useSubmitMorseFallsRiskAssessment(numId);
   // preTreatmentVitals now lives inside flowSheet (single source of truth).
   const preTreatmentVitals = (record as any)?.flowSheet?.preTreatmentVitals;
 
   // Patient + alerts ride on the visit response (single source of truth).
+  // The backend nests alerts inside `patient.patientAlerts`; keep the
+  // top-level fallback for older payloads.
   const patientRecord = (record as any)?.patient ?? null;
-  const patientAlertsData = (record as any)?.patientAlerts ?? null;
+  const patientAlertsData =
+    patientRecord?.patientAlerts ?? (record as any)?.patientAlerts ?? null;
 
   useEffect(() => {
     if (inventoryData.length > 0 && inventoryItems.length === 0) {
@@ -336,6 +393,7 @@ function VisitDetailScreenInner() {
             key={(record as any)?.flowSheet?.submittedAt ?? "new"}
             medications={medications}
             medAdmin={medAdmin}
+            medBusyIds={medBusyIds}
             onMedAction={handleMedAction}
             morseTotal={morseTotal}
             morseComplete={morseComplete}
@@ -386,6 +444,7 @@ function VisitDetailScreenInner() {
             // initialExpanded={initialPhase === "completed"}
             primaryPhysician={(record as any)?.provider ?? "Physician"}
             referralBy="Waleed abdelrahman"
+            previousReferrals={(record as any)?.referrals ?? []}
             onSave={(data) => {
               submitReferral.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("referral") }),
@@ -458,9 +517,15 @@ function VisitDetailScreenInner() {
         setMorseD={setMorseD} setMorseE={setMorseE} setMorseF={setMorseF}
         setMorseActions={setMorseActions}
         colors={colors}
-        onDone={() => {
+        onSave={async () => {
+          // The morse sheet handles its own busy/error UI — let mutateAsync
+          // throw on failure so the sheet stays open with the error visible.
+          await submitMorseFallsRisk.mutateAsync({
+            morseValues: { a: morseA, b: morseB, c: morseC, d: morseD, e: morseE, f: morseF },
+            morseTotal,
+            morseActions,
+          });
           if (morseTotal > 3) { setPhysicianCalled(null); setPendingPhysicianModal(true); }
-          setMorseSheetOpen(false);
         }}
         onClose={() => setMorseSheetOpen(false)}
       />

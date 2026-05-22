@@ -13,6 +13,7 @@ import type {
 } from "@/data/models/socialWorkerProgressNote";
 
 import { Acc } from "../Acc";
+import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { DoctorProgressNoteForm } from "./DoctorProgressNoteForm";
 import { NursingProgressNoteForm } from "./NursingProgressNoteForm";
@@ -79,9 +80,8 @@ export function ProgressNoteGroup(props: Props) {
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      {open && (
-        <View style={{ padding: 14 }}>
-          <Acc
+      <CollapsibleBody open={open} style={{ padding: 14 }}>
+        <Acc
             title={t("doctorProgressNote")}
             color="#DC2626"
             done={props.doctorNotes.length > 0}
@@ -138,8 +138,7 @@ export function ProgressNoteGroup(props: Props) {
               t={t}
             />
           </Acc>
-        </View>
-      )}
+      </CollapsibleBody>
     </Card>
   );
 }

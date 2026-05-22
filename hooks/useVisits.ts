@@ -8,6 +8,8 @@ import {
   startVisit,
   submitDoctorProgressNote,
   submitInventoryUsage,
+  submitMedicationAdministration,
+  submitMorseFallsRiskAssessment,
   submitNursingProgressNote,
   submitReferral,
   submitRefusal,
@@ -16,6 +18,7 @@ import {
 } from '../data/visit_repository'
 import type { InventoryUsageInput, Visit } from '../data/models/visit'
 import type { DoctorProgressNoteInput } from '../data/models/doctorProgressNote'
+import type { MorseFallsRiskAssessmentInput } from '../data/models/morseFallsRisk'
 import type { ReferralInput } from '../data/models/referral'
 import type { RefusalInput } from '../data/models/refusal'
 import type { SariScreeningInput } from '../data/models/sariScreening'
@@ -44,12 +47,29 @@ export function useVisit(id: number) {
 }
 
 /**
- * Every visit mutation returns the **updated Visit** (single source of truth).
- * On success we shove it straight into the React-Query cache so screens
- * re-render instantly without a network round-trip.
+ * Every visit mutation **should** return the updated Visit (single source of
+ * truth) — when it does we shove it straight into the React-Query cache so
+ * screens re-render instantly without a network round-trip.
+ *
+ * Some form endpoints (e.g. morse-falls-risk-assessment) sometimes return
+ * just the form section data instead of the full visit. In that case we fall
+ * back to invalidating the visit query so it refetches the canonical state.
  */
-function applyVisitUpdate(qc: ReturnType<typeof useQueryClient>, visit: Visit) {
-  qc.setQueryData(['visits', visit.id], visit)
+function applyVisitUpdate(
+  qc: ReturnType<typeof useQueryClient>,
+  response: Visit | unknown,
+  fallbackVisitId?: number,
+) {
+  const visit = response as Partial<Visit> | null | undefined
+  if (visit && typeof visit === 'object' && visit.id != null) {
+    qc.setQueryData(['visits', visit.id], visit as Visit)
+    qc.invalidateQueries({ queryKey: ['visits'] })
+    return
+  }
+  // Response wasn't a full visit — refetch instead.
+  if (fallbackVisitId != null) {
+    qc.invalidateQueries({ queryKey: ['visits', fallbackVisitId] })
+  }
   qc.invalidateQueries({ queryKey: ['visits'] })
 }
 
@@ -66,6 +86,31 @@ export function useSubmitSariScreening(visitId: number) {
   return useMutation<Visit, Error, Omit<SariScreeningInput, 'visitId'>>({
     mutationFn: (input) => submitSariScreening({ visitId, ...input }),
     onSuccess: (visit) => applyVisitUpdate(qc, visit),
+  })
+}
+
+export function useSubmitMorseFallsRiskAssessment(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Omit<MorseFallsRiskAssessmentInput, 'visitId'>>({
+    mutationFn: (input) => submitMorseFallsRiskAssessment({ visitId, ...input }),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit),
+  })
+}
+
+/**
+ * Record a Yes (action=1) or No (action=0, with reason) for a single
+ * dialysis-medication row. The response only echoes the action, so on success
+ * we invalidate the parent visit query to pull the fresh `administered`
+ * state for the row into the cache.
+ */
+export function useSubmitMedicationAdministration(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<unknown, Error, { medicationId: number | string; action: 0 | 1; reason?: string | null }>({
+    mutationFn: (input) => submitMedicationAdministration(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['visits', visitId] })
+      qc.invalidateQueries({ queryKey: ['visits'] })
+    },
   })
 }
 

@@ -1,7 +1,7 @@
 import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ENV } from '@/constants/env'
-import { log } from '@/utils/logger'
+import { fmtJson, log } from '@/utils/logger'
 
 const TAG = 'API Request'
 
@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(async (config) => {
 
   log(
     TAG,
-    `Request \n${config.method?.toUpperCase()} : ${config.baseURL}${config.url}  \nParameter: ${JSON.stringify(config.params ?? {})}; \nBody: ${config.data ? JSON.stringify(config.data) : '{}'}\nEND Request`,
+    `Request \n${config.method?.toUpperCase()} : ${config.baseURL}${config.url}\nParameter: ${fmtJson(config.params ?? {})}\nBody: ${fmtJson(config.data)}\nEND Request`,
   )
 
   return config
@@ -32,14 +32,14 @@ apiClient.interceptors.response.use(
     const { method, baseURL, url } = response.config
     log(
       TAG,
-      `Response \nStatus: ${response.status}\nURL: ${method?.toUpperCase()} ${baseURL}${url}\nResponse: ${JSON.stringify(response.data)}\nReceive END HTTP`,
+      `Response \nStatus: ${response.status}\nURL: ${method?.toUpperCase()} ${baseURL}${url}\nResponse: ${fmtJson(response.data)}\nReceive END HTTP`,
     )
     return response
   },
   (error) => {
     log(
       TAG,
-      `ERROR\nURL: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}\nHTTP Status: ${error.response?.status ?? 'NO_RESPONSE'}\nAxios Code: ${error.code ?? 'NONE'}\nMessage: ${error.message}\nServer Body: ${JSON.stringify(error.response?.data ?? {})}`,
+      `ERROR\nURL: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}\nHTTP Status: ${error.response?.status ?? 'NO_RESPONSE'}\nAxios Code: ${error.code ?? 'NONE'}\nMessage: ${error.message}\nServer Body: ${fmtJson(error.response?.data ?? {})}`,
     )
     const message =
       error.response?.data?.message ?? error.message ?? 'Unknown error'

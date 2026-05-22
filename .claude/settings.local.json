@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(pnpm install:*)",
-      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -H 'Authorization: Bearer 129|C4t0UogJ46C7oWaHCDBw5H249VlnrEHrCpZgqStg3e5c390a' -H 'Accept: application/json' https://nurse-app.careconnectksa.com/api/visits/137)"
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -H 'Authorization: Bearer 129|C4t0UogJ46C7oWaHCDBw5H249VlnrEHrCpZgqStg3e5c390a' -H 'Accept: application/json' https://nurse-app.careconnectksa.com/api/visits/137)",
+      "Bash(python3 -)"
     ]
   }
 }

@@ -41,6 +41,11 @@ import type {
   FlowSheetVitalsSectionInput,
 } from './models/flowSheet'
 import type { NursingProgressNoteInput } from './models/nursingProgressNote'
+import {
+  type MorseFallsRiskAssessmentInput,
+  buildMorseFallsRiskBody,
+  parseMorseFallsRiskResponse,
+} from './models/morseFallsRisk'
 import type { SocialWorkerProgressNoteInput } from './models/socialWorkerProgressNote'
 import type { ReferralInput } from './models/referral'
 import type { DoctorProgressNoteInput } from './models/doctorProgressNote'
@@ -71,20 +76,108 @@ export async function getVisitById(
   const res = await apiClient.get(`/visits/${id}`)
   const raw = res.data?.data ?? res.data
   if (!raw) return undefined
-  return { ...raw, flowSheet: mapFlowSheetFromApi(raw) }
+  return {
+    ...raw,
+    flowSheet: mapFlowSheetFromApi(raw),
+    referrals: Array.isArray(raw.referrals) ? raw.referrals.map(mapReferralFromApi) : raw.referrals,
+  }
+}
+
+/**
+ * Translate one referral row from the wire (snake_case) to the canonical
+ * camelCase `Referral`. The flat `print_*` flags collapse into a single
+ * `printOptions` object on the way in.
+ */
+function mapReferralFromApi(raw: any): any {
+  if (!raw || typeof raw !== 'object') return raw
+  return {
+    id:                   raw.id,
+    visitId:              raw.visit_id ?? raw.visitId,
+    referralDate:         raw.referral_date ?? raw.referralDate ?? '',
+    referralType:         raw.referral_type ?? raw.referralType ?? '',
+    otherReferralType:    raw.other_referral_type ?? raw.otherReferralType ?? null,
+    referralHospitalId:   raw.referral_hospital_id ?? raw.referralHospitalId ?? null,
+    referralHospitalName: raw.referral_hospital_name ?? raw.referralHospitalName ?? null,
+    referralReason:       raw.referral_reason ?? raw.referralReason ?? '',
+    referralBy:           raw.referral_by ?? raw.referralBy ?? '',
+    primaryPhysician:     raw.primary_physician ?? raw.primaryPhysician ?? '',
+    completionDate:       raw.completion_date ?? raw.completionDate ?? '',
+    status:               raw.status,
+    comments:             raw.comments ?? null,
+    printOptions: {
+      monthlyMedicalReport: !!(raw.print_monthly_medical_report ?? raw.printOptions?.monthlyMedicalReport),
+      systemMedicalReport:  !!(raw.print_system_medical_report  ?? raw.printOptions?.systemMedicalReport),
+      labResult:            !!(raw.print_lab_result             ?? raw.printOptions?.labResult),
+      last3FlowSheets:      !!(raw.print_last_3_flowsheets      ?? raw.printOptions?.last3FlowSheets),
+    },
+    attachmentUrl:  raw.attachment_url ?? raw.attachmentUrl ?? null,
+    attachmentName: raw.attachment_name ?? raw.attachmentName ?? null,
+    createdAt:      raw.created_at ?? raw.createdAt ?? '',
+  }
 }
 
 /**
  * Maps `GET /visits/{id}` response into the canonical `FlowSheet` model.
  *
- * The backend returns a flat `flowSheet` object with snake_case section keys
+ * The backend returns a flat object with snake_case section keys
  * (alarms_test, hemodialysis, post_assessment, outside_dialysis,
  * pre_treatment_vital, dialysis_medications, …). Each section is optional and
  * may be missing when the nurse hasn't saved it yet.
+ *
+ * The flow sheet payload may arrive wrapped under `flowSheet` / `flow_sheet` /
+ * `flowsheet`, or merged directly into the visit body. We accept all four.
  */
+const FLOW_SHEET_SECTION_KEYS = [
+  'alarms_test',
+  'hemodialysis',
+  'post_assessment',
+  'outside_dialysis',
+  'pre_treatment_vital',
+  'pre_treatment_vitals',
+  'pain_assessment',
+  'fall_risk_assessment',
+  'dialysis_medications',
+  'anticoagulation',
+  'machine_id',
+  'machines',
+  'car',
+  'dialysate',
+  'access',
+  'intake_output',
+  'nursing_action',
+  'nursing_actions',
+] as const
+
+/** True when any section key is present directly on the visit body. */
+function hasInlineFlowSheet(raw: any): boolean {
+  if (!raw || typeof raw !== 'object') return false
+  return FLOW_SHEET_SECTION_KEYS.some(k => raw[k] !== undefined)
+}
+
+/**
+ * Treat a row as junk if it has no field with an actual value other than DB
+ * metadata (id/created_at/updated_at). Used to drop placeholder rows the
+ * backend ships for newly-created flow sheets.
+ */
+const ROW_METADATA_KEYS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])
+function isMetadataOnlyRow(row: any): boolean {
+  if (!row || typeof row !== 'object') return true
+  const dataKeys = Object.keys(row).filter(k => !ROW_METADATA_KEYS.has(k))
+  if (dataKeys.length === 0) return true
+  return dataKeys.every(k => {
+    const val = row[k]
+    return val == null || val === '' || (typeof val === 'object' && Object.keys(val).length === 0)
+  })
+}
+
 function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
+  const wrapped =
+    raw?.flowSheet && typeof raw.flowSheet === 'object' ? raw.flowSheet
+    : raw?.flow_sheet && typeof raw.flow_sheet === 'object' ? raw.flow_sheet
+    : raw?.flowsheet && typeof raw.flowsheet === 'object' ? raw.flowsheet
+    : undefined
   const v: Record<string, any> | undefined =
-    raw?.flowSheet && typeof raw.flowSheet === 'object' ? raw.flowSheet : undefined
+    wrapped ?? (hasInlineFlowSheet(raw) ? raw : undefined)
   if (!v) return undefined
 
   const sectionKeys = Object.keys(v).filter(k => k !== 'visitId')
@@ -93,7 +186,9 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   const visitId = Number(raw?.id ?? v.visitId)
 
   // ── Pre-treatment vitals ──────────────────────────────────────────────────
-  const ptv = v.pre_treatment_vital ?? {}
+  // Backend has been seen using both `pre_treatment_vital` (singular) and
+  // `pre_treatment_vitals` (plural). Accept either.
+  const ptv = v.pre_treatment_vital ?? v.pre_treatment_vitals ?? {}
   const vitals: FlowSheetMobileVitals = {
     height:      String(ptv.height ?? ''),
     preWeight:   String(ptv.weight ?? ''),
@@ -137,6 +232,17 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   const highFallRisk: boolean | undefined =
     fra.high_risk != null ? (fra.high_risk === '1' || fra.high_risk === true || fra.high_risk === 1) : undefined
 
+  // ── Morse Falls Risk Assessment (boolean-flag shape) ──────────────────────
+  // Newer API: `morse_falls_risk_assessment` with one flag per scoring option
+  // plus per-action booleans. The backend currently ships it at the **top
+  // level** of the visit response (alongside `flowSheet`, not inside it); we
+  // also accept the inline variant for forward-compat.
+  // Legacy: `fall_risk_assessment.morseValues` with numeric a..f.
+  const morseRaw =
+    raw?.morse_falls_risk_assessment ?? raw?.morseFallsRiskAssessment ??
+    v.morse_falls_risk_assessment ?? v.morseFallsRiskAssessment
+  const morse = parseMorseFallsRiskResponse(morseRaw)
+
   // ── Alarms test ───────────────────────────────────────────────────────────
   const at = v.alarms_test ?? {}
 
@@ -165,9 +271,24 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
       : undefined
 
   // ── Access ────────────────────────────────────────────────────────────────
-  const access: string | undefined =
+  // Canonical values are `av_fistula | av_graft | cvc_temporary | permacath`.
+  // Older records persisted the display label ("AVF" / "AVG" / "CATHETER") —
+  // normalize so the AccessForm radio still highlights the right option.
+  const rawAccess: string | undefined =
     typeof v.access === 'string' ? v.access
     : v.access?.access ?? at.vascular ?? undefined
+  const access: string | undefined = (() => {
+    if (!rawAccess) return undefined
+    const key = String(rawAccess).trim().toLowerCase()
+    const legacy: Record<string, string> = {
+      'avf': 'av_fistula',
+      'avf.': 'av_fistula',
+      'avg': 'av_graft',
+      'catheter': 'cvc_temporary',
+      'permacath': 'permacath',
+    }
+    return legacy[key] ?? rawAccess
+  })()
 
   // ── Intake / output (bundled inside alarms_test) ──────────────────────────
   const intake  = at.intake  != null ? String(at.intake)  : (v.intake_output?.intake  ?? undefined)
@@ -180,8 +301,12 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     : (v.machines?.machine ?? undefined)
 
   // ── Dialysis parameters ───────────────────────────────────────────────────
+  // The backend sometimes ships a placeholder row carrying only DB metadata
+  // (e.g. `{ created_at: ... }`) — skip those so the UI doesn't render empty
+  // rows.
   const hd = v.hemodialysis ?? {}
-  const rawRows: any[] = hd.dialysis ?? hd.dialysis_parameters ?? []
+  const rawRowsAll: any[] = hd.dialysis ?? hd.dialysis_parameters ?? []
+  const rawRows = rawRowsAll.filter(r => !isMetadataOnlyRow(r))
   const dialysisParams: FlowSheetDialysisParam[] = rawRows.map(row => ({
     time:          String(row.time ?? ''),
     systolic:      String(row.blood_pressure_systolic ?? row.systolic ?? ''),
@@ -203,10 +328,11 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   }))
 
   // ── Nursing actions (stored under hemodialysis.nursing_action) ────────────
-  const naRaw: any[] = Array.isArray(hd.nursing_action) ? hd.nursing_action
+  const naRawAll: any[] = Array.isArray(hd.nursing_action) ? hd.nursing_action
     : Array.isArray(v.nursing_action) ? v.nursing_action
     : Array.isArray(v.nursing_actions) ? v.nursing_actions
     : []
+  const naRaw = naRawAll.filter(r => !isMetadataOnlyRow(r))
   const nursingActions: FlowSheetNursingAction[] | undefined =
     naRaw.length > 0
       ? naRaw.map((r: any) => ({
@@ -238,6 +364,7 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
           txTimeL:             paRaw.tx_time_l ?? null,
           dialysateL:          paRaw.dialysate_l ?? null,
           uf:                  paRaw.uf ?? null,
+          ufNet:               paRaw.uf_net ?? null,
           blp:                 paRaw.blp ?? null,
           catheterLock:        paRaw.catheter_lock ?? null,
           arterialAccess:      paRaw.arterial_access ?? null,
@@ -256,20 +383,26 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
       : undefined
 
   // ── Prescribed dialysis medications ───────────────────────────────────────
-  const dmRaw = v.dialysis_medications
+  // Accept all three shapes seen from the backend:
+  //   1. `raw.medications`             – top-level camelCase list (current)
+  //   2. `v.medications`               – inside the flowSheet section, key "medications"
+  //   3. `v.dialysis_medications`      – legacy snake_case key inside flowSheet
+  const dmRaw = raw?.medications ?? v.medications ?? v.dialysis_medications
   const dialysisMedications: FlowSheetDialysisMedication[] | undefined =
     Array.isArray(dmRaw) && dmRaw.length > 0
       ? dmRaw.map((m: any) => ({
           id:                 String(m.id),
-          drugId:             m.drug_id != null ? String(m.drug_id) : undefined,
-          drugName:           String(m.drug_name ?? ''),
+          drugId:             m.drug_id ?? m.drugId ?? undefined,
+          drugName:           String(m.drug_name ?? m.drugName ?? ''),
           form:               m.form ?? undefined,
           dosage:             m.dosage ?? undefined,
           route:              m.route ?? undefined,
           frequency:          m.frequency ?? undefined,
           duration:           m.duration ?? undefined,
+          durationPeriod:     m.duration_period ?? m.durationPeriod ?? undefined,
           instructions:       m.instructions ?? undefined,
-          administrationType: m.administration_type ?? undefined,
+          administrationType: m.administration_type ?? m.adminType ?? undefined,
+          administered:       m.administered ?? undefined,
         }))
       : undefined
 
@@ -279,12 +412,33 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     od === true || od === '1' || od === 1
     || (od && typeof od === 'object' && (od.outsideDialysis === true || od.outsideDialysis === '1' || od.outsideDialysis === 1))
 
-  // ── Patient signature (key uses a hyphen in the API response) ────────────
-  const pSig = v['patient-signature'] ?? {}
-  const patientSignature = pSig.patient_signature_signature_url
+  // ── Signatures (stored on the server, returned as URLs) ──────────────────
+  // Three response shapes seen in the wild:
+  //   • Top-level `patient_signature_url` + `nurse_signature_url`     (current)
+  //   • Hyphenated wrapper `patient-signature.patient_signature_*`    (older)
+  //   • Same fields under `nurseSignature` / `patientSignature` objects
+  // Paths may be relative ("/storage/...") — we resolve them against the API
+  // origin so the SignaturePad WebView can render the image directly.
+  const pSigLegacy = v['patient-signature'] ?? {}
+  const rawPatientUrl =
+    v.patient_signature_url ??
+    v.patientSignature?.url ??
+    pSigLegacy.patient_signature_signature_url ??
+    null
+  const rawNurseUrl =
+    v.nurse_signature_url ??
+    v.nurseSignature?.url ??
+    null
+  const patientSignature = rawPatientUrl
     ? {
-        url:      String(pSig.patient_signature_signature_url),
-        signedAt: String(pSig.patient_signature_signed_at ?? ''),
+        url:      resolveStorageUrl(String(rawPatientUrl)),
+        signedAt: String(v.patient_signature_signed_at ?? pSigLegacy.patient_signature_signed_at ?? ''),
+      }
+    : undefined
+  const nurseSignature = rawNurseUrl
+    ? {
+        url:      resolveStorageUrl(String(rawNurseUrl)),
+        signedAt: String(v.nurse_signature_signed_at ?? ''),
       }
     : undefined
 
@@ -298,8 +452,9 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     painDetails,
     fallRisk,
     highFallRisk,
-    morseValues: fra.morseValues ?? fra.morse_values ?? undefined,
-    morseTotal:  fra.morseTotal ?? fra.morse_total ?? undefined,
+    morseValues:  morse?.morseValues ?? fra.morseValues ?? fra.morse_values ?? undefined,
+    morseTotal:   morse?.morseTotal  ?? fra.morseTotal  ?? fra.morse_total  ?? undefined,
+    morseActions: morse?.morseActions,
     outsideDialysis,
     alarmsTest:  at.passed === '1' || at.passed === true,
     intake,
@@ -316,7 +471,20 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     nursingActions,
     postAssessment,
     patientSignature,
+    nurseSignature,
   }
+}
+
+/**
+ * Resolve a possibly-relative storage path to a full URL the WebView can
+ * render. The API base URL is `https://host/api`; uploads live under
+ * `https://host/storage/...`, so we drop the `/api` suffix before joining.
+ */
+function resolveStorageUrl(path: string): string {
+  if (!path) return path
+  if (/^https?:\/\//i.test(path)) return path
+  const origin = ENV.API_BASE_URL.replace(/\/api\/?$/, '')
+  return `${origin}${path.startsWith('/') ? '' : '/'}${path}`
 }
 
 // ─── Visit status transitions ───────────────────────────────────────────────
@@ -437,19 +605,22 @@ export const submitFlowSheetVitals = (
   visitId: number | string,
   body: FlowSheetVitalsSectionInput,
 ) => submitFlowSheetSection(visitId, 'pre-treatment-vitals', {
-  height:      body.vitals.height,
-  weight:      body.vitals.preWeight,
-  weight_dry:  body.vitals.dryWeight,
-  uf_goal:     body.vitals.ufGoal,
-  bp_systolic: body.vitals.bpSystolic,
-  bp_diastolic:body.vitals.bpDiastolic,
-  temp:        body.vitals.temperature,
-  spo2:        body.vitals.spo2,
-  pr_value:    body.vitals.hr,
-  rr:          body.vitals.rr,
-  rbs:         body.vitals.rbs,
-  bp_site:     body.bpSite,
-  temp_method: body.method,
+  height:       body.vitals.height,
+  weight:       body.vitals.preWeight,
+  weight_dry:   body.vitals.dryWeight,
+  uf_goal:      body.vitals.ufGoal,
+  bp_systolic:  body.vitals.bpSystolic,
+  bp_diastolic: body.vitals.bpDiastolic,
+  temp:         body.vitals.temperature,
+  spo2:         body.vitals.spo2,
+  pr:           body.vitals.prSite,   // PR palpation site (Radial / Carotid / …)
+  pr_value:     body.vitals.hr,        // PR rate (Bpm)
+  rr:           body.vitals.rr,
+  rbs:          body.vitals.rbs,
+  bmi:          body.vitals.bmi,
+  bmi_category: body.vitals.bmiCategory,
+  bp_site:      body.bpSite,
+  temp_method:  body.method,
 })
 
 // machine_id is a top-level key in the flowsheet — send the value directly
@@ -484,41 +655,66 @@ export const submitFlowSheetFallRisk = (
   high_risk: body.highFallRisk ? '1' : '0',
 })
 
+/** Serialize one nursing-action row into the backend snake_case shape. */
+const serializeNursingAction = (a: FlowSheetNursingAction) => ({
+  name:           a.name,
+  time:           a.time,
+  focus:          a.focus,
+  evaluation:     a.evaluation,
+  nursing_action: a.action,
+})
+
+/** Serialize one dialysis-parameter row into the backend snake_case shape. */
+const serializeDialysisParam = (p: FlowSheetDialysisParam) => ({
+  time:                     p.time,
+  blood_pressure_systolic:  p.systolic,
+  blood_pressure_diastolic: p.diastolic,
+  bp_site:                  p.bpSite ?? p.site,
+  pulse:                    p.pulse,
+  dialysate_rate:           p.dialysateRate,
+  uf_rate:                  p.uf,
+  bfr:                      p.bfr,
+  dialysate_volume:         p.dialysateVol,
+  uf_volume:                p.ufVol,
+  venous:                   p.venous,
+  effluent:                 p.effluent,
+  access:                   p.access,
+  initials:                 p.initials,
+  comments:                 p.comments,
+})
+
+/**
+ * Build the merged `hemodialysis` envelope. Both arrays go on every save so
+ * the backend can rewrite the whole record without dropping the side that
+ * wasn't edited this round.
+ */
+function buildHemodialysisPayload(
+  dialysisParams: FlowSheetDialysisParam[] | undefined,
+  nursingActions: FlowSheetNursingAction[] | undefined,
+) {
+  return {
+    dialysis: (dialysisParams ?? []).map(serializeDialysisParam),
+    nursing_action: (nursingActions ?? []).map(serializeNursingAction),
+  }
+}
+
 export const submitFlowSheetNursingActions = (
   visitId: number | string,
   body: FlowSheetNursingActionsInput,
-) => submitFlowSheetSection(visitId, 'nursing-actions', {
-  nursing_action: body.nursingActions.map(a => ({
-    name:           a.name,
-    time:           a.time,
-    focus:          a.focus,
-    evaluation:     a.evaluation,
-    nursing_action: a.action,
-  })),
-})
+) => submitFlowSheetSection(
+  visitId,
+  'nursing-actions',
+  buildHemodialysisPayload(body.dialysisParams, body.nursingActions),
+)
 
 export const submitFlowSheetDialysisParams = (
   visitId: number | string,
   body: FlowSheetDialysisParamsInput,
-) => submitFlowSheetSection(visitId, 'dialysis-parameters', {
-  dialysis: body.dialysisParams.map(p => ({
-    time:                     p.time,
-    blood_pressure_systolic:  p.systolic,
-    blood_pressure_diastolic: p.diastolic,
-    bp_site:                  p.bpSite ?? p.site,
-    pulse:                    p.pulse,
-    dialysate_rate:            p.dialysateRate,
-    uf_rate:                  p.uf,
-    bfr:                      p.bfr,
-    dialysate_volume:          p.dialysateVol,
-    uf_volume:                p.ufVol,
-    venous:                   p.venous,
-    effluent:                 p.effluent,
-    access:                   p.access,
-    initials:                 p.initials,
-    comments:                 p.comments,
-  })),
-})
+) => submitFlowSheetSection(
+  visitId,
+  'dialysis-parameters',
+  buildHemodialysisPayload(body.dialysisParams, body.nursingActions),
+)
 
 export const submitFlowSheetAlarmsTest = (
   visitId: number | string,
@@ -602,6 +798,7 @@ function serializePostAssessment(pt: FlowSheetMobilePostTx) {
     tx_time_l:            pt.txTimeL,
     dialysate_l:          pt.dialysateL,
     uf:                   pt.uf,
+    uf_net:               pt.ufNet,
     blp:                  pt.blp,
     catheter_lock:        pt.catheterLock,
     arterial_access:      pt.arterialAccess,
@@ -684,17 +881,79 @@ export async function submitDoctorProgressNote(
     await mockSubmitDoctorProgressNote(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  // Wire shape for `/forms/progress-notes` (doctor):
+  //   { type: "doctor", notes, isAddendum, parentNoteId? }
+  // `notes` (plural) carries the text. When `isAddendum` is true the
+  // request must reference the original note via `parentNoteId`.
+  const body: Record<string, unknown> = {
+    type:       'doctor',
+    notes:      payload.note,
+    isAddendum: payload.isAddendum,
+  }
+  if (payload.isAddendum && payload.parentNoteId != null) {
+    body.parentNoteId = payload.parentNoteId
+  }
   const res = await apiClient.post(
     `/visits/${payload.visitId}/forms/progress-notes`,
-    {
-      type: 'in_visit',
-      notes: payload.note,
-      addenda: payload.isAddendum
-        ? [{ parentNoteId: payload.parentNoteId, notes: payload.note }]
-        : [],
-    },
+    body,
   )
   return unwrapVisit(res.data)
+}
+
+/**
+ * Save the Morse Falls Risk Assessment. The morse sheet collects category
+ * scores + recommended actions; this serializes them to the flat boolean
+ * shape the backend expects (`gait_20`, `iv_therapy_0`, `high_protocol`, …).
+ *
+ *   POST /visits/{id}/forms/morse-falls-risk-assessment
+ */
+export async function submitMorseFallsRiskAssessment(
+  payload: MorseFallsRiskAssessmentInput,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(Number(payload.visitId), 'in_progress')
+  const body = buildMorseFallsRiskBody(payload)
+  const res = await apiClient.post(
+    `/visits/${payload.visitId}/forms/morse-falls-risk-assessment`,
+    body,
+  )
+  return unwrapVisit(res.data)
+}
+
+/**
+ * Mark a dialysis medication as administered (yes) or skipped (no) for the
+ * current visit.
+ *
+ *   POST /actions/patient-medications/{medicationId}
+ *   {
+ *     "action": "administered_by",            ← always this literal
+ *     "data": { "action": 1 | 0, "reason": null | string }
+ *   }
+ *
+ * `data.action` is `1` (Yes) or `0` (No). When `0`, the nurse must provide a
+ * reason; when `1`, `reason` is sent as `null`.
+ *
+ * The response echoes the recorded action, but doesn't include the rest of
+ * the visit — callers should invalidate / refetch the visit if they need the
+ * freshest snapshot.
+ */
+export async function submitMedicationAdministration(input: {
+  medicationId: number | string
+  action: 0 | 1
+  reason?: string | null
+}): Promise<unknown> {
+  if (ENV.USE_MOCK_DATA) return undefined
+  const body = {
+    action: 'administered_by',
+    data: {
+      action: input.action,
+      reason: input.action === 1 ? null : (input.reason ?? null),
+    },
+  }
+  const res = await apiClient.post(
+    `/actions/patient-medications/${input.medicationId}`,
+    body,
+  )
+  return res.data?.data ?? res.data
 }
 
 export async function submitSariScreening(
@@ -704,9 +963,10 @@ export async function submitSariScreening(
     await mockSubmitSariScreening(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  const { visitId, ...body } = payload
   const res = await apiClient.post(
-    `/visits/${payload.visitId}/forms/sari_screening`,
-    payload,
+    `/visits/${visitId}/forms/sari_screening`,
+    body,
   )
   return unwrapVisit(res.data)
 }
@@ -726,24 +986,48 @@ export async function submitRefusal(payload: RefusalInput): Promise<Visit> {
 
   const fd = new FormData()
 
-  // Strip the inline base64 data so the JSON part stays small; the bytes ride
-  // along as files instead.
-  const stripSig = <T extends { signatureData?: string }>(p: T) => {
-    const { signatureData: _omit, ...rest } = p
-    return rest
+  /**
+   * Normalize a party for the JSON body:
+   *  • Strip `signatureData` (the base64 PNG bytes ride as a multipart file)
+   *  • Strip `signatureUrl` (server-only field; would round-trip stale URLs)
+   *  • Coerce `signedAt` to `""` when missing so the wire shape always carries
+   *    the key (matches the spec for unsigned parties)
+   */
+  type PartyOut = {
+    name: string
+    signed: boolean
+    signedAt: string
+    relationship?: string
+    address?: string
+  }
+  const normalizeParty = (p: {
+    name?: string
+    signed?: boolean
+    signedAt?: string
+    relationship?: string
+    address?: string
+  }): PartyOut => {
+    const out: PartyOut = {
+      name:     p.name ?? '',
+      signed:   !!p.signed,
+      signedAt: p.signedAt ?? '',
+    }
+    if (p.relationship !== undefined) out.relationship = p.relationship
+    if (p.address !== undefined)      out.address      = p.address
+    return out
   }
 
   fd.append(
     'data',
     JSON.stringify({
-      types: payload.types,
-      reason: payload.reason,
-      risks: payload.risks,
-      witness: stripSig(payload.witness),
+      types:              payload.types,
+      reason:             payload.reason,
+      risks:              payload.risks,
+      witness:            normalizeParty(payload.witness),
       unableToSignReason: payload.unableToSignReason,
-      relative: stripSig(payload.relative),
-      doctor: stripSig(payload.doctor),
-      interpreter: stripSig(payload.interpreter),
+      relative:           normalizeParty(payload.relative),
+      doctor:             normalizeParty(payload.doctor),
+      interpreter:        normalizeParty(payload.interpreter),
     }),
   )
 
@@ -752,9 +1036,9 @@ export async function submitRefusal(payload: RefusalInput): Promise<Visit> {
       fd.append(key, dataUrlToFile(party.signatureData, key))
     }
   }
-  attachSig('witness_signature', payload.witness)
-  attachSig('relative_signature', payload.relative)
-  attachSig('doctor_signature', payload.doctor)
+  attachSig('witness_signature',     payload.witness)
+  attachSig('relative_signature',    payload.relative)
+  attachSig('doctor_signature',      payload.doctor)
   attachSig('interpreter_signature', payload.interpreter)
 
   const res = await apiClient.post(
@@ -766,9 +1050,14 @@ export async function submitRefusal(payload: RefusalInput): Promise<Visit> {
 }
 
 /**
- * Referral save uses **multipart/form-data** so the optional attachment
- * (image / PDF picked by the nurse) uploads as a real file. The text payload
- * goes in a single `data` JSON field; the file goes on `attachment`.
+ * Referral save — `POST /visits/{id}/forms/referrals` (plural).
+ *
+ * Body shape:
+ *   • `data` — single JSON multipart field with snake_case keys including
+ *     status, referral_by, referral_date, referral_type, completion_date,
+ *     referral_reason, referral_hospital_id, primary_physician,
+ *     other_referral_type, comments, and the flat print_* booleans.
+ *   • `attachment` — optional file (image / PDF) when the nurse picked one.
  */
 export async function submitReferral(payload: ReferralInput): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) {
@@ -777,32 +1066,41 @@ export async function submitReferral(payload: ReferralInput): Promise<Visit> {
   }
 
   const fd = new FormData()
-  const { visitId, attachmentUri, attachmentName, printOptions, ...rest } = payload
-
-  // Flat text fields — sent individually, no 'data' JSON wrapper.
-  Object.entries(rest).forEach(([key, val]) => {
-    if (val !== undefined && val !== null) fd.append(key, String(val))
-  })
-  if (printOptions !== undefined) {
-    fd.append('printOptions', JSON.stringify(printOptions))
+  const data: Record<string, unknown> = {
+    status:                        payload.status,
+    referral_by:                   payload.referralBy,
+    referral_date:                 payload.referralDate,
+    referral_type:                 payload.referralType,
+    other_referral_type:           payload.otherReferralType ?? null,
+    referral_hospital_id:          payload.referralHospitalId,
+    referral_reason:               payload.referralReason,
+    primary_physician:             payload.primaryPhysician,
+    completion_date:               payload.completionDate,
+    comments:                      payload.comments ?? null,
+    print_monthly_medical_report:  payload.printOptions.monthlyMedicalReport,
+    print_system_medical_report:   payload.printOptions.systemMedicalReport,
+    print_lab_result:              payload.printOptions.labResult,
+    print_last_3_flowsheets:       payload.printOptions.last3FlowSheets,
   }
+  fd.append('data', JSON.stringify(data))
 
-  if (attachmentUri) {
-    const name = attachmentName ?? 'attachment'
+  if (payload.attachmentUri) {
+    const name = payload.attachmentName ?? 'attachment'
     const lower = name.toLowerCase()
     const type =
-      lower.endsWith('.png') ? 'image/png' :
-      lower.endsWith('.pdf') ? 'application/pdf' :
-      lower.endsWith('.heic') ? 'image/heic' : 'image/jpeg'
+      lower.endsWith('.png')  ? 'image/png'  :
+      lower.endsWith('.pdf')  ? 'application/pdf' :
+      lower.endsWith('.heic') ? 'image/heic' :
+      'image/jpeg'
     fd.append('attachment', {
-      uri: attachmentUri,
+      uri:  payload.attachmentUri,
       name,
       type,
     } as unknown as Blob)
   }
 
   const res = await apiClient.post(
-    `/visits/${visitId}/forms/referral`,
+    `/visits/${payload.visitId}/forms/referrals`,
     fd,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   )
@@ -816,12 +1114,15 @@ export async function submitSocialWorkerProgressNote(
     await mockSubmitSocialWorkerProgressNote(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
+  // Dedicated endpoint for social-worker notes (NOT the same /forms/progress-notes
+  // used by the doctor). Body: { notes, on_call, in_center } — the visit
+  // context is expressed as two booleans rather than a single field.
   const res = await apiClient.post(
-    `/visits/${payload.visitId}/forms/progress-notes`,
+    `/visits/${payload.visitId}/forms/social-worker-progress-note`,
     {
-      type: payload.location === 'on_call' ? 'outside_visit' : 'in_visit',
-      notes: payload.note,
-      addenda: [],
+      notes:     payload.note,
+      on_call:   payload.location === 'on_call',
+      in_center: payload.location === 'in_center',
     },
   )
   return unwrapVisit(res.data)
