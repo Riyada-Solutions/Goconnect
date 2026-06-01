@@ -19,7 +19,14 @@ import {
   updateMe,
 } from "@/data/auth_repository";
 import type { User } from "@/data/models/auth";
-import { isActionAllowed, type RuleAction } from "@/data/models/rules";
+import {
+  ALL_BACKEND_RULES,
+  isActionAllowed,
+  type BackendRuleKey,
+  type RuleAction,
+} from "@/data/models/rules";
+
+const BACKEND_RULE_SET: ReadonlySet<string> = new Set(ALL_BACKEND_RULES);
 import { getRules } from "@/data/rules_repository";
 import { RULES_QUERY_KEY } from "@/hooks/useRules";
 
@@ -48,7 +55,7 @@ interface AppContextValue {
   /** Action keys the user is allowed to perform. */
   rules: Set<string>;
   /** True when `action` is in the rules list. Use this to gate buttons/screens. */
-  can: (action: RuleAction) => boolean;
+  can: (action: RuleAction | BackendRuleKey) => boolean;
   t: (key: keyof typeof translations.en) => string;
   login: (user: User, token: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -171,7 +178,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const can = useCallback(
-    (action: RuleAction) => allowAll || isActionAllowed(action, rules),
+    (action: RuleAction | BackendRuleKey) => {
+      if (allowAll) return true;
+      // Backend keys (from `BackendRule.*`) hit the granted set directly.
+      // FE semantic keys (snake_case `RuleAction`) resolve via the mapping.
+      if (BACKEND_RULE_SET.has(action)) return rules.has(action);
+      return isActionAllowed(action as RuleAction, rules);
+    },
     [rules, allowAll],
   );
 

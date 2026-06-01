@@ -1,14 +1,15 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { Card } from "@/components/common/Card";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { DateTimeField } from "@/components/ui/DateTimeField";
 import { useApp } from "@/context/AppContext";
 import { Colors } from "@/theme/colors";
-import { formatElapsed } from "@/utils/time";
+import { clock12hTo24h, clock24hTo12h, formatElapsed } from "@/utils/time";
 
 import { visitDetailStyles as s } from "../visit-detail.styles";
 
@@ -87,22 +88,12 @@ export function VisitInfoCard(p: Props) {
               )}
             </View>
           </View>
-        </View>
-
-        <View style={[s.visitInfoDivider, { backgroundColor: colors.borderLight }]} />
-
-        <View style={s.visitInfoGrid}>
           <View style={s.visitInfoCell}>
             <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{t("status")}</Text>
             <StatusBadge status={statusLabel(visitPhase)} />
           </View>
           <InfoCell label={t("patient")} value={p.patientName || "—"} colors={colors} />
           <InfoCell label={t("hospital")} value={p.hospital || "—"} colors={colors} />
-        </View>
-
-        <View style={[s.visitInfoDivider, { backgroundColor: colors.borderLight }]} />
-
-        <View style={s.visitInfoGrid}>
           <InfoCell label={t("insuranceGrant")} value={p.insurance || "N/A"} colors={colors} />
           <InfoCell label={t("providers")} value={p.provider || "—"} colors={colors} />
           <View style={s.visitInfoCell}>
@@ -161,20 +152,19 @@ function InfoCell({ label, value, colors }: { label: string; value: string; colo
 }
 
 function TimeInput({ label, value, onChangeText, editable, colors }: { label: string; value: string; onChangeText: (v: string) => void; editable: boolean; colors: any }) {
+  // Same native time picker as the flow-sheet time fields. The picker works in
+  // 24-hour `HH:mm`; procedure times are kept as 12-hour clock strings (what
+  // the API wants), so convert at the boundary.
   return (
     <View style={{ flex: 1 }}>
       <Text style={[s.formLabel, { color: colors.text }]}>{label}</Text>
-      <View style={[s.procTimeInput, { borderColor: colors.border, backgroundColor: colors.background }]}>
-        <TextInput
-          style={[s.procTimeText, { color: colors.text }]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder="--:-- --"
-          placeholderTextColor={colors.textTertiary}
-          editable={editable}
-        />
-        <Feather name="clock" size={16} color={colors.textTertiary} />
-      </View>
+      <DateTimeField
+        mode="time"
+        value={clock12hTo24h(value)}
+        onChange={(v) => onChangeText(clock24hTo12h(v))}
+        editable={editable}
+        colors={colors}
+      />
     </View>
   );
 }

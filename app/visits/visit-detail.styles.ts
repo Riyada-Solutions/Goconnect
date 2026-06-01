@@ -54,8 +54,8 @@ export const visitDetailStyles = StyleSheet.create({
   teamRole: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   notesText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
 
-  visitInfoGrid: { flexDirection: "row", gap: 8 },
-  visitInfoCell: { flex: 1, gap: 4 },
+  visitInfoGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 14 },
+  visitInfoCell: { width: "48%", gap: 4 },
   visitInfoLabel: { fontSize: 11, fontFamily: "Inter_500Medium", letterSpacing: 0.2 },
   visitInfoValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   visitInfoDivider: { height: 1, marginVertical: 10 },
@@ -83,6 +83,7 @@ export const visitDetailStyles = StyleSheet.create({
   formSubhead: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 4 },
   formInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, fontFamily: "Inter_400Regular" },
   formRow: { flexDirection: "row", gap: 10 },
+  formColumn: { flexDirection: "column", gap: 10 },
   scoreChip: { width: 34, height: 34, borderRadius: 8, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
 
   radioRow: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -20,6 +20,7 @@ import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { verifyFace } from "@/data/auth_repository";
 import { clearFaceToken, getFaceToken, setFaceToken } from "@/data/secure_storage";
+import { getBiometricErrorMessage, isFaceIdSupportedInCurrentBuild } from "@/utils/biometric";
 
 export default function BiometricUnlockScreen() {
   const { login, logout, t } = useApp();
@@ -44,24 +45,29 @@ export default function BiometricUnlockScreen() {
 
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
       console.log("[bio-unlock] supported types:", types);
-      const isFace = types.includes(
+      const hasFace = types.includes(
         LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
       );
-      const isFingerprint = types.includes(
+      const hasFingerprint = types.includes(
         LocalAuthentication.AuthenticationType.FINGERPRINT,
       );
 
       const biometricUsable = compatible && enrolled && !forcePasscode;
 
-      console.log("[bio-unlock] calling authenticateAsync, biometricUsable:", biometricUsable);
+      // Priority chain: Face ID → Fingerprint → device passcode.
+      // The OS prompts the enrolled biometric and (with disableDeviceFallback: false)
+      // falls back to the passcode automatically if it fails or none is available.
+      const promptMessage = biometricUsable
+        ? hasFace
+          ? t("faceIdLogin")
+          : hasFingerprint
+          ? t("fingerprintLogin")
+          : t("biometricLogin")
+        : t("usePasscode");
+
+      console.log("[bio-unlock] calling authenticateAsync, biometricUsable:", biometricUsable, "promptMessage:", promptMessage);
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: biometricUsable
-          ? isFace
-            ? t("faceIdLogin")
-            : isFingerprint
-            ? t("fingerprintLogin")
-            : t("biometricLogin")
-          : t("usePasscode"),
+        promptMessage,
         fallbackLabel: t("usePasscode"),
         disableDeviceFallback: false,
         cancelLabel: t("cancel"),
@@ -69,13 +75,18 @@ export default function BiometricUnlockScreen() {
       console.log("[bio-unlock] auth result:", JSON.stringify(result));
       if (!result.success) {
         const err = "error" in result ? result.error : "unknown";
+        if (err === "missing_usage_description") {
+          setError(getBiometricErrorMessage(err, t));
+          return;
+        }
         const warning = "warning" in result ? result.warning : undefined;
         setError(
-          `Auth failed: ${err}${warning ? ` / ${warning}` : ""}. ` +
+          getBiometricErrorMessage(err, t) +
+            (warning ? ` (${warning})` : "") +
             (err === "not_enrolled" || err === "not_available"
-              ? "Enable Face ID for Expo Go: iOS Settings → Face ID & Passcode → Other Apps → Expo Go."
+              ? " Enable Face ID for this app in iOS Settings → Face ID & Passcode → Other Apps."
               : err === "user_cancel" || err === "system_cancel"
-              ? "You cancelled. Tap the button to retry."
+              ? " Tap the button to retry."
               : ""),
         );
         return;
@@ -103,9 +114,13 @@ export default function BiometricUnlockScreen() {
     router.replace("/(auth)/login");
   };
 
-  // Auto-prompt on mount
+  // Auto-prompt on mount when Face ID is supported in this build
   useEffect(() => {
-    void handleBiometricUnlock(false);
+    if (isFaceIdSupportedInCurrentBuild()) {
+      void handleBiometricUnlock(false);
+    } else {
+      setError(getBiometricErrorMessage("missing_usage_description", t));
+    }
   }, []);
 
   return (

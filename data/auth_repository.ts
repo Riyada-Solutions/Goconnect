@@ -91,14 +91,17 @@ export async function changePassword(body: ChangePasswordRequest): Promise<void>
 
 export async function logout(): Promise<void> {
   await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
-  await clearFaceToken()
   if (ENV.USE_MOCK_DATA) return
   await apiClient.post('/auth/logout').catch(() => {})
 }
 
 export async function deleteAccount(password: string): Promise<void> {
-  if (ENV.USE_MOCK_DATA) return
+  if (ENV.USE_MOCK_DATA) {
+    await clearFaceToken()
+    return
+  }
   await apiClient.post('/auth/delete-account', { password, confirmation: 'DELETE' })
+  await clearFaceToken()
 }
 
 export async function updateMe(body: { name: string; phone: string }): Promise<User> {

@@ -2,9 +2,10 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { register } from "@/data/auth_repository";
@@ -85,7 +86,12 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAwareScrollViewCompat
+      style={s.flex}
+      contentContainerStyle={[s.scrollContent, { paddingBottom: botPad + 40 }]}
+      showsVerticalScrollIndicator={false}
+      bottomOffset={16}
+    >
       <View style={[s.header, { paddingTop: topPad + 16 }]}>
         <Pressable onPress={() => router.back()} style={s.backBtn}>
           <Feather name="chevron-left" size={22} color={Colors.primary} />
@@ -96,8 +102,7 @@ export default function RegisterScreen() {
         </View>
       </View>
 
-      <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: botPad + 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={s.card}>
+      <View style={s.card}>
           <Text style={s.cardTag}>{t("joinGoConnect")}</Text>
           <Text style={s.cardTitle}>{t("createYourAccount")}</Text>
           <Text style={s.cardSub}>{t("registerDesc")}</Text>
@@ -234,8 +239,7 @@ export default function RegisterScreen() {
             <Text style={s.loginLink}>{t("alreadyHaveAccount")} {t("signIn")}</Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -247,7 +251,7 @@ function makeStyles(colors: typeof Colors.light | typeof Colors.dark) {
     headerCenter: { flex: 1, gap: 4 },
     headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: colors.text },
     headerSub: { fontFamily: "Inter_400Regular", fontSize: 13, color: colors.textSecondary },
-    body: { flex: 1, paddingHorizontal: 20 },
+    scrollContent: { paddingHorizontal: 20, flexGrow: 1 },
     card: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, marginBottom: 16, gap: 6, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
     cardTag: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: Colors.primary, letterSpacing: 1.5 },
     cardTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: colors.text, lineHeight: 28 },

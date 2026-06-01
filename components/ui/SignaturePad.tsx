@@ -23,6 +23,9 @@ interface Props {
   /** Called whenever the signature changes. dataUrl is a base64 PNG data URI. */
   onChange?: (dataUrl: string, hasContent: boolean) => void;
   placeholderLabel?: string;
+  /** When true, the canvas displays the existing signature but ignores touch
+   *  input so the user cannot draw or clear. */
+  useOnly?: boolean;
 }
 
 export interface SignaturePadHandle {
@@ -34,7 +37,7 @@ export interface SignaturePadHandle {
  * Renders an HTML5 canvas inside a WebView and captures the drawing as a PNG data URL.
  */
 export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function SignaturePad(
-  { colors, height = 200, penColor = "#111827", initialDataUrl, onChange, placeholderLabel = "Sign here" },
+  { colors, height = 200, penColor = "#111827", initialDataUrl, onChange, placeholderLabel = "Sign here", useOnly = false },
   ref,
 ) {
   const innerRef = useRef<SignatureViewRef>(null);
@@ -68,6 +71,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
 
   return (
     <View
+      pointerEvents={useOnly ? "none" : "auto"}
       style={{
         height,
         borderWidth: 1.5,

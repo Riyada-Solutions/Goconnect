@@ -72,6 +72,8 @@ export interface Visit {
   endTime?: string | null
   startProcedureTime?: string | null
   endProcedureTime?: string | null
+  doctorCheckInTime?: string | null
+  doctorCheckOutTime?: string | null
 
   /** Raw form payloads as returned by the backend. May be `[]` when empty. */
   forms?: VisitForms

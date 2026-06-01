@@ -7,8 +7,11 @@ import { Card } from "@/components/common/Card";
 import { Colors } from "@/theme/colors";
 import { translations, type Language } from "@/config/i18n";
 import {
-  EMPTY_REFUSAL_SIDE,
-  type RefusalSide,
+  EMPTY_PARTY,
+  EMPTY_RISKS,
+  type PartyInfo,
+  type RefusalRisks,
+  type RefusalType,
 } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
@@ -17,7 +20,16 @@ import { CollapsibleHeader } from "../CollapsibleHeader";
 import { PartyInfoSection } from "./refusal/PartyInfoSection";
 import { RefusalMainSection } from "./refusal/RefusalMainSection";
 
-export type RefusalFormSideData = RefusalSide;
+export interface RefusalFormSideData {
+  types: RefusalType[];
+  reason: string;
+  risks: RefusalRisks;
+  witness: PartyInfo;
+  unableToSignReason: string;
+  relative: PartyInfo;
+  doctor: PartyInfo;
+  interpreter: PartyInfo;
+}
 
 export interface RefusalFormData {
   en: RefusalFormSideData;
@@ -28,13 +40,23 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
-  isSaving?: boolean;
+  /** Prefill from the server — parsed via `parseDisOfHemodialysis`. */
   initial?: RefusalFormData | null;
+  isSaving?: boolean;
   onSave: (data: RefusalFormData) => void;
   t: (key: any) => string;
 }
 
-const emptySide = (): RefusalFormSideData => JSON.parse(JSON.stringify(EMPTY_REFUSAL_SIDE));
+const emptySide = (): RefusalFormSideData => ({
+  types: [],
+  reason: "",
+  risks: { ...EMPTY_RISKS },
+  witness: { ...EMPTY_PARTY },
+  unableToSignReason: "",
+  relative: { ...EMPTY_PARTY },
+  doctor: { ...EMPTY_PARTY, relationship: undefined, address: undefined },
+  interpreter: { ...EMPTY_PARTY, relationship: undefined, address: undefined },
+});
 
 const tFor = (lang: Language) => (key: keyof typeof translations.en): string => {
   const dict = translations[lang] as Record<string, string>;
@@ -217,23 +239,37 @@ function RefusalFormSide({ lang, data, setData, colors }: SideProps) {
   );
 }
 
-export function RefusalForm({ colors, isReadOnly, initialExpanded, isSaving = false, initial, onSave, t }: Props) {
+export function RefusalForm({ colors, isReadOnly, initialExpanded, initial, isSaving = false, onSave, t }: Props) {
+  void isReadOnly;
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [enData, setEnData] = useState<RefusalFormSideData>(() => initial?.en ?? emptySide());
   const [arData, setArData] = useState<RefusalFormSideData>(() => initial?.ar ?? emptySide());
 
-  // Repopulate state when the prefill data arrives or changes (e.g. after the
-  // visit query resolves). Without this, the initial empty render sticks.
+  // Repopulate when the prefill arrives after first mount (the visit query
+  // resolves async, so `initial` is often `null` on the first render).
   useEffect(() => {
-    if (initial) {
-      setEnData(initial.en);
-      setArData(initial.ar);
-    }
+    if (initial?.en) setEnData(initial.en);
+    if (initial?.ar) setArData(initial.ar);
   }, [initial]);
 
+  // The serializer mirrors non-empty values EN↔AR, so a field counts as filled
+  // when it's present on *either* language side. The server validates these as
+  // required (a 422 lists patient_address, witness relationship, relative
+  // relation), so gate the save button on all of them.
+  const nonEmpty = (v?: string | null) => !!(v && v.trim() !== "");
+  const eitherSide = (pick: (d: RefusalFormSideData) => string | undefined) =>
+    nonEmpty(pick(enData)) || nonEmpty(pick(arData));
+  const relationFilled = (pick: (d: RefusalFormSideData) => PartyInfo) =>
+    eitherSide((d) => pick(d).relationship) || eitherSide((d) => pick(d).customRelationship);
+
+  const typesOk = enData.types.length > 0 || arData.types.length > 0;
+  const reasonOk = eitherSide((d) => d.reason);
+  const witnessRelationOk = relationFilled((d) => d.witness);
+  const witnessAddressOk = eitherSide((d) => d.witness.address);
+  const relativeRelationOk = relationFilled((d) => d.relative);
+
   const canSave =
-    (enData.types.length > 0 && enData.reason.trim() !== "") ||
-    (arData.types.length > 0 && arData.reason.trim() !== "");
+    typesOk && reasonOk && witnessRelationOk && witnessAddressOk && relativeRelationOk;
 
   const handleSave = () => {
     if (!canSave || isSaving) return;
@@ -267,7 +303,14 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, isSaving = fa
 
           <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: canSave && !isSaving ? Colors.primary : colors.border, flex: 1 }]}
+              style={[
+                s.saveFlowBtn,
+                {
+                  backgroundColor: canSave && !isSaving ? Colors.primary : colors.border,
+                  flex: 1,
+                  opacity: isSaving ? 0.7 : 1,
+                },
+              ]}
               onPress={handleSave}
               disabled={!canSave || isSaving}
             >
@@ -278,15 +321,17 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, isSaving = fa
               )}
               <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
             </Pressable>
-            <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: isSaving ? colors.border : "#EF4444", flex: 1 }]}
-              onPress={handleClear}
-              disabled={isSaving}
-            >
+            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
               <Feather name="trash-2" size={16} color="#fff" />
               <Text style={s.mainBtnText}>{t("clear")}</Text>
             </Pressable>
           </View>
+
+          {!canSave && !isReadOnly && (
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#DC2626", lineHeight: 18 }}>
+              {t("refusalCompleteRequired")}
+            </Text>
+          )}
       </CollapsibleBody>
     </Card>
   );

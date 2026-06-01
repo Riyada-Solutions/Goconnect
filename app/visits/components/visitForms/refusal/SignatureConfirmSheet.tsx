@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Image, Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SignaturePad, type SignaturePadHandle } from "@/components/ui/SignaturePad";
@@ -20,6 +20,10 @@ interface Props {
   clearLabel?: string;
   signHereLabel?: string;
   confirmLabel?: string;
+  /** Read-only mode: shows the existing signature, disables drawing/clearing,
+   *  and hides the Confirm button. Used to preview an already-signed signature
+   *  without allowing edits. */
+  useOnly?: boolean;
 }
 
 export function SignatureConfirmSheet({
@@ -34,31 +38,47 @@ export function SignatureConfirmSheet({
   clearLabel = "Clear",
   signHereLabel = "Sign here",
   confirmLabel = "Confirm Signature",
+  useOnly = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const padRef = useRef<SignaturePadHandle>(null);
   const [signatureData, setSignatureData] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const [padKey, setPadKey] = useState(0);
+  // When an existing signature is provided, start by previewing it as an image.
+  // The Clear button drops the preview and reveals the SignaturePad so the
+  // user can draw a replacement.
+  const [showImage, setShowImage] = useState<boolean>(!!initialSignature);
 
   useEffect(() => {
     if (visible) {
       if (initialSignature) {
         setSignatureData(initialSignature);
         setHasContent(true);
+        setShowImage(true);
       } else {
         setSignatureData("");
         setHasContent(false);
+        setShowImage(false);
       }
       setPadKey((k) => k + 1);
     } else {
       setSignatureData("");
       setHasContent(false);
+      setShowImage(false);
     }
   }, [visible, initialSignature]);
 
   const handleClear = () => {
     Haptics.selectionAsync();
+    if (showImage) {
+      // Drop the existing preview and reveal the empty pad for re-signing.
+      setShowImage(false);
+      setSignatureData("");
+      setHasContent(false);
+      setPadKey((k) => k + 1);
+      return;
+    }
     padRef.current?.clear();
   };
 
@@ -148,21 +168,57 @@ export function SignatureConfirmSheet({
               </View>
             ) : null}
 
-            <SignaturePad
-              ref={padRef}
-              key={padKey}
-              colors={colors}
-              initialDataUrl={visible ? initialSignature : undefined}
-              placeholderLabel={signHereLabel}
-              onChange={(d, has) => {
-                // console.log("SignaturePad data", d);
-                // console.log("SignaturePad has", has);
-                setSignatureData(d);
-                setHasContent(has);
-              }}
-            />
+            {showImage && initialSignature ? (
+              <View
+                style={{
+                  height: 200,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.borderLight,
+                  backgroundColor: "#fff",
+                  overflow: "hidden",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Image
+                  source={{ uri: initialSignature }}
+                  resizeMode="contain"
+                  style={{ width: "100%", height: "100%" }}
+                />
+              </View>
+            ) : useOnly ? (
+              <View
+                style={{
+                  height: 200,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.borderLight,
+                  backgroundColor: "#fff",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.textSecondary, fontFamily: "Inter_500Medium", fontSize: 13 }}>
+                  No signature available
+                </Text>
+              </View>
+            ) : (
+              <SignaturePad
+                ref={padRef}
+                key={padKey}
+                colors={colors}
+                initialDataUrl={undefined}
+                placeholderLabel={signHereLabel}
+                useOnly={false}
+                onChange={(d, has) => {
+                  setSignatureData(d);
+                  setHasContent(has);
+                }}
+              />
+            )}
 
-            {hasContent && (
+            {!useOnly && (showImage || hasContent) && (
               <Pressable
                 onPress={handleClear}
                 style={{
@@ -180,34 +236,49 @@ export function SignatureConfirmSheet({
               </Pressable>
             )}
 
-            <Pressable
-              onPress={() => {
-                if (!hasContent) return;
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                onConfirm(signatureData);
-              }}
-              style={{
-                backgroundColor: hasContent ? "#22C55E" : colors.border,
-                borderRadius: 13,
-                paddingVertical: 14,
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 8,
-                marginBottom: 4,
-              }}
-            >
-              <Feather name="check-circle" size={16} color={hasContent ? "#fff" : colors.textSecondary} />
-              <Text
-                style={{
-                  color: hasContent ? "#fff" : colors.textSecondary,
-                  fontFamily: "Inter_700Bold",
-                  fontSize: 15,
-                }}
-              >
-                {confirmLabel}
-              </Text>
-            </Pressable>
+            {(() => {
+              // Confirm rules:
+              //   • useOnly   → always enabled regardless of image; click only
+              //                 updates form data (no upload, no draw required)
+              //   • showImage → previewing the existing signature; submits initialSignature
+              //   • otherwise → user is drawing on the pad; needs hasContent
+              const enabled = useOnly
+                ? true
+                : showImage
+                  ? !!initialSignature
+                  : hasContent;
+              const payload = showImage || useOnly ? (initialSignature ?? "") : signatureData;
+              return (
+                <Pressable
+                  onPress={() => {
+                    if (!enabled) return;
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    onConfirm(payload);
+                  }}
+                  style={{
+                    backgroundColor: enabled ? "#22C55E" : colors.border,
+                    borderRadius: 13,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  <Feather name="check-circle" size={16} color={enabled ? "#fff" : colors.textSecondary} />
+                  <Text
+                    style={{
+                      color: enabled ? "#fff" : colors.textSecondary,
+                      fontFamily: "Inter_700Bold",
+                      fontSize: 15,
+                    }}
+                  >
+                    {confirmLabel}
+                  </Text>
+                </Pressable>
+              );
+            })()}
           </View>
         </View>
       </View>

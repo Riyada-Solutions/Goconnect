@@ -188,6 +188,7 @@ function PreTreatmentVitalsSection({
     { label: `${t("oxygenSaturation")}:`, value: vitals?.oxygenSaturation },
     { label: `${t("bloodPressure")}:`, value: vitals?.bloodPressure },
     { label: `${t("pulseRate")}:`, value: vitals?.pulseRate },
+    { label: `${t("heightCm")}:`, value: vitals?.height },
     { label: `${t("preWeightKg")}:`, value: vitals?.preWeight },
     { label: `${t("dryWeightKg")}:`, value: vitals?.dryWeight },
     { label: `${t("ufGoalL")}:`, value: vitals?.ufGoal },

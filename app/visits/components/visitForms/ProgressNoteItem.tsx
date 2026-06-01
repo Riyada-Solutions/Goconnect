@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
+import { DateTimeConverter } from "@/utils/datetime";
 
 interface Props {
   author: string;
@@ -27,7 +28,7 @@ export function ProgressNoteItem({ author, note, createdAt, copyLabel, onCopy, m
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4, alignItems: "center" }}>
         <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: colors.text }}>{author}</Text>
         <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: colors.textSecondary }}>
-          {new Date(createdAt).toLocaleString()}
+          {DateTimeConverter.dateTime(createdAt)}
         </Text>
       </View>
       <Pressable

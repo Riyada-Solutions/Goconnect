@@ -1,16 +1,14 @@
-import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import React, { useMemo } from "react";
+import { Text, TextInput, View } from "react-native";
 
-import { ClickToSignButton } from "@/components/ui/ClickToSignButton";
 import { DateTimeField } from "@/components/ui/DateTimeField";
 import { SelectField } from "@/components/ui/SelectField";
+import { SignatureField, type SignatureValue } from "@/components/ui/SignatureField";
 import { useApp } from "@/context/AppContext";
 import { translations } from "@/config/i18n";
-import { uploadSignature } from "@/data/signature_repository";
 import { RELATIONSHIP_OPTIONS, type PartyInfo } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../../visit-detail.styles";
-import { SignatureConfirmSheet } from "./SignatureConfirmSheet";
 
 const RELATIONSHIP_KEYS: Record<(typeof RELATIONSHIP_OPTIONS)[number], string> = {
   Father: "relationshipFather",
@@ -64,9 +62,6 @@ export function PartyInfoSection({
   lang,
 }: Props) {
   const { t } = useApp();
-  const [signatureOpen, setSignatureOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const relationshipOptions = useMemo(
     () =>
       RELATIONSHIP_OPTIONS.map((opt) => {
@@ -117,7 +112,7 @@ export function PartyInfoSection({
         />
       </View>
 
-      <View style={[s.formRow, isRtl ? { flexDirection: "row-reverse" } : null]}>
+      <View style={[s.formColumn, isRtl ? { flexDirection: "row-reverse" } : null]}>
         {showRelationship ? (
           <View style={{ flex: 1 }}>
             <SelectField
@@ -131,22 +126,30 @@ export function PartyInfoSection({
         ) : null}
         <View style={{ flex: 1 }}>
           <Text style={labelStyle}>{signatureLabel}</Text>
-          <ClickToSignButton
-            signed={value.signed}
-            signedAt={value.signedAt}
+          <SignatureField
+            label={clickToSign}
+            value={{
+              signed: value.signed,
+              dataUrl: value.signatureData ?? value.signatureUrl,
+              signedAt: value.signedAt,
+              signatureUrl: value.signatureUrl,
+            }}
+            onChange={(sig: SignatureValue) => {
+              const isData = !!sig.dataUrl && sig.dataUrl.startsWith("data:");
+              onChange({
+                ...value,
+                signed: sig.signed,
+                signedAt: sig.signedAt,
+                signatureData: isData ? sig.dataUrl : value.signatureData,
+                signatureUrl: sig.signatureUrl ?? (isData ? undefined : sig.dataUrl),
+              });
+            }}
+            subtitle={value.name || undefined}
+            statement={signatureStatement}
+            accentColor="#0891B2"
+            iconIdle="edit-3"
             signedLabel={signed}
-            unsignedLabel={clickToSign}
-            onPress={() => setSignatureOpen(true)}
           />
-          {uploading ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-              <ActivityIndicator size="small" color="#0891B2" />
-              <Text style={{ fontSize: 11, color: colors.textSecondary }}>Uploading…</Text>
-            </View>
-          ) : null}
-          {uploadError ? (
-            <Text style={{ fontSize: 11, color: "#EF4444", marginTop: 4 }}>{uploadError}</Text>
-          ) : null}
         </View>
       </View>
 
@@ -172,53 +175,6 @@ export function PartyInfoSection({
         </View>
       ) : null}
 
-      <SignatureConfirmSheet
-        visible={signatureOpen}
-        title={title}
-        subtitle={value.name || undefined}
-        statement={signatureStatement}
-        initialSignature={
-          value.signed
-            ? value.signatureData ?? value.signatureUrl ?? undefined
-            : undefined
-        }
-        onConfirm={async (signatureData) => {
-          const signedAt = new Date().toISOString();
-          // Immediately mark signed so the UI updates; clear any old URL since
-          // the bytes just changed.
-          onChange({
-            ...value,
-            signed: true,
-            signedAt,
-            signatureData,
-            signatureUrl: undefined,
-          });
-          setSignatureOpen(false);
-          if (!signatureData) return;
-          setUploading(true);
-          setUploadError(null);
-          try {
-            const r = await uploadSignature({
-              uri:  signatureData,
-              name: `${title.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.png`,
-              type: "image/png",
-            });
-            onChange({
-              ...value,
-              signed: true,
-              signedAt,
-              signatureData,
-              signatureUrl: r.signatureUrl,
-            });
-          } catch (e: any) {
-            setUploadError(e?.message ?? "Upload failed");
-          } finally {
-            setUploading(false);
-          }
-        }}
-        onClose={() => setSignatureOpen(false)}
-        colors={colors}
-      />
     </View>
   );
 }

@@ -4,6 +4,7 @@ export interface DoctorProgressNoteVitals {
   oxygenSaturation?: string
   bloodPressure?: string
   pulseRate?: string
+  height?: string
   preWeight?: string
   dryWeight?: string
   ufGoal?: string

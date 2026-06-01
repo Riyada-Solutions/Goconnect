@@ -29,6 +29,10 @@ interface Props {
   /** Icon used on the unsigned button. */
   iconIdle?: keyof typeof Feather.glyphMap;
   disabled?: boolean;
+  /** Read-only mode: opens the sheet only to display the existing signature.
+   *  Drawing and the Confirm button are hidden — the signature cannot be
+   *  updated. */
+  useOnly?: boolean;
   clearLabel?: string;
   signHereLabel?: string;
   confirmLabel?: string;
@@ -52,6 +56,7 @@ export function SignatureField({
   accentColor,
   iconIdle = "edit-3",
   disabled,
+  useOnly = false,
   clearLabel = "Clear",
   signHereLabel = "Sign here",
   confirmLabel = "Confirm Signature",
@@ -64,7 +69,13 @@ export function SignatureField({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const signedColor = "#22C55E";
-  const showSigned = value.signed && !!value.dataUrl;
+  // In useOnly mode, any provided image (dataUrl OR signatureUrl) should
+  // render — the field is a viewer for a server-stored signature, so the
+  // local `signed` flag isn't the source of truth.
+  const previewUrl = value.dataUrl || value.signatureUrl;
+  const showSigned = useOnly
+    ? !!previewUrl
+    : value.signed && !!value.dataUrl;
 
   const openSheet = () => {
     if (disabled) return;
@@ -130,7 +141,7 @@ export function SignatureField({
           {/* Signature image preview — tap to re-sign */}
           <Pressable onPress={openSheet} disabled={disabled}>
             <Image
-              source={{ uri: value.dataUrl }}
+              source={{ uri: previewUrl }}
               resizeMode="contain"
               style={{ width: "100%", height: 80, backgroundColor: "#fff" }}
             />
@@ -235,17 +246,41 @@ export function SignatureField({
         title={label}
         subtitle={subtitle}
         statement={statement}
-        initialSignature={value.signed && value.dataUrl ? value.dataUrl : undefined}
+        initialSignature={previewUrl}
         clearLabel={clearLabel}
         signHereLabel={signHereLabel}
         confirmLabel={confirmLabel}
+        useOnly={useOnly}
         onConfirm={async (dataUrl) => {
           const signedAt = new Date().toISOString();
+          setOpen(false);
+          // In useOnly mode the signature is read-only — Confirm only records
+          // the attestation (signed_at + the existing URL, which may be empty).
+          // No upload, no draw required.
+          if (useOnly) {
+            onChange({
+              signed: true,
+              dataUrl: dataUrl || value.dataUrl,
+              signedAt,
+              signatureUrl: dataUrl || value.signatureUrl,
+            });
+            return;
+          }
+          if (!dataUrl) return;
+          // For an already-uploaded signature (http(s) URL), skip re-uploading
+          // and push the URL straight through.
+          if (/^https?:\/\//i.test(dataUrl)) {
+            onChange({
+              signed: true,
+              dataUrl,
+              signedAt,
+              signatureUrl: dataUrl,
+            });
+            return;
+          }
           // Show the captured signature immediately, then upload in the
           // background. The form save will pick up `signatureUrl` once ready.
           onChange({ signed: true, dataUrl, signedAt });
-          setOpen(false);
-          if (!dataUrl) return;
           setUploading(true);
           setUploadError(null);
           try {

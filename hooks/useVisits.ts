@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  checkoutVisit,
   endVisit,
   getVisitById,
   getVisitsPage,
@@ -170,6 +171,8 @@ export const useStartVisit = (visitId: number) =>
   useVisitStatusMutation(startVisit, visitId)
 export const useEndVisit = (visitId: number) =>
   useVisitStatusMutation(endVisit, visitId)
+export const useCheckoutVisit = (visitId: number) =>
+  useVisitStatusMutation(checkoutVisit, visitId)
 
 export function useSaveProcedureTimes(visitId: number) {
   const qc = useQueryClient()

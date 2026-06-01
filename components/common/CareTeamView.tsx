@@ -59,23 +59,31 @@ function MemberAction({
 }) {
   if (member.confirmed) {
     return (
-      <View style={styles.confirmedBadge}>
-        <Feather name="check" size={11} color="#00A67E" />
-        <Text style={styles.confirmedText}>{confirmedLabel}</Text>
+      <View style={styles.confirmBtn} >
+        <Feather name="check" size={14} color={Colors.primary} />
+
       </View>
+
+
     );
   }
   if (onConfirmMember && member.id != null) {
     const isLoading = confirmingMemberId != null && confirmingMemberId === member.id;
     return (
+
       <Pressable
         onPress={() => !isLoading && onConfirmMember(member)}
         style={styles.confirmBtn}
       >
+
         {isLoading ? (
           <ActivityIndicator size={14} color={Colors.primary} />
         ) : (
-          <Feather name="check" size={14} color={Colors.primary} />
+          <View style={styles.confirmedBadge}>
+            <Feather name="check" size={11} color="#00A67E" />
+            <Text style={styles.confirmedText}>{confirmedLabel}</Text>
+          </View>
+          // <Feather name="check" size={14} color={Colors.primary} />
         )}
       </Pressable>
     );
@@ -238,7 +246,7 @@ const styles = StyleSheet.create({
   confirmBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 6,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: `${Colors.primary}15`,

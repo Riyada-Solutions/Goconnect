@@ -21,14 +21,9 @@ import type {
 import type { RuleAction } from "@/data/models/rules";
 import type { FlowSheetDialysisMedication } from "@/data/models/flowSheet";
 import {
-  submitFlowSheetAccess,
-  submitFlowSheetAlarmsTest,
-  submitFlowSheetAnticoagulation,
-  submitFlowSheetCar,
-  submitFlowSheetDialysate,
+  submitFlowSheetAlarmsTestForm,
   submitFlowSheetDialysisParams,
   submitFlowSheetFallRisk,
-  submitFlowSheetIntakeOutput,
   submitFlowSheetMachines,
   submitFlowSheetNursingActions,
   submitFlowSheetOutsideDialysis,
@@ -38,11 +33,14 @@ import {
 } from "@/data/visit_repository";
 import { Colors } from "@/theme/colors";
 
-/** Convert the form-side SignatureValue to the API-side SavedSignature shape. */
+/** Convert the form-side SignatureValue to the API-side SavedSignature shape.
+ *  `dataUrl` is optional — a read-only nurse confirmation has `signed: true`
+ *  with no image, and the server still needs the attestation (signed_at /
+ *  signed_by) round-tripped. */
 const toSaved = (v: SignatureValue) =>
-  v.signed && v.dataUrl
+  v.signed
     ? {
-        dataUrl: v.dataUrl,
+        dataUrl: v.dataUrl ?? '',
         signedAt: v.signedAt ?? new Date().toISOString(),
         signatureUrl: v.signatureUrl,
       }
@@ -151,6 +149,7 @@ function SectionSaveBar({
   save,
   onClear,
   visitId,
+  canUpdate,
 }: {
   rule: RuleAction;
   label: string;
@@ -160,6 +159,7 @@ function SectionSaveBar({
    *  fresh data without needing a manual refetch. */
   save: () => Promise<Visit | unknown>;
   onClear: () => void;
+  canUpdate?: boolean;
   visitId: number;
 }) {
   const { can, t } = useApp();
@@ -212,6 +212,12 @@ function SectionSaveBar({
   };
   const labelStyle = { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 };
 
+  if (canUpdate === false) {
+    return (
+      <View />
+    );
+  }
+
   return (
     <>
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
@@ -252,8 +258,28 @@ function SectionSaveBar({
   );
 }
 
+/** Light section-title bar used to separate the sub-sections that make up the
+ *  single Alarms Test form (Intake/Output, CAR, Access, Dialysate, …). */
+function FormSectionTitle({ title }: { title: string }) {
+  return (
+    <View
+      style={{
+        backgroundColor: "#DCE6F2",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        marginTop: 6,
+      }}
+    >
+      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#334155" }}>{title}</Text>
+    </View>
+  );
+}
+
 export function FlowSheetForm(props: Props) {
   const init = props.initial;
+  const { user } = useApp();
+  const currentUserId = Number(user?.id);
   const [open, setOpen] = useState(props.initialExpanded ?? false);
   const [sections, setSections] = useState<Record<string, boolean>>(
     props.initialExpanded ? ALL_SECTIONS_OPEN : {},
@@ -281,7 +307,13 @@ export function FlowSheetForm(props: Props) {
   const [car, setCar] = useState<FlowSheetCar>(init?.car ?? EMPTY_CAR);
   const [dialysate, setDialysate] = useState<FlowSheetDialysate>(init?.dialysate ?? EMPTY_DIALYSATE);
   const [access, setAccess] = useState(init?.access ?? "");
-  const [anticoagType, setAnticoagType] = useState(init?.anticoagType ?? "");
+  const [anticoag, setAnticoag] = useState({
+    type: init?.anticoagType ?? "",
+    bolusValue: init?.anticoagBolusValue ?? "",
+    hourlyValue: init?.anticoagHourlyValue ?? "",
+    dialyzerType: init?.dialyzerType ?? "",
+    dialyzerSurfaceArea: init?.dialyzerSurfaceArea ?? "",
+  });
   const initPostTx = (): FlowSheetFormPostTx => {
     const pa = init?.postAssessment
     if (!pa) return EMPTY_POST
@@ -311,9 +343,35 @@ export function FlowSheetForm(props: Props) {
   );
   const [nurseSignature, setNurseSignature] = useState<SignatureValue>(
     init?.nurseSignature
-      ? { signed: true, dataUrl: init.nurseSignature.url, signedAt: init.nurseSignature.signedAt }
+      ? { signed: true, dataUrl: init.nurseSignature.url, signedAt: init.nurseSignature.signedAt, signatureUrl: init.nurseSignature.url }
       : { signed: false },
   );
+
+  // Sync signature state when the visit detail finishes loading after first
+  // mount — `useState`'s lazy initializer only runs once, so without this
+  // effect the nurse signature image would stay hidden when `init` arrives later.
+  React.useEffect(() => {
+    if (init?.patientSignature?.url) {
+      setPatientSignature((prev) =>
+        prev.signed && prev.dataUrl ? prev : {
+          signed: true,
+          dataUrl: init.patientSignature!.url,
+          signedAt: init.patientSignature!.signedAt,
+          signatureUrl: init.patientSignature!.url,
+        },
+      );
+    }
+    if (init?.nurseSignature?.url) {
+      setNurseSignature((prev) =>
+        prev.signed && prev.dataUrl ? prev : {
+          signed: true,
+          dataUrl: init.nurseSignature!.url,
+          signedAt: init.nurseSignature!.signedAt,
+          signatureUrl: init.nurseSignature!.url,
+        },
+      );
+    }
+  }, [init?.patientSignature?.url, init?.nurseSignature?.url]);
 
   const updateVital = useCallback(
     (key: keyof FlowSheetFormVitals, v: string) => setVitals((p) => ({ ...p, [key]: v })),
@@ -325,19 +383,104 @@ export function FlowSheetForm(props: Props) {
     if (highRisk) props.onRequestPhysicianCall();
   };
 
-  const vitalsDone = Object.values(vitals).some((v) => v !== "");
-  const machineDone = machine !== "";
-  const painDone = pain !== "" || Object.values(painDetails).some((v) => v !== "");
-  const fallDone = fallRisk !== "";
-  const nursingDone = nursingActions.some((r) => Object.values(r).some((v) => v !== ""));
-  const dialysisDone = dialysisParams.some((r) => Object.values(r).some((v) => v !== ""));
-  const intakeDone = intake !== "" || output !== "";
-  const carDone = Object.values(car).some((v) => v !== "");
-  const accessDone = access !== "";
-  const dialysateDone = Object.values(dialysate).some((v) => v !== "");
-  const anticoagDone = anticoagType !== "";
-  const medsDone = Object.keys(props.medAdmin).length > 0;
-  const postDone = Object.values(postTx).some((v) => v !== "");
+  const countFilled = (values: any[]) =>
+    values.filter((v) => v !== "" && v !== undefined && v !== null).length;
+  const countRowsFilled = (rows: Record<string, any>[]) =>
+    rows.filter((r) => Object.values(r).some((v) => v !== "" && v !== undefined && v !== null)).length;
+
+  // Outside Dialysis — single toggle
+  const outsideFilled = outsideDialysis ? 1 : 0;
+  const outsideTotal = 1;
+
+  // Pre-Treatment Vitals — vitals object + bpSite + method
+  const vitalsFields = [...Object.values(vitals), bpSite, method];
+  const vitalsFilled = countFilled(vitalsFields);
+  const vitalsTotal = vitalsFields.length;
+  const vitalsDone = vitalsFilled > 0;
+
+  // Machines — single field
+  const machineFilled = machine !== "" ? 1 : 0;
+  const machineTotal = 1;
+  const machineDone = machineFilled > 0;
+
+  // Pain Assessment — score + details
+  const painFields = [pain, ...Object.values(painDetails)];
+  const painFilled = countFilled(painFields);
+  const painTotal = painFields.length;
+  const painDone = painFilled > 0;
+
+  // Fall Risk — single field
+  const fallFilled = fallRisk !== "" ? 1 : 0;
+  const fallTotal = 1;
+  const fallDone = fallFilled > 0;
+
+  // Nursing Actions — count rows with data
+  const nursingFilled = countRowsFilled(nursingActions);
+  const nursingTotal = Math.max(nursingActions.length, 1);
+  const nursingDone = nursingFilled > 0;
+
+  // Dialysis Parameters — count rows with data
+  const dialysisFilled = countRowsFilled(dialysisParams);
+  const dialysisTotal = Math.max(dialysisParams.length, 1);
+  const dialysisDone = dialysisFilled > 0;
+
+  // Alarms Test — single toggle
+  const alarmsFilled = alarmsTest ? 1 : 0;
+  const alarmsTotal = 1;
+
+  // Intake / Output
+  const intakeFields = [intake, output];
+  const intakeFilled = countFilled(intakeFields);
+  const intakeTotal = intakeFields.length;
+  const intakeDone = intakeFilled > 0;
+
+  // CAR
+  const carFilled = countFilled(Object.values(car));
+  const carTotal = Object.keys(car).length;
+  const carDone = carFilled > 0;
+
+  // Access
+  const accessFilled = access !== "" ? 1 : 0;
+  const accessTotal = 1;
+  const accessDone = accessFilled > 0;
+
+  // Dialysate
+  const dialysateFilled = countFilled(Object.values(dialysate));
+  const dialysateTotal = Object.keys(dialysate).length;
+  const dialysateDone = dialysateFilled > 0;
+  const anticoagFields = [
+    anticoag.type,
+    anticoag.bolusValue,
+    anticoag.hourlyValue,
+    anticoag.dialyzerType,
+    anticoag.dialyzerSurfaceArea,
+  ];
+  const anticoagFilled = anticoagFields.filter((v) => v !== "").length;
+  const anticoagTotal = anticoagFields.length;
+  // Alarms Test — single combined form. The paper "Alarms Test" form bundles
+  // the alarms toggle, intake/output, CAR, access, dialysate and anticoagulation
+  // sub-sections, so we surface them under one accordion with a section title
+  // per block. Anticoagulation is display-only (cannot be edited here), so it
+  // is excluded from the combined Save below.
+  const alarmsFormFilled =
+    alarmsFilled + intakeFilled + carFilled + accessFilled + dialysateFilled + anticoagFilled;
+  const alarmsFormTotal =
+    alarmsTotal + intakeTotal + carTotal + accessTotal + dialysateTotal + anticoagTotal;
+  const alarmsFormDone =
+    alarmsTest || intakeDone || carDone || accessDone || dialysateDone;
+  // Dialysis Medications — count medications the server already records as
+  // administered (`administered.data.action` is 0/1) vs total prescribed.
+  const medsFilled = props.medications.filter(
+    (m) => m.administered?.data?.action != null,
+  ).length;
+  const medsTotal = props.medications.length;
+  const medsDone = medsFilled > 0;
+
+  // Post Treatment Assessment
+  const postValues = Object.values(postTx);
+  const postFilled = countFilled(postValues);
+  const postTotal = postValues.length;
+  const postDone = postFilled > 0;
 
   const { colors, isReadOnly, visitId } = props;
 
@@ -353,7 +496,7 @@ export function FlowSheetForm(props: Props) {
         colors={colors} 
       />
       <CollapsibleBody open={open} style={{ padding: 14 }}>
-          <Acc title="Outside Dialysis" color="#0EA5E9" done={outsideDialysis} isOpen={!!sections.outside} onToggle={() => toggle("outside")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Outside Dialysis" color="#0EA5E9" done={outsideDialysis} isOpen={!!sections.outside} onToggle={() => toggle("outside")} colors={colors} isReadOnly={isReadOnly} filled={outsideFilled} total={outsideTotal}>
             <OutsideDialysisForm value={outsideDialysis} onChange={setOutsideDialysis} colors={colors} />
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_outside_dialysis"
@@ -364,7 +507,7 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Pre-Treatment Vitals" color="#2DAAAE" done={vitalsDone} isOpen={!!sections.vitals} onToggle={() => toggle("vitals")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Pre-Treatment Vitals" color="#2DAAAE" done={vitalsDone} isOpen={!!sections.vitals} onToggle={() => toggle("vitals")} colors={colors} isReadOnly={isReadOnly} filled={vitalsFilled} total={vitalsTotal}>
             <VitalsForm vitals={vitals} bpSite={bpSite} method={method} onVitalChange={updateVital} onBpSiteChange={setBpSite} onMethodChange={setMethod} colors={colors} />
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_pre_treatment_vitals"
@@ -375,7 +518,7 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Machines" color="#8B5CF6" done={machineDone} isOpen={!!sections.machines} onToggle={() => toggle("machines")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Machines" color="#8B5CF6" done={machineDone} isOpen={!!sections.machines} onToggle={() => toggle("machines")} colors={colors} isReadOnly={isReadOnly} filled={machineFilled} total={machineTotal}>
             <MachinesForm machine={machine} onChange={setMachine} colors={colors} disabled={isReadOnly} />
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_machines"
@@ -386,7 +529,7 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Pain Assessment" color="#EF4444" done={painDone} isOpen={!!sections.pain} onToggle={() => toggle("pain")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Pain Assessment" color="#EF4444" done={painDone} isOpen={!!sections.pain} onToggle={() => toggle("pain")} colors={colors} isReadOnly={isReadOnly} filled={painFilled} total={painTotal}>
             <PainForm painScore={pain} painDetails={painDetails} onScoreChange={setPain} onDetailsChange={setPainDetails} colors={colors} />
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_pain_assessment"
@@ -397,7 +540,7 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Fall Risk Assessment" color="#F59E0B" done={fallDone} isOpen={!!sections.fall} onToggle={() => toggle("fall")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Fall Risk Assessment" color="#F59E0B" done={fallDone} isOpen={!!sections.fall} onToggle={() => toggle("fall")} colors={colors} isReadOnly={isReadOnly} filled={fallFilled} total={fallTotal}>
             <FallRiskForm
               fallRisk={fallRisk}
               highFallRisk={highFallRisk}
@@ -424,7 +567,7 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Nursing Action" color="#10B981" done={nursingDone} isOpen={!!sections.nursing} onToggle={() => toggle("nursing")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Nursing Action" color="#10B981" done={nursingDone} isOpen={!!sections.nursing} onToggle={() => toggle("nursing")} colors={colors} isReadOnly={isReadOnly} filled={nursingFilled} total={nursingTotal}>
             <NursingActionForm rows={nursingActions} onChange={setNursingActions} colors={colors} />
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_nursing_actions"
@@ -435,7 +578,7 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Dialysis Parameters" color="#3B82F6" done={dialysisDone} isOpen={!!sections.dialysis} onToggle={() => toggle("dialysis")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Dialysis Parameters" color="#3B82F6" done={dialysisDone} isOpen={!!sections.dialysis} onToggle={() => toggle("dialysis")} colors={colors} isReadOnly={isReadOnly} filled={dialysisFilled} total={dialysisTotal}>
             <DialysisParamsForm rows={dialysisParams} onChange={setDialysisParams} colors={colors} />
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_dialysis_parameters"
@@ -446,79 +589,61 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Alarms Test" color="#F97316" done={alarmsTest} isOpen={!!sections.alarms} onToggle={() => toggle("alarms")} colors={colors} isReadOnly={isReadOnly}>
+          {/* Single "Alarms Test" form. The paper form bundles the alarms
+              toggle, intake/output, CAR, access, dialysate and anticoagulation
+              into one sheet, so they live under one accordion with a title bar
+              per sub-section. Anticoagulation is display-only here. */}
+          <Acc title="Alarms Test" color="#F97316" done={alarmsFormDone} isOpen={!!sections.alarms} onToggle={() => toggle("alarms")} colors={colors} isReadOnly={isReadOnly} filled={alarmsFormFilled} total={alarmsFormTotal}>
             <AlarmsTestForm passed={alarmsTest} onChange={setAlarmsTest} colors={colors} />
+
+            <FormSectionTitle title="INTAKE / OUTPUT" />
+            <IntakeOutputForm intake={intake} output={output} onIntakeChange={setIntake} onOutputChange={setOutput} colors={colors} />
+
+            <FormSectionTitle title="CAR" />
+            <CarForm car={car} onChange={setCar} colors={colors} />
+
+            <FormSectionTitle title="ACCESS / LOCATION" />
+            <AccessForm value={access} onChange={setAccess} />
+
+            <FormSectionTitle title="DIALYSATE" />
+            <DialysateForm dialysate={dialysate} onChange={setDialysate} colors={colors} />
+
+            <FormSectionTitle title="Anticoagulation" />
+            <AnticoagForm value={anticoag} onChange={setAnticoag} colors={colors} disabled />
+
             {!isReadOnly && (
               <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_alarms_test"
                 label="Save Alarms Test"
-                save={() => submitFlowSheetAlarmsTest(visitId, { alarmsTest })}
-                onClear={() => setAlarmsTest(false)}
+                save={() =>
+                  // Single request — all fields live under the backend
+                  // `alarms_test` record. Anticoagulation is read-only, omitted.
+                  submitFlowSheetAlarmsTestForm(visitId, {
+                    alarmsTest,
+                    intake,
+                    output,
+                    car,
+                    access,
+                    dialysate,
+                  })
+                }
+                onClear={() => {
+                  setAlarmsTest(false);
+                  setIntake(""); setOutput("");
+                  setCar(EMPTY_CAR);
+                  setAccess("");
+                  setDialysate(EMPTY_DIALYSATE);
+                }}
               />
             )}
           </Acc>
 
-          <Acc title="Intake / Output" color="#06B6D4" done={intakeDone} isOpen={!!sections.intake} onToggle={() => toggle("intake")} colors={colors} isReadOnly={isReadOnly}>
-            <IntakeOutputForm intake={intake} output={output} onIntakeChange={setIntake} onOutputChange={setOutput} colors={colors} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_intake_output"
-                label="Save Intake / Output"
-                save={() => submitFlowSheetIntakeOutput(visitId, { intake, output })}
-                onClear={() => { setIntake(""); setOutput(""); }}
-              />
-            )}
-          </Acc>
-
-          <Acc title="CAR" color="#8B5CF6" done={carDone} isOpen={!!sections.car} onToggle={() => toggle("car")} colors={colors} isReadOnly={isReadOnly}>
-            <CarForm car={car} onChange={setCar} colors={colors} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_car"
-                label="Save CAR"
-                save={() => submitFlowSheetCar(visitId, { car })}
-                onClear={() => setCar(EMPTY_CAR)}
-              />
-            )}
-          </Acc>
-
-          <Acc title="Access / Location" color="#10B981" done={accessDone} isOpen={!!sections.access} onToggle={() => toggle("access")} colors={colors} isReadOnly={isReadOnly}>
-            <AccessForm value={access} onChange={setAccess} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_access"
-                label="Save Access"
-                save={() => submitFlowSheetAccess(visitId, { access })}
-                onClear={() => setAccess("")}
-              />
-            )}
-          </Acc>
-
-          <Acc title="Dialysate" color="#3B82F6" done={dialysateDone} isOpen={!!sections.dialysate} onToggle={() => toggle("dialysate")} colors={colors} isReadOnly={isReadOnly}>
-            <DialysateForm dialysate={dialysate} onChange={setDialysate} colors={colors} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_dialysate"
-                label="Save Dialysate"
-                save={() => submitFlowSheetDialysate(visitId, { dialysate })}
-                onClear={() => setDialysate(EMPTY_DIALYSATE)}
-              />
-            )}
-          </Acc>
-
-          <Acc title="Anticoagulation" color="#EF4444" done={anticoagDone} isOpen={!!sections.anticoag} onToggle={() => toggle("anticoag")} colors={colors} isReadOnly={isReadOnly}>
-            <AnticoagForm type={anticoagType} onChange={setAnticoagType} colors={colors} disabled={isReadOnly} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_anticoagulation"
-                label="Save Anticoagulation"
-                save={() => submitFlowSheetAnticoagulation(visitId, { anticoagType })}
-                onClear={() => setAnticoagType("")}
-              />
-            )}
-          </Acc>
-
-          <Acc title="Dialysis Medications" color="#0891B2" done={medsDone} isOpen={!!sections.meds} onToggle={() => toggle("meds")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Dialysis Medications" color="#0891B2" done={medsDone} isOpen={!!sections.meds} onToggle={() => toggle("meds")} colors={colors} isReadOnly={isReadOnly} filled={medsFilled} total={medsTotal}>
             {/* Each row's Yes/No tap calls `POST /actions/patient-medications/{id}`
                 directly via `onMedAction` — no section-level Save/Clear needed. */}
             <DialysisMedsForm medications={props.medications} medAdmin={props.medAdmin} busyIds={props.medBusyIds} onAction={props.onMedAction} colors={colors} />
           </Acc>
 
-          <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly}>
+          <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly} filled={postFilled} total={postTotal}>
             <PostTreatmentForm
               postTx={postTx}
               ufGoal={vitals.ufGoal}
@@ -537,6 +662,7 @@ export function FlowSheetForm(props: Props) {
                   postAssessment: postTx,
                   patientSignature: toSaved(patientSignature),
                   nurseSignature: toSaved(nurseSignature),
+                  currentUserId: Number.isFinite(currentUserId) ? currentUserId : undefined,
                 })}
                 onClear={() => {
                   setPostTx(EMPTY_POST);

@@ -17,6 +17,7 @@ import type {
   FlowSheet,
   FlowSheetAccessInput,
   FlowSheetAlarmsTestInput,
+  FlowSheetAlarmsTestFormInput,
   FlowSheetAnticoagulationInput,
   FlowSheetCarSectionInput,
   FlowSheetCar,
@@ -48,10 +49,11 @@ import {
 } from './models/morseFallsRisk'
 import type { SocialWorkerProgressNoteInput } from './models/socialWorkerProgressNote'
 import type { ReferralInput } from './models/referral'
-import type { DoctorProgressNoteInput } from './models/doctorProgressNote'
+import type { DoctorProgressNoteInput, DoctorProgressNoteVitals } from './models/doctorProgressNote'
 import type { RefusalInput } from './models/refusal'
 import { serializeDisOfHemodialysis } from './transform/disOfHemodialysis'
 import type { SariScreening, SariScreeningInput } from './models/sariScreening'
+import { clock12hToApiTime } from '@/utils/time'
 
 export const VISITS_PER_PAGE = 20
 
@@ -79,6 +81,7 @@ export async function getVisitById(
   if (!raw) return undefined
   return {
     ...raw,
+    ...mapVisitTimestamps(raw),
     flowSheet: mapFlowSheetFromApi(raw),
     referrals: (() => {
       if (Array.isArray(raw.referrals)) return raw.referrals.map(mapReferralFromApi)
@@ -183,6 +186,37 @@ function isMetadataOnlyRow(row: any): boolean {
     const val = row[k]
     return val == null || val === '' || (typeof val === 'object' && Object.keys(val).length === 0)
   })
+}
+
+/**
+ * Build the doctor-note "Pre-Treatment Vitals" snapshot.
+ *
+ * The backend ships a `preTreatmentVitals` object whose inner keys have been
+ * seen in both camelCase (docs: `respiratoryRate`) and snake_case (live:
+ * `respiratory_rate`, `weight`, `weight_dry`, `uf_goal`). Accept either, and
+ * fall back to the raw `pre_treatment_vital` section when the snapshot is
+ * absent (deriving `bloodPressure` from the systolic/diastolic parts).
+ */
+function mapDoctorVitals(snap: any, ptv: any): DoctorProgressNoteVitals | undefined {
+  const s = snap && typeof snap === 'object' ? snap : {}
+  const str = (x: any): string | undefined =>
+    x != null && String(x).trim() !== '' ? String(x) : undefined
+  const bpFromParts =
+    ptv?.bp_systolic && ptv?.bp_diastolic ? `${ptv.bp_systolic}/${ptv.bp_diastolic}` : undefined
+
+  const out: DoctorProgressNoteVitals = {
+    temperature:      str(s.temperature       ?? ptv?.temp),
+    respiratoryRate:  str(s.respiratory_rate  ?? s.respiratoryRate  ?? ptv?.rr),
+    oxygenSaturation: str(s.oxygen_saturation ?? s.oxygenSaturation ?? ptv?.spo2),
+    bloodPressure:    str(s.blood_pressure    ?? s.bloodPressure    ?? bpFromParts),
+    pulseRate:        str(s.pulse_rate        ?? s.pulseRate        ?? ptv?.pr_value),
+    height:           str(s.height            ?? ptv?.height),
+    preWeight:        str(s.weight            ?? s.preWeight        ?? ptv?.weight),
+    dryWeight:        str(s.weight_dry        ?? s.dryWeight        ?? ptv?.weight_dry),
+    ufGoal:           str(s.uf_goal           ?? s.ufGoal           ?? ptv?.uf_goal),
+    rbs:              str(s.rbs               ?? ptv?.rbs),
+  }
+  return Object.values(out).some((x) => x != null) ? out : undefined
 }
 
 function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
@@ -430,36 +464,42 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   // ── Signatures (stored on the server, returned as URLs) ──────────────────
   // Three response shapes seen in the wild:
   //   • Top-level `patient_signature_url` + `nurse_signature_url`     (current)
-  //   • Hyphenated wrapper `patient-signature.patient_signature_*`    (older)
+  //   • Hyphenated wrapper `patient-signature.patient_signature_*` /
+  //     `nurse-signature.nurse_signature_*`                           (current backend)
   //   • Same fields under `nurseSignature` / `patientSignature` objects
-  // Paths may be relative ("/storage/...") — we resolve them against the API
-  // origin so the SignaturePad WebView can render the image directly.
+  // The signature host returns bare filenames (e.g. "6a1aab0816679.png").
+  // `resolveSignatureUrl` expands them to the absolute `/uploads/signatures/<file>`
+  // URL on the signature host so the SignaturePad WebView can render the image.
   const pSigLegacy = v['patient-signature'] ?? {}
   const rawPatientUrl =
     v.patient_signature_url ??
     v.patientSignature?.url ??
     pSigLegacy.patient_signature_signature_url ??
     null
-  const rawNurseUrl =
-    v.nurse_signature_url ??
-    v.nurseSignature?.url ??
-    null
+  // Nurse signature lives inside `post_assessment` (no separate
+  // `post-assessment` / `nurse-signature` wrappers anymore).
+  const rawNurseUrl = paRaw.signature_image ?? null
   const patientSignature = rawPatientUrl
     ? {
-        url:      resolveStorageUrl(String(rawPatientUrl)),
+        url:      resolveSignatureUrl(String(rawPatientUrl)),
         signedAt: String(v.patient_signature_signed_at ?? pSigLegacy.patient_signature_signed_at ?? ''),
       }
     : undefined
   const nurseSignature = rawNurseUrl
     ? {
-        url:      resolveStorageUrl(String(rawNurseUrl)),
-        signedAt: String(v.nurse_signature_signed_at ?? ''),
+        url:      resolveSignatureUrl(String(rawNurseUrl)),
+        signedAt: String(
+          paRaw.post_assessment_signature_signed_at ??
+          paRaw.signature_date ??
+          '',
+        ),
       }
     : undefined
 
   return {
     visitId,
     ...(hasVitals ? { vitals } : {}),
+    preTreatmentVitals: mapDoctorVitals(v.preTreatmentVitals ?? v.pre_treatment_vitals_snapshot, ptv),
     bpSite:      ptv.bp_site ?? ptv.bpSite ?? undefined,
     method:      ptv.temp_method ?? ptv.method ?? undefined,
     machine,
@@ -477,10 +517,22 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     car,
     dialysate,
     access,
-    anticoagType:
-      typeof v.anticoagulation === 'string'
+    anticoagType: (() => {
+      // `dialysisOrder` lives at the visit root (sibling of `flowSheet`),
+      // not inside it — read it from `raw`.
+      const fromOrder = raw?.dialysisOrder?.administrationType
+      if (typeof fromOrder === 'string' && fromOrder.length > 0) {
+        // backend may double-encode the value (e.g. `"\"UFH\""`) — strip wrapping quotes
+        return fromOrder.replace(/^"+|"+$/g, '')
+      }
+      return typeof v.anticoagulation === 'string'
         ? v.anticoagulation
-        : (v.anticoagulation?.anticoagType ?? undefined),
+        : (v.anticoagulation?.anticoagType ?? undefined)
+    })(),
+    anticoagBolusValue:  raw?.dialysisOrder?.bolusValue ?? undefined,
+    anticoagHourlyValue: raw?.dialysisOrder?.hourlyValue ?? undefined,
+    dialyzerType:        raw?.dialysisOrder?.dialyzerType ?? undefined,
+    dialyzerSurfaceArea: raw?.dialysisOrder?.dialyzerSurfaceArea ?? undefined,
     dialysisParams: dialysisParams.length > 0 ? dialysisParams : undefined,
     dialysisMedications,
     nursingActions,
@@ -491,22 +543,49 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
 }
 
 /**
- * Resolve a possibly-relative storage path to a full URL the WebView can
- * render. The API base URL is `https://host/api`; uploads live under
- * `https://host/storage/...`, so we drop the `/api` suffix before joining.
+ * Resolve a signature reference returned by the backend to an absolute URL.
+ *
+ * The signature host (`ENV.SIGNATURE_API_BASE_URL`, e.g.
+ * `https://staging.careconnectksa.com/api`) stores files under
+ * `/uploads/signatures/<filename>`. The server may send back either:
+ *   • a bare filename ("6a1aab0816679.png") → prepend `/uploads/signatures/`
+ *   • an absolute path ("/uploads/signatures/foo.png") → join with the origin
+ *   • a fully-qualified URL → return as-is
  */
-function resolveStorageUrl(path: string): string {
-  if (!path) return path
-  if (/^https?:\/\//i.test(path)) return path
-  const origin = ENV.API_BASE_URL.replace(/\/api\/?$/, '')
-  return `${origin}${path.startsWith('/') ? '' : '/'}${path}`
+function resolveSignatureUrl(value: string): string {
+  if (!value) return value
+  if (/^https?:\/\//i.test(value)) return value
+  const origin = ENV.SIGNATURE_API_BASE_URL.replace(/\/api\/?$/, '')
+  if (!value.includes('/')) {
+    return `${origin}/uploads/signatures/${value}`
+  }
+  return `${origin}${value.startsWith('/') ? '' : '/'}${value}`
 }
 
 // ─── Visit status transitions ───────────────────────────────────────────────
 //
 // Each transition returns the updated Visit so the UI can refresh its cache.
 
-const unwrapVisit = (raw: any): Visit => raw?.data ?? raw
+/**
+ * Normalise the wall-clock timestamps the backend ships in snake_case
+ * (`start_time`, `end_time`, `start_procedure_time`, `end_procedure_time`)
+ * onto the canonical camelCase `Visit` fields the UI reads. Each may be null
+ * until the corresponding transition has run.
+ */
+const mapVisitTimestamps = (raw: any) => ({
+  startTime:          raw.start_time ?? raw.startTime ?? null,
+  endTime:            raw.end_time ?? raw.endTime ?? null,
+  startProcedureTime: raw.start_procedure_time ?? raw.startProcedureTime ?? null,
+  endProcedureTime:   raw.end_procedure_time ?? raw.endProcedureTime ?? null,
+  doctorCheckInTime:  raw.doctor_check_in_time ?? raw.doctorCheckInTime ?? null,
+  doctorCheckOutTime: raw.doctor_check_out_time ?? raw.doctorCheckOutTime ?? null,
+})
+
+const unwrapVisit = (raw: any): Visit => {
+  const v = raw?.data ?? raw
+  if (!v || typeof v !== 'object') return v
+  return { ...v, ...mapVisitTimestamps(v) }
+}
 
 async function patchMockVisit(
   id: number | string,
@@ -519,9 +598,10 @@ async function patchMockVisit(
   return current
 }
 
+/** Start the dialysis procedure → moves the visit into `start_procedure`. */
 export async function startVisit(visitId: number | string): Promise<Visit> {
-  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/start`)
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'start_procedure')
+  const res = await apiClient.post(`/visits/${visitId}/start-procedure`)
   return unwrapVisit(res.data)
 }
 
@@ -535,13 +615,25 @@ export async function saveProcedureTimes(
   body: { startTime?: string; endTime?: string },
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/procedure-times`, body)
+  // Backend expects snake_case fields in `H:i:s` (24-hour) format on `/edit-time`.
+  const payload: Record<string, string> = {}
+  if (body.startTime) payload.start_procedure_time = clock12hToApiTime(body.startTime)
+  if (body.endTime) payload.end_procedure_time = clock12hToApiTime(body.endTime)
+  const res = await apiClient.post(`/visits/${visitId}/edit-time`, payload)
   return unwrapVisit(res.data)
 }
 
+/** End the dialysis procedure → moves the visit into `end_procedure`. */
 export async function endVisit(visitId: number | string): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'end_procedure')
+  const res = await apiClient.post(`/visits/${visitId}/end-procedure`)
+  return unwrapVisit(res.data)
+}
+
+/** Check out → completes the visit. */
+export async function checkoutVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
-  const res = await apiClient.post(`/visits/${visitId}/end`)
+  const res = await apiClient.post(`/visits/${visitId}/checkout`)
   return unwrapVisit(res.data)
 }
 
@@ -773,10 +865,39 @@ export const submitFlowSheetDialysate = (
   glucose: body.dialysate.glucose,
 })
 
+/**
+ * Combined "Alarms Test" form save. The alarms toggle, intake/output, CAR,
+ * access and dialysate all live under the backend `alarms_test` record, so we
+ * send every field in ONE request — saving them with separate calls would make
+ * each request overwrite the previous one's fields on the shared record.
+ */
+export const submitFlowSheetAlarmsTestForm = (
+  visitId: number | string,
+  body: FlowSheetAlarmsTestFormInput,
+) => submitFlowSheetSection(visitId, 'alarms-test', {
+  passed:     body.alarmsTest ? '1' : '0',
+  intake:     body.intake,
+  output:     body.output,
+  ff_percent: body.car.ffPercent,
+  dialyzer:   body.car.dialyzer,
+  temp:       body.car.temp,
+  vascular:   body.access,
+  k:          body.dialysate.k,
+  na:         body.dialysate.na,
+  hco3:       body.dialysate.hco3,
+  glucose:    body.dialysate.glucose,
+})
+
 export const submitFlowSheetAnticoagulation = (
   visitId: number | string,
   body: FlowSheetAnticoagulationInput,
-) => submitFlowSheetSection(visitId, 'anticoagulation', body)
+) => submitFlowSheetSection(visitId, 'anticoagulation', {
+  anticoagType:        body.anticoagType,
+  bolusValue:          body.bolusValue,
+  hourlyValue:         body.hourlyValue,
+  dialyzerType:        body.dialyzerType,
+  dialyzerSurfaceArea: body.dialyzerSurfaceArea,
+})
 
 export const submitFlowSheetMedications = (
   visitId: number | string,
@@ -851,12 +972,38 @@ export async function submitFlowSheetPostTreatment(
     post_assessment: serializePostAssessment(body.postAssessment),
   }
   if (pSig?.signatureUrl) {
+    // Mirror the backend's response shape: hyphenated wrapper
+    // `patient-signature` carrying the `_signature_url` / `_signed_at` /
+    // `_is_relative` fields. Legacy flat keys are kept for back-compat.
+    postPayload['patient-signature'] = {
+      patient_signature_signature_url: pSig.signatureUrl,
+      patient_signature_signed_at:     pSig.signedAt ?? '',
+      patient_signature_is_relative:   '0',
+    }
     postPayload.patient_signature_url = pSig.signatureUrl
     if (pSig.signedAt) postPayload.patient_signature_signed_at = pSig.signedAt
   }
   if (nSig?.signatureUrl) {
-    postPayload.nurse_signature_url = nSig.signatureUrl
-    if (nSig.signedAt) postPayload.nurse_signature_signed_at = nSig.signedAt
+    // Nurse signature rides inside `post_assessment.signature_image`
+    // alongside the rest of the assessment fields. No separate wrapper.
+    const pa = postPayload.post_assessment as Record<string, unknown>
+    pa.signature_image = nSig.signatureUrl
+    if (nSig.signedAt) pa.signature_date = nSig.signedAt
+  }
+  // Nurse confirmation audit (read-only mode or freshly drawn) — merged into
+  // the existing `post_assessment` object as `post_assessment_signature_*`
+  // fields. Emitted even when there's no image.
+  if (nSig) {
+    const fmtDate = (iso: string | undefined): string => {
+      if (!iso) return ''
+      const d = new Date(iso)
+      if (Number.isNaN(d.getTime())) return iso
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
+    }
+    const pa = postPayload.post_assessment as Record<string, unknown>
+    pa.post_assessment_signature_signed_at = fmtDate(nSig.signedAt)
+    pa.post_assessment_signature_signed_by = body.currentUserId != null ? String(body.currentUserId) : ''
   }
 
   if (!needsMultipart) {

@@ -63,7 +63,7 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
         const localAdmin = medAdmin[medId];
         const serverAdmin = med.administered;
         const isLockedYes = serverAdmin?.data?.action === 1;
-        const isServerNo  = serverAdmin?.data?.action === 0;
+        const isServerNo = serverAdmin?.data?.action === 0;
         const isBusy = !!busyIds?.has(medId);
         const isReasonMode = noReasonFor?.id === medId;
         const localPending = localAdmin?.status; // optimistic state before refetch
@@ -106,13 +106,25 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
                 ) : null}
               </View>
             )}
-
             {/* Previous No reason (read-only) — buttons still available below to re-mark */}
             {!isLockedYes && isServerNo && serverAdmin?.data?.reason ? (
-              <Text style={{ marginTop: 6, fontSize: 11, color: "#DC2626", fontFamily: "Inter_500Medium" }}>
+              <View style={{ marginTop: 8, padding: 8, backgroundColor: "#EF444410", borderRadius: 8, gap: 2 }}>
+                <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#DC2626" }}>
+                  @ {formatAdminWhen(serverAdmin?.created_at)}
+                </Text>
+                {serverAdmin?.action_by?.name ? (
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                    {serverAdmin.action_by.name}
+                    {serverAdmin.action_by.id != null ? ` (ID: ${serverAdmin.action_by.id})` : ""}
+                  </Text>
+                ) : null}
+                     <Text style={{ marginTop: 6, fontSize: 11, color: "#DC2626", fontFamily: "Inter_500Medium" }}>
                 Reason: {serverAdmin.data.reason}
               </Text>
+              </View>
             ) : null}
+
+
 
             {/* Inline reason input — appears after No is tapped */}
             {!isLockedYes && isReasonMode && (
@@ -173,7 +185,7 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
             )}
 
             {/* Yes / No buttons */}
-            {!isLockedYes && !isReasonMode && (
+            {!isLockedYes && !isServerNo && !isReasonMode && (
               <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
                 <Pressable
                   onPress={() => {

@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
@@ -11,14 +11,15 @@ import { useApp } from "@/context/AppContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useEndVisit, useSaveProcedureTimes, useStartVisit, useSubmitDoctorProgressNote, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote, useVisit } from "@/hooks/useVisits";
+import { useCheckoutVisit, useEndVisit, useSaveProcedureTimes, useStartVisit, useSubmitDoctorProgressNote, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import type { InventoryItem } from "@/data/models/visit";
+import type { CareTeamMember } from "@/data/models/careTeam";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useVisitTimers } from "@/hooks/useVisitTimers";
-import { formatClockTime } from "@/utils/time";
+import { DateTimeConverter } from "@/utils/datetime";
 import { PatientCard } from "@/components/common/PatientCard";
 import { VisitDetailTopBar } from "./components/VisitDetailTopBar";
 import { CheckOutConfirmModal } from "./components/visitForms/CheckOutConfirmModal";
@@ -66,6 +67,34 @@ function VisitDetailScreenInner() {
   const visitQuery = useVisit(!isSlot ? numId : 0);
   const activeQuery = isSlot ? slotQuery : visitQuery;
   const record = activeQuery.data;
+
+  // Stable refusal prefill — parsed once per unique raw payload so that
+  // user edits in RefusalForm aren't clobbered on every re-render by the
+  // form's `useEffect([initial])` reset.
+  const refusalInitial = useMemo(() => {
+    const rec = record as any;
+    const forms = rec?.forms;
+    const fromMap = forms && !Array.isArray(forms)
+      ? forms["dis-of-hemodialysis"]?.[0]?.value
+      : undefined;
+    const fromArray = Array.isArray(rec?.refusals) ? rec.refusals[0] : undefined;
+    const top = rec?.["dis-of-hemodialysis"] ?? rec?.disOfHemodialysis;
+    const fromTop = top && typeof top === "object" && !Array.isArray(top)
+      ? top
+      : Array.isArray(top)
+        ? top[0]
+        : undefined;
+    const raw = fromMap ?? fromArray ?? fromTop;
+    return raw && Object.keys(raw).length > 0
+      ? parseDisOfHemodialysis(raw)
+      : null;
+  }, [
+    (record as any)?.["dis-of-hemodialysis"],
+    (record as any)?.disOfHemodialysis,
+    (record as any)?.forms?.["dis-of-hemodialysis"]?.[0]?.value,
+    (record as any)?.refusals,
+  ]);
+
   const isLoading = activeQuery.isLoading || activeQuery.isFetching;
   const isError = activeQuery.isError;
   const errorMessage = activeQuery.error instanceof Error ? activeQuery.error.message : "Something went wrong.";
@@ -92,33 +121,61 @@ function VisitDetailScreenInner() {
 
   const isReadOnly = visitPhase === "completed";
 
-  const { visitElapsed, procedureElapsed, stopVisitTimer, startProcedureTimer, stopProcedureTimer } =
-    useVisitTimers(initialPhase);
+  // Sync the local phase forward to the server status once the visit loads
+  // (the query resolves async, so a visit already in `start_procedure` would
+  // otherwise stay stuck at the initial `in_progress`). Forward-only so an
+  // optimistic local advance isn't reverted before its mutation round-trips.
+  const PHASE_RANK: Record<VisitPhase, number> = {
+    in_progress: 0, start_procedure: 1, end_procedure: 2, completed: 3,
+  };
+  useEffect(() => {
+    setVisitPhase((prev) => (PHASE_RANK[initialPhase] > PHASE_RANK[prev] ? initialPhase : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhase]);
+
+  const { visitElapsed, procedureElapsed } = useVisitTimers(visitPhase, {
+    visitStart: (record as any)?.startTime,
+    procedureStart: (record as any)?.startProcedureTime,
+  });
 
   const startVisitMutation = useStartVisit(numId);
   const endVisitMutation = useEndVisit(numId);
+  const checkoutVisitMutation = useCheckoutVisit(numId);
   const saveProcedureTimesMutation = useSaveProcedureTimes(numId);
   const submitInventoryUsageMutation = useSubmitInventoryUsage(numId);
 
   const handleStartProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setVisitPhase("start_procedure");
-    stopVisitTimer();
     const now = Date.now();
-    startProcedureTimer(now);
-    setProcedureStartTimeStr(formatClockTime(new Date(now)));
-    setEditProcStart(formatClockTime(new Date(now)));
+    setProcedureStartTimeStr(DateTimeConverter.time(now));
+    setEditProcStart(DateTimeConverter.time(now));
     startVisitMutation.mutate();
-  }, [stopVisitTimer, startProcedureTimer, startVisitMutation]);
+  }, [startVisitMutation]);
 
   const handleEndProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setVisitPhase("end_procedure");
-    setProcedureEndTimeStr(formatClockTime(new Date()));
-    setEditProcEnd(formatClockTime(new Date()));
-    stopProcedureTimer();
+    setProcedureEndTimeStr(DateTimeConverter.time(new Date()));
+    setEditProcEnd(DateTimeConverter.time(new Date()));
     endVisitMutation.mutate();
-  }, [stopProcedureTimer, endVisitMutation]);
+  }, [endVisitMutation]);
+
+  const handleCheckOut = useCallback(() => {
+    setShowCheckoutModal(false);
+    setVisitPhase("completed");
+    checkoutVisitMutation.mutate(undefined, {
+      onError: (err) => {
+        // Roll back to the pre-checkout phase so the nurse can retry.
+        setVisitPhase("end_procedure");
+        showDialog({
+          variant: "error",
+          title: t("error"),
+          message: err instanceof Error ? err.message : t("error"),
+        });
+      },
+    });
+  }, [checkoutVisitMutation, showDialog, t]);
 
   // Collapsible states
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -172,6 +229,27 @@ function VisitDetailScreenInner() {
     // Re-key when actions hash changes (count of true keys is a good-enough fingerprint).
     macts ? Object.keys(macts).filter((k) => macts[k]).sort().join('|') : null,
   ]);
+
+  // Seed the procedure clock strings from the server timestamps
+  // (`start_procedure_time` / `end_procedure_time`) so they survive reloads —
+  // the nurse may not have tapped Start/End Procedure this session. Skipped
+  // while the inline editor is open so we don't clobber in-progress edits.
+  const startProcedureTime = (record as any)?.startProcedureTime as string | null | undefined;
+  const endProcedureTime = (record as any)?.endProcedureTime as string | null | undefined;
+  useEffect(() => {
+    if (showProcedureEdit) return;
+    if (startProcedureTime) {
+      const str = DateTimeConverter.time(startProcedureTime);
+      setProcedureStartTimeStr(str);
+      setEditProcStart(str);
+    }
+    if (endProcedureTime) {
+      const str = DateTimeConverter.time(endProcedureTime);
+      setProcedureEndTimeStr(str);
+      setEditProcEnd(str);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startProcedureTime, endProcedureTime]);
 
   // Open physician modal only after Morse sheet has fully closed
   useEffect(() => {
@@ -294,15 +372,38 @@ function VisitDetailScreenInner() {
   }
 
   const careTeam = (record as any).careTeam ?? [];
-  const patientName = (record as any).patientName as string | undefined;
+  const patientName = (patientRecord?.name ?? (record as any).patientName) as string | undefined;
   const alerts = patientAlertsData;
 
   const visitDate = (record as any).visitDate as string | undefined;
   const procedureTime = (record as any).procedureTime as string | undefined;
-  const visitTime = (record as any).visitTime as string | undefined;
-  const hospital = (record as any).hospital as string | undefined;
-  const insurance = (record as any).insurance as string | undefined;
-  const doctorTime = (record as any).doctorTime as string | undefined;
+  // Visit Time shows the actual visit start (`start_time`), like the web view.
+  const visitTime =
+    ((record as any).startTime
+      ? DateTimeConverter.time((record as any).startTime)
+      : (record as any).visitTime) as string | undefined;
+  // Hospital and insurance live on the embedded patient record.
+  const hospital = (patientRecord?.hospital ?? (record as any).hospital) as string | undefined;
+  const insurance = (patientRecord?.insuranceCompany ?? (record as any).insurance) as string | undefined;
+  // Doctor Time from the doctor check-in/out timestamps; "Not started" while
+  // the doctor hasn't checked in yet (both null).
+  const doctorCheckInTime = (record as any).doctorCheckInTime as string | null | undefined;
+  const doctorCheckOutTime = (record as any).doctorCheckOutTime as string | null | undefined;
+  const doctorTime = doctorCheckInTime
+    ? DateTimeConverter.time(doctorCheckInTime) +
+      (doctorCheckOutTime ? ` – ${DateTimeConverter.time(doctorCheckOutTime)}` : "")
+    : "Not started";
+
+  // Providers come from the care team (the visit's own `provider` field is
+  // null). Show each member as "role name", primary first.
+  const provider =
+    (careTeam as CareTeamMember[]).length > 0
+      ? [...(careTeam as CareTeamMember[])]
+          .sort((a, b) => Number(b.isPrimary ?? false) - Number(a.isPrimary ?? false))
+          .map((m) => [m.role, m.name].filter(Boolean).join(" "))
+          .filter(Boolean)
+          .join(", ")
+      : ((record as any).provider as string | undefined);
 
   const alertCount =
     (alerts?.allergies?.length ?? 0) +
@@ -345,7 +446,7 @@ function VisitDetailScreenInner() {
           patientName={patientName}
           hospital={hospital}
           insurance={insurance}
-          provider={(record as any).provider}
+          provider={provider}
           doctorTime={doctorTime}
           visitPhase={visitPhase}
           visitElapsed={visitElapsed}
@@ -463,19 +564,7 @@ function VisitDetailScreenInner() {
             isReadOnly={isReadOnly}
             initialExpanded={false}
             isSaving={submitRefusal.isPending}
-            initial={(() => {
-              // Two possible response shapes from /visits/{id}:
-              //   1. Unified `forms` map: forms["dis-of-hemodialysis"][0].value
-              //   2. Typed top-level array: refusals[0] (already the flat wire object)
-              const rec = record as any;
-              const forms = rec?.forms;
-              const fromMap = forms && !Array.isArray(forms)
-                ? forms["dis-of-hemodialysis"]?.[0]?.value
-                : undefined;
-              const fromArray = Array.isArray(rec?.refusals) ? rec.refusals[0] : undefined;
-              const raw = fromMap ?? fromArray;
-              return raw ? parseDisOfHemodialysis(raw) : null;
-            })()}
+            initial={refusalInitial}
             onSave={(data) => {
               const currentUserId = Number(user?.id);
               if (!Number.isFinite(currentUserId)) {
@@ -519,14 +608,14 @@ function VisitDetailScreenInner() {
           isReadOnly={isReadOnly}
           colors={colors}
         />
-        {patientName && (
+        {/* {patientName && ( */}
           <WorkflowActionButtons
             phase={visitPhase}
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}
             onCheckOut={() => setShowCheckoutModal(true)}
           />
-        )}
+        {/* )} */}
       </ScrollView>
 
       <MorseFallScaleSheet
@@ -577,7 +666,7 @@ function VisitDetailScreenInner() {
       />
       <CheckOutConfirmModal
         visible={showCheckoutModal}
-        onConfirm={() => { setShowCheckoutModal(false); setVisitPhase("completed"); }}
+        onConfirm={handleCheckOut}
         onCancel={() => setShowCheckoutModal(false)}
       />
       {/* Use Items Modal */}

@@ -29,6 +29,7 @@ import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { login as authLogin, verifyFace } from "@/data/auth_repository";
 import { getFaceToken, setFaceToken } from "@/data/secure_storage";
+import { getBiometricErrorMessage, isFaceIdSupportedInCurrentBuild } from "@/utils/biometric";
 
 export default function LoginScreen() {
   const { login, t } = useApp();
@@ -38,7 +39,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
-  const biometricReady = true;
+  const [biometricReady, setBiometricReady] = useState(false);
   const [biometricType, setBiometricType] = useState<"face" | "fingerprint" | "generic">("generic");
   const [biometricInfo, setBiometricInfo] = useState<string | null>(null);
 
@@ -58,12 +59,19 @@ export default function LoginScreen() {
           } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
             setBiometricType("fingerprint");
           }
+          setBiometricReady(isFaceIdSupportedInCurrentBuild());
         }
 
         const enabled = await AsyncStorage.getItem("@goconnect/biometric");
         const faceToken = await getFaceToken();
         console.log("[biometric] setting enabled:", enabled, "hasToken:", !!faceToken);
-        if (compatible && enrolled && enabled === "true" && faceToken) {
+        if (
+          compatible &&
+          enrolled &&
+          isFaceIdSupportedInCurrentBuild() &&
+          enabled === "true" &&
+          faceToken
+        ) {
           void handleBiometricLogin();
         }
       } catch (e) {
@@ -113,7 +121,7 @@ export default function LoginScreen() {
       console.log("[biometric] auth result:", result);
       if (!result.success) {
         if ("error" in result && result.error) {
-          setBiometricInfo(`${t("biometricFailed")} (${result.error})`);
+          setBiometricInfo(getBiometricErrorMessage(result.error, t));
         }
         return;
       }

@@ -36,6 +36,7 @@ import {
   useSlot,
 } from "@/hooks/useScheduler";
 import { AppointmentStatus, appointmentStatusLabel, normalizeAppointmentStatus } from "@/data/models/scheduler";
+import { BackendRule } from "@/data/models/rules";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
@@ -65,7 +66,7 @@ export default function AppointmentDetailScreen() {
   const checkInMutation = useCheckInAppointment();
   const cancelMutation = useCancelAppointment();
   const confirmForNurseMutation = useConfirmAppointmentForNurse();
-  const canConfirmForOthers = can('confirm_for_others');
+  const canConfirmForOthers = can(BackendRule.Appointment.ConfirmForOthers);
 
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -324,6 +325,7 @@ export default function AppointmentDetailScreen() {
             onConfirmMember={
               canConfirmForOthers && status === AppointmentStatus.New
                 ? (member) => {
+                  console.log("member", member, status);
                     if (member.id == null) return;
                     confirmForNurseMutation.mutate(
                       { slotId: Number(id), nurseId: member.id },
@@ -403,7 +405,7 @@ export default function AppointmentDetailScreen() {
             />
           </RuleGate>
         )}
-        {status === AppointmentStatus.CheckedIn && (() => {
+        {status === AppointmentStatus.CheckedIn || status === AppointmentStatus.Completed && (() => {
           const rawVisitId =
             (record as any)?.visit_id ?? (record as any)?.visitId ?? null;
           if (rawVisitId == null) return null;

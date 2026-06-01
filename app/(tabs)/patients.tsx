@@ -17,6 +17,7 @@ import { SearchBar } from "@/components/common/SearchBar";
 import { ListSkeleton, PatientCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { usePatients } from "@/hooks/usePatients";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
@@ -32,6 +33,9 @@ export default function PatientsScreen() {
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
+  // Debounce the input so we hit GET /patients?search= only after the nurse
+  // pauses typing, not on every keystroke.
+  const debouncedSearch = useDebounce(search, 400);
   const {
     data: pagesData,
     isLoading,
@@ -40,7 +44,7 @@ export default function PatientsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = usePatients();
+  } = usePatients(debouncedSearch);
   const patients = useMemo(() => {
     const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
     const seen = new Set<string>();
@@ -54,20 +58,13 @@ export default function PatientsScreen() {
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
 
+  // Search is handled by the API (debouncedSearch → usePatients). Only the
+  // active/inactive status pill is filtered locally.
   const filtered = useMemo(() => {
-    return patients.filter((p) => {
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !search ||
-        p.name.toLowerCase().includes(q) ||
-        (p.diagnosis?.toLowerCase().includes(q) ?? false) ||
-        (p.patientId?.toLowerCase().includes(q) ?? false) ||
-        (p.mrn?.toLowerCase().includes(q) ?? false);
-      const matchesFilter =
-        activeFilter === "all" || p.status === activeFilter;
-      return matchesSearch && matchesFilter;
-    });
-  }, [patients, search, activeFilter]);
+    return patients.filter(
+      (p) => activeFilter === "all" || p.status === activeFilter,
+    );
+  }, [patients, activeFilter]);
 
 
   return (
@@ -162,7 +159,7 @@ export default function PatientsScreen() {
             </Animated.View>
           )}
           ListEmptyComponent={
-            patients.length === 0 ? (
+            patients.length === 0 && !debouncedSearch && activeFilter === "all" ? (
               <EmptyState
                 variant="empty"
                 icon="users"

@@ -317,8 +317,28 @@ export interface FlowSheetDialysateSectionInput {
   signature?: SavedSignature
 }
 
+/**
+ * Combined "Alarms Test" form. The paper form bundles the alarms toggle,
+ * intake/output, CAR, access and dialysate — all of which the backend stores
+ * under the single `alarms_test` record — so they save together in one request.
+ * (Anticoagulation is display-only and saved separately, so it is not here.)
+ */
+export interface FlowSheetAlarmsTestFormInput {
+  alarmsTest: boolean
+  intake: string
+  output: string
+  car: FlowSheetCar
+  access: string
+  dialysate: FlowSheetDialysate
+  signature?: SavedSignature
+}
+
 export interface FlowSheetAnticoagulationInput {
   anticoagType: string
+  bolusValue?: string
+  hourlyValue?: string
+  dialyzerType?: string
+  dialyzerSurfaceArea?: string
   signature?: SavedSignature
 }
 
@@ -377,6 +397,10 @@ export interface FlowSheetPostTreatmentInput {
   patientSignature?: SavedSignature
   /** Nurse witness signature — captured at the bottom of post-treatment. */
   nurseSignature?: SavedSignature
+  /** Numeric server-side id of the authenticated nurse. Used to populate
+   *  `post-assessment.post_assessment_signature_signed_by` when the nurse
+   *  signature is confirmed (read-only mode round-trip). */
+  currentUserId?: number
 }
 
 /**
@@ -427,6 +451,16 @@ export interface FlowSheet {
   dialysate?: FlowSheetDialysate
   access?: string
   anticoagType?: string
+  /** Bolus dose in IU — from dialysisOrder.bolusValue. */
+  anticoagBolusValue?: string
+  /** Hourly maintenance dose in IU — from dialysisOrder.hourlyValue. */
+  anticoagHourlyValue?: string
+  /** Dialyzer type — from dialysisOrder.dialyzerType. */
+  dialyzerType?: string
+  /** Dialyzer surface area — from dialysisOrder.dialyzerSurfaceArea. */
+  dialyzerSurfaceArea?: string
+  /** When true, the Anticoagulation section is locked: Save & Clear are hidden. */
+  // anticoagReadOnly?: boolean
   /** Per-medication administration record from the last meds save (§9.1.14).
    *  Keyed by medication id. */
   medAdmin?: Record<number, FlowSheetMedicationAdmin>

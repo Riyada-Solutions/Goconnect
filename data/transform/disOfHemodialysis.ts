@@ -33,7 +33,43 @@ const DEFAULT_LABELS = {
   relative_signature_ar_signature_name:  "Signature Name:",
   interpreter_signature_signature_name:  "Signature Name:",
   interpreter_signature_ar_signature_name: "Signature Name:",
+  witness_address_en:                    "Address:",
+  witness_address_ar:                    "Address:",
+  others_en:                             "Others (Please Specify):\n",
+  others_ar:                             "أخرى (يرجى التحديد):\n",
+  inability_reason_en:                   "Reason:\n",
+  inability_reason_ar:                   "سبب عدم قدرة المريض على الموافقة\n",
 } as const
+
+/**
+ * Format an ISO / datetime-local timestamp as `YYYY/MM/DD hh:mm AM/PM`
+ * (e.g. `"2026/05/24 01:00 PM"`) to match the server's `*_signed_at` shape.
+ */
+function formatSignedAt(value: string | undefined | null): string {
+  if (!value) return ""
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const yyyy = d.getFullYear()
+  const mm = pad(d.getMonth() + 1)
+  const dd = pad(d.getDate())
+  let hours = d.getHours()
+  const ampm = hours >= 12 ? "PM" : "AM"
+  hours = hours % 12 || 12
+  return `${yyyy}/${mm}/${dd} ${pad(hours)}:${pad(d.getMinutes())} ${ampm}`
+}
+
+/**
+ * Format an ISO timestamp as `YYYY-MM-DDTHH:mm` (datetime-local), to match
+ * the server's `*_datetime_*` shape (no seconds, no `Z`).
+ */
+function formatDatetimeLocal(value: string | undefined | null): string {
+  if (!value) return ""
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "")
 const bool = (v: unknown): boolean => v === true || v === "true" || v === 1 || v === "1"
@@ -129,16 +165,26 @@ const parseFlatSide = (raw: DisOfHemodialysisWire, suffix: "en" | "ar"): Refusal
   const iAt = str(get("interpreter_datetime")) || str(raw[`${iSig}_signed_at`])
   if (iAt) interpreter.signedAt = iAt
 
+  // Treat the server's placeholder labels as empty so the form doesn't show
+  // them as if the user had typed them.
+  const stripLabel = (raw: string, label: string) => (raw.trim() === label.trim() ? "" : raw)
+  const inabilityLabel = suffix === "ar"
+    ? "سبب عدم قدرة المريض على الموافقة"
+    : "Reason:"
+  const othersLabel = suffix === "ar"
+    ? "أخرى (يرجى التحديد):"
+    : "Others (Please Specify):"
+
   return {
     types,
     reason:             str(get("discontinue_reason")),
-    unableToSignReason: str(get("inability_reason")),
+    unableToSignReason: stripLabel(str(get("inability_reason")), inabilityLabel),
     risks: {
       hyperkalemia:   bool(get("hyperkalemia")),
       cardiacArrest:  bool(get("cardiac")),
       pulmonaryEdema: bool(get("pulmonary")),
       severeAcidosis: bool(get("acidosis")),
-      others:         str(get("others")),
+      others:         stripLabel(str(get("others")), othersLabel),
     },
     witness,
     relative,
@@ -170,17 +216,13 @@ export function serializeDisOfHemodialysis(
   writeSide(out, en, ar, "en", opts)
   writeSide(out, ar, en, "ar", opts)
 
-  // Custom-relation companion fields — required-when-empty by the server.
-  // Send the relationship value as the "custom" fallback so the conditional
-  // validation is satisfied no matter which side filled it.
-  const witnessRelEn  = en.witness.relationship  || ar.witness.relationship  || ""
-  const witnessRelAr  = ar.witness.relationship  || en.witness.relationship  || ""
-  const relativeRelEn = en.relative.relationship || ar.relative.relationship || ""
-  const relativeRelAr = ar.relative.relationship || en.relative.relationship || ""
-  out.custom_witness_relation     = en.witness.customRelationship  || witnessRelEn
-  out.custom_witness_relation_ar  = ar.witness.customRelationship  || witnessRelAr
-  out.custom_relative_relation    = en.relative.customRelationship || relativeRelEn
-  out.custom_relative_relation_ar = ar.relative.customRelationship || relativeRelAr
+  // Custom-relation companion fields — empty string when no "Other" was
+  // chosen. The server expects the key to exist but be blank in that case
+  // (it only validates when the relationship is "Other").
+  out.custom_witness_relation     = en.witness.customRelationship  ?? ""
+  out.custom_witness_relation_ar  = ar.witness.customRelationship  ?? ""
+  out.custom_relative_relation    = en.relative.customRelationship ?? ""
+  out.custom_relative_relation_ar = ar.relative.customRelationship ?? ""
   return out
 }
 
@@ -242,46 +284,55 @@ const writeSide = (
   set("discontinue_hemodialysis_services", side.types.includes("discontinuation"))
   set("examination_refusal",                side.types.includes("refusal_consent"))
   set("discontinue_reason",  side.reason)
-  set("inability_reason",    side.unableToSignReason)
-  // Witness address rides on `patient_address_*` AND `witness_address_*`
-  // (server validates both as required strings).
+  // `inability_reason_*` defaults to a server-side label when the user hasn't
+  // typed a reason, mirroring the GET shape.
+  set(
+    "inability_reason",
+    side.unableToSignReason ||
+      (suffix === "ar" ? DEFAULT_LABELS.inability_reason_ar : DEFAULT_LABELS.inability_reason_en),
+  )
+  // Patient address holds the user-entered address. `witness_address_*` is
+  // a server label ("Address:") and is not a user-editable field.
   set("patient_address",     side.witness.address ?? "")
-  set("witness_address",     side.witness.address ?? "")
+  set("witness_address",     suffix === "ar" ? DEFAULT_LABELS.witness_address_ar : DEFAULT_LABELS.witness_address_en)
   set("hyperkalemia", side.risks.hyperkalemia)
   set("cardiac",      side.risks.cardiacArrest)
   set("pulmonary",    side.risks.pulmonaryEdema)
   set("acidosis",     side.risks.severeAcidosis)
-  // Server rejects empty/null on `others_*` ("must be a string") — a space
-  // keeps Laravel's empty-string-to-null middleware from nulling it.
-  set("others",       side.risks.others || " ")
+  // `others_*` defaults to the bilingual placeholder label when blank.
+  set(
+    "others",
+    side.risks.others ||
+      (suffix === "ar" ? DEFAULT_LABELS.others_ar : DEFAULT_LABELS.others_en),
+  )
 
   // Witness
   set("witness_relationship", side.witness.relationship ?? "")
-  set("witness_datetime",     side.witness.signedAt ?? "")
+  set("witness_datetime",     formatDatetimeLocal(side.witness.signedAt))
   const wSig = suffix === "ar" ? "witness_signature_ar" : "witness_signature"
   out[`${wSig}_signature_url`]  = side.witness.signatureUrl ?? ""
   out[`${wSig}_signature_name`] = side.witness.name || DEFAULT_LABELS.witness_signature_signature_name
-  out[`${wSig}_signed_at`]      = side.witness.signedAt ?? ""
+  out[`${wSig}_signed_at`]      = formatSignedAt(side.witness.signedAt)
 
   // Relative
   set("relative_relation",  side.relative.relationship ?? "")
-  set("relative_datetime",  side.relative.signedAt ?? "")
+  set("relative_datetime",  formatDatetimeLocal(side.relative.signedAt))
   const rSig = suffix === "ar" ? "relative_signature_ar" : "relative_signature"
   out[`${rSig}_signature_url`]  = side.relative.signatureUrl ?? ""
   out[`${rSig}_signature_name`] = side.relative.name || DEFAULT_LABELS.relative_signature_signature_name
-  out[`${rSig}_signed_at`]      = side.relative.signedAt ?? ""
+  out[`${rSig}_signed_at`]      = formatSignedAt(side.relative.signedAt)
 
   // Doctor (typed; the name IS the signature, plus signed_by/_at audit)
   const dSig = suffix === "ar" ? "doctor_signature_ar" : "doctor_signature"
-  set("doctor_datetime", side.doctor.signedAt ?? "")
+  set("doctor_datetime", formatDatetimeLocal(side.doctor.signedAt))
   out[dSig]                 = side.doctor.signatureLabel || side.doctor.name || ""
-  out[`${dSig}_signed_at`]  = side.doctor.signedAt ?? ""
+  out[`${dSig}_signed_at`]  = formatSignedAt(side.doctor.signedAt)
   out[`${dSig}_signed_by`]  = side.doctor.signedById ?? opts.currentUserId
 
   // Interpreter
-  set("interpreter_datetime", side.interpreter.signedAt ?? "")
+  set("interpreter_datetime", formatDatetimeLocal(side.interpreter.signedAt))
   const iSig = suffix === "ar" ? "interpreter_signature_ar" : "interpreter_signature"
   out[`${iSig}_signature_url`]  = side.interpreter.signatureUrl ?? ""
   out[`${iSig}_signature_name`] = side.interpreter.name || DEFAULT_LABELS.interpreter_signature_signature_name
-  out[`${iSig}_signed_at`]      = side.interpreter.signedAt ?? ""
+  out[`${iSig}_signed_at`]      = formatSignedAt(side.interpreter.signedAt)
 }

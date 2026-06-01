@@ -144,6 +144,7 @@ export function PostTreatmentForm({
         <SignatureField
           label={"Nurse\nSignature"}
           value={nurseSignature}
+          useOnly={true}
           onChange={(v) => {
             onNurseSignatureChange(v);
             if (v.signed && v.dataUrl) onSignatureSaved?.("nurse", v);
