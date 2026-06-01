@@ -27,33 +27,70 @@ export default function BiometricUnlockScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleBiometricUnlock = async () => {
+  const handleBiometricUnlock = async (forcePasscode = false) => {
+    console.log("[bio-unlock] button pressed, forcePasscode:", forcePasscode);
     try {
       setError(null);
       const faceToken = await getFaceToken();
+      console.log("[bio-unlock] hasToken:", !!faceToken);
       if (!faceToken) {
-        // No stored token — fall back to login
-        await logout();
-        router.replace("/(auth)/login");
+        setError("No stored face token. Tap 'Use Password Instead' to login.");
         return;
       }
 
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      console.log("[bio-unlock] compatible:", compatible, "enrolled:", enrolled);
+
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      console.log("[bio-unlock] supported types:", types);
+      const isFace = types.includes(
+        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
+      );
+      const isFingerprint = types.includes(
+        LocalAuthentication.AuthenticationType.FINGERPRINT,
+      );
+
+      const biometricUsable = compatible && enrolled && !forcePasscode;
+
+      console.log("[bio-unlock] calling authenticateAsync, biometricUsable:", biometricUsable);
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: t("biometricLogin"),
-        fallbackLabel: t("cancel"),
+        promptMessage: biometricUsable
+          ? isFace
+            ? t("faceIdLogin")
+            : isFingerprint
+            ? t("fingerprintLogin")
+            : t("biometricLogin")
+          : t("usePasscode"),
+        fallbackLabel: t("usePasscode"),
+        disableDeviceFallback: false,
+        cancelLabel: t("cancel"),
       });
-      if (!result.success) return;
+      console.log("[bio-unlock] auth result:", JSON.stringify(result));
+      if (!result.success) {
+        const err = "error" in result ? result.error : "unknown";
+        const warning = "warning" in result ? result.warning : undefined;
+        setError(
+          `Auth failed: ${err}${warning ? ` / ${warning}` : ""}. ` +
+            (err === "not_enrolled" || err === "not_available"
+              ? "Enable Face ID for Expo Go: iOS Settings → Face ID & Passcode → Other Apps → Expo Go."
+              : err === "user_cancel" || err === "system_cancel"
+              ? "You cancelled. Tap the button to retry."
+              : ""),
+        );
+        return;
+      }
 
       setLoading(true);
       const { accessToken, user } = await verifyFace({ face_token: faceToken });
       await login(user, accessToken);
-      // Persist the rotated face_token if the backend issued a new one
       if (user.face_token) await setFaceToken(user.face_token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/home");
-    } catch {
+    } catch (e: any) {
+      console.warn("[bio-unlock] error", e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(t("biometricFailed"));
+      setError(`${t("biometricFailed")}${e?.message ? ` — ${e.message}` : ""}`);
     } finally {
       setLoading(false);
     }
@@ -68,7 +105,7 @@ export default function BiometricUnlockScreen() {
 
   // Auto-prompt on mount
   useEffect(() => {
-    void handleBiometricUnlock();
+    void handleBiometricUnlock(false);
   }, []);
 
   return (
@@ -115,7 +152,7 @@ export default function BiometricUnlockScreen() {
 
           {/* Retry biometric */}
           <Pressable
-            onPress={handleBiometricUnlock}
+            onPress={() => handleBiometricUnlock(false)}
             disabled={loading}
             style={({ pressed }) => [styles.bioBtn, pressed && { opacity: 0.8 }]}
           >
@@ -134,6 +171,16 @@ export default function BiometricUnlockScreen() {
                 </>
               )}
             </LinearGradient>
+          </Pressable>
+
+          {/* Use device passcode */}
+          <Pressable
+            onPress={() => handleBiometricUnlock(true)}
+            disabled={loading}
+            style={({ pressed }) => [styles.passBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Feather name="hash" size={15} color={Colors.primary} />
+            <Text style={styles.passBtnText}>{t("usePasscode")}</Text>
           </Pressable>
 
           {/* Use password instead */}

@@ -512,14 +512,8 @@ export async function mockSubmitRefusal(payload: RefusalInput): Promise<Refusal>
   const record: Refusal = {
     id: nextRefusalId++,
     visitId: payload.visitId,
-    types: payload.types,
-    reason: payload.reason,
-    risks: payload.risks,
-    witness: payload.witness,
-    unableToSignReason: payload.unableToSignReason,
-    relative: payload.relative,
-    doctor: payload.doctor,
-    interpreter: payload.interpreter,
+    en: payload.en,
+    ar: payload.ar,
     author: 'Nurse (mock)',
     createdAt: new Date().toISOString(),
   }

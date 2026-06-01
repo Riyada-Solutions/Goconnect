@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Linking,
   Platform,
   Pressable,
@@ -70,6 +71,15 @@ function ContactCard({
   );
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type HelpErrors = {
+  name?: string;
+  email?: string;
+  subject?: string;
+  message?: string;
+};
+
 export default function HelpSupportScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useApp();
@@ -80,18 +90,30 @@ export default function HelpSupportScreen() {
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [errors, setErrors] = useState<HelpErrors>({});
 
   const submitMutation = useSubmitSupportMessage();
 
-  const handleSend = () => {
-    if (!name.trim() || !email.trim() || !subject.trim() || !message.trim()) {
-      showDialog({
-        variant: "error",
-        title: t("helpMissingFields"),
-        message: t("helpFillAllFields"),
-      });
-      return;
+  const clearError = (field: keyof HelpErrors) =>
+    setErrors((e) => ({ ...e, [field]: undefined }));
+
+  const validate = (): boolean => {
+    const e: HelpErrors = {};
+    if (!name.trim())    e.name    = t("nameRequired");
+    if (!email.trim())   e.email   = t("emailRequired");
+    else if (!EMAIL_REGEX.test(email.trim())) e.email = t("emailInvalid");
+    if (!subject.trim()) e.subject = t("subjectRequired");
+    if (!message.trim()) e.message = t("messageRequired");
+    if (Object.keys(e).length > 0) {
+      setErrors(e);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return false;
     }
+    return true;
+  };
+
+  const handleSend = () => {
+    if (!validate()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     submitMutation.mutate(
       { name: name.trim(), email: email.trim(), subject: subject.trim(), message: message.trim() },
@@ -101,6 +123,7 @@ export default function HelpSupportScreen() {
           setEmail("");
           setSubject("");
           setMessage("");
+          setErrors({});
           showDialog({
             variant: "success",
             title: t("helpMessageSent"),
@@ -124,7 +147,10 @@ export default function HelpSupportScreen() {
   const isSubmitting = submitMutation.isPending;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
       <FeedbackDialog {...dialogProps} />
 
       <View
@@ -155,9 +181,11 @@ export default function HelpSupportScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: botPad },
+          { paddingBottom: botPad + 24 },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           {t("helpContactUs")}
@@ -210,19 +238,20 @@ export default function HelpSupportScreen() {
             <View
               style={[
                 styles.inputRow,
-                { backgroundColor: inputBg, borderColor: colors.border },
+                { backgroundColor: inputBg, borderColor: errors.name ? Colors.light.error : colors.border },
               ]}
             >
-              <Feather name="user" size={16} color={colors.textSecondary} />
+              <Feather name="user" size={16} color={errors.name ? Colors.light.error : colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 placeholder={t("helpNamePlaceholder")}
                 placeholderTextColor={colors.textTertiary}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(v) => { setName(v); clearError("name"); }}
                 editable={!isSubmitting}
               />
             </View>
+            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
           </View>
 
           <View style={styles.fieldGroup}>
@@ -232,21 +261,23 @@ export default function HelpSupportScreen() {
             <View
               style={[
                 styles.inputRow,
-                { backgroundColor: inputBg, borderColor: colors.border },
+                { backgroundColor: inputBg, borderColor: errors.email ? Colors.light.error : colors.border },
               ]}
             >
-              <Feather name="mail" size={16} color={colors.textSecondary} />
+              <Feather name="mail" size={16} color={errors.email ? Colors.light.error : colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 placeholder={t("helpEmailPlaceholder")}
                 placeholderTextColor={colors.textTertiary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(v) => { setEmail(v); clearError("email"); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 editable={!isSubmitting}
               />
             </View>
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
           <View style={styles.fieldGroup}>
@@ -256,23 +287,24 @@ export default function HelpSupportScreen() {
             <View
               style={[
                 styles.inputRow,
-                { backgroundColor: inputBg, borderColor: colors.border },
+                { backgroundColor: inputBg, borderColor: errors.subject ? Colors.light.error : colors.border },
               ]}
             >
               <Feather
                 name="message-square"
                 size={16}
-                color={colors.textSecondary}
+                color={errors.subject ? Colors.light.error : colors.textSecondary}
               />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
                 placeholder={t("helpSubjectPlaceholder")}
                 placeholderTextColor={colors.textTertiary}
                 value={subject}
-                onChangeText={setSubject}
+                onChangeText={(v) => { setSubject(v); clearError("subject"); }}
                 editable={!isSubmitting}
               />
             </View>
+            {errors.subject && <Text style={styles.errorText}>{errors.subject}</Text>}
           </View>
 
           <View style={styles.fieldGroup}>
@@ -282,7 +314,7 @@ export default function HelpSupportScreen() {
             <View
               style={[
                 styles.textareaRow,
-                { backgroundColor: inputBg, borderColor: colors.border },
+                { backgroundColor: inputBg, borderColor: errors.message ? Colors.light.error : colors.border },
               ]}
             >
               <TextInput
@@ -290,13 +322,14 @@ export default function HelpSupportScreen() {
                 placeholder={t("helpMessagePlaceholder")}
                 placeholderTextColor={colors.textTertiary}
                 value={message}
-                onChangeText={setMessage}
+                onChangeText={(v) => { setMessage(v); clearError("message"); }}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
                 editable={!isSubmitting}
               />
             </View>
+            {errors.message && <Text style={styles.errorText}>{errors.message}</Text>}
           </View>
 
           <Pressable
@@ -319,7 +352,7 @@ export default function HelpSupportScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -417,6 +450,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Inter_400Regular",
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.light.error,
+    marginTop: 2,
   },
   sendBtn: {
     flexDirection: "row",

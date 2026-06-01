@@ -1,17 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { Colors } from "@/theme/colors";
 import { translations, type Language } from "@/config/i18n";
 import {
-  EMPTY_PARTY,
-  EMPTY_RISKS,
-  type PartyInfo,
-  type RefusalRisks,
-  type RefusalType,
+  EMPTY_REFUSAL_SIDE,
+  type RefusalSide,
 } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
@@ -20,16 +17,7 @@ import { CollapsibleHeader } from "../CollapsibleHeader";
 import { PartyInfoSection } from "./refusal/PartyInfoSection";
 import { RefusalMainSection } from "./refusal/RefusalMainSection";
 
-export interface RefusalFormSideData {
-  types: RefusalType[];
-  reason: string;
-  risks: RefusalRisks;
-  witness: PartyInfo;
-  unableToSignReason: string;
-  relative: PartyInfo;
-  doctor: PartyInfo;
-  interpreter: PartyInfo;
-}
+export type RefusalFormSideData = RefusalSide;
 
 export interface RefusalFormData {
   en: RefusalFormSideData;
@@ -40,20 +28,13 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
+  isSaving?: boolean;
+  initial?: RefusalFormData | null;
   onSave: (data: RefusalFormData) => void;
   t: (key: any) => string;
 }
 
-const emptySide = (): RefusalFormSideData => ({
-  types: [],
-  reason: "",
-  risks: { ...EMPTY_RISKS },
-  witness: { ...EMPTY_PARTY },
-  unableToSignReason: "",
-  relative: { ...EMPTY_PARTY },
-  doctor: { ...EMPTY_PARTY, relationship: undefined, address: undefined },
-  interpreter: { ...EMPTY_PARTY, relationship: undefined, address: undefined },
-});
+const emptySide = (): RefusalFormSideData => JSON.parse(JSON.stringify(EMPTY_REFUSAL_SIDE));
 
 const tFor = (lang: Language) => (key: keyof typeof translations.en): string => {
   const dict = translations[lang] as Record<string, string>;
@@ -236,17 +217,26 @@ function RefusalFormSide({ lang, data, setData, colors }: SideProps) {
   );
 }
 
-export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, t }: Props) {
+export function RefusalForm({ colors, isReadOnly, initialExpanded, isSaving = false, initial, onSave, t }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
-  const [enData, setEnData] = useState<RefusalFormSideData>(emptySide());
-  const [arData, setArData] = useState<RefusalFormSideData>(emptySide());
+  const [enData, setEnData] = useState<RefusalFormSideData>(() => initial?.en ?? emptySide());
+  const [arData, setArData] = useState<RefusalFormSideData>(() => initial?.ar ?? emptySide());
+
+  // Repopulate state when the prefill data arrives or changes (e.g. after the
+  // visit query resolves). Without this, the initial empty render sticks.
+  useEffect(() => {
+    if (initial) {
+      setEnData(initial.en);
+      setArData(initial.ar);
+    }
+  }, [initial]);
 
   const canSave =
     (enData.types.length > 0 && enData.reason.trim() !== "") ||
     (arData.types.length > 0 && arData.reason.trim() !== "");
 
   const handleSave = () => {
-    if (!canSave) return;
+    if (!canSave || isSaving) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSave({ en: enData, ar: arData });
   };
@@ -277,14 +267,22 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, onSave, t }: 
 
           <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: canSave ? Colors.primary : colors.border, flex: 1 }]}
+              style={[s.saveFlowBtn, { backgroundColor: canSave && !isSaving ? Colors.primary : colors.border, flex: 1 }]}
               onPress={handleSave}
-              disabled={!canSave}
+              disabled={!canSave || isSaving}
             >
-              <Feather name="save" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("save")}</Text>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="save" size={16} color="#fff" />
+              )}
+              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
             </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: isSaving ? colors.border : "#EF4444", flex: 1 }]}
+              onPress={handleClear}
+              disabled={isSaving}
+            >
               <Feather name="trash-2" size={16} color="#fff" />
               <Text style={s.mainBtnText}>{t("clear")}</Text>
             </Pressable>

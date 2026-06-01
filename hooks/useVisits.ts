@@ -106,7 +106,7 @@ export function useSubmitMorseFallsRiskAssessment(visitId: number) {
 export function useSubmitMedicationAdministration(visitId: number) {
   const qc = useQueryClient()
   return useMutation<unknown, Error, { medicationId: number | string; action: 0 | 1; reason?: string | null }>({
-    mutationFn: (input) => submitMedicationAdministration(input),
+    mutationFn: (input) => submitMedicationAdministration({ ...input, visitId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['visits', visitId] })
       qc.invalidateQueries({ queryKey: ['visits'] })

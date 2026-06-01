@@ -50,7 +50,8 @@ import type { SocialWorkerProgressNoteInput } from './models/socialWorkerProgres
 import type { ReferralInput } from './models/referral'
 import type { DoctorProgressNoteInput } from './models/doctorProgressNote'
 import type { RefusalInput } from './models/refusal'
-import type { SariScreeningInput } from './models/sariScreening'
+import { serializeDisOfHemodialysis } from './transform/disOfHemodialysis'
+import type { SariScreening, SariScreeningInput } from './models/sariScreening'
 
 export const VISITS_PER_PAGE = 20
 
@@ -79,7 +80,21 @@ export async function getVisitById(
   return {
     ...raw,
     flowSheet: mapFlowSheetFromApi(raw),
-    referrals: Array.isArray(raw.referrals) ? raw.referrals.map(mapReferralFromApi) : raw.referrals,
+    referrals: (() => {
+      if (Array.isArray(raw.referrals)) return raw.referrals.map(mapReferralFromApi)
+      if (raw.referrals && typeof raw.referrals === 'object') return [mapReferralFromApi(raw.referrals)]
+      return undefined
+    })(),
+    sariScreenings: (() => {
+      // Backend returns a single object under `respiratoryIllnessScreening`.
+      // Normalise to the array shape the UI expects.
+      const single = raw.respiratoryIllnessScreening ?? raw.respiratory_illness_screening
+      if (single && typeof single === 'object') {
+        return [mapSariScreeningFromApi({ ...single, id: single.id ?? 0, visit_id: raw.id })]
+      }
+      if (Array.isArray(raw.sariScreenings)) return raw.sariScreenings.map(mapSariScreeningFromApi)
+      return raw.sariScreenings
+    })(),
   }
 }
 
@@ -822,11 +837,27 @@ export async function submitFlowSheetPostTreatment(
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
 
-  const hasPatientSig  = !!body.patientSignature?.dataUrl
-  const hasNurseSig    = !!body.nurseSignature?.dataUrl
-  const needsMultipart = hasPatientSig || hasNurseSig
+  const pSig = body.patientSignature
+  const nSig = body.nurseSignature
+  // A signature is "pre-uploaded" if SignatureField already pushed it to
+  // /signatures/upload and we have the returned token. Inline binary upload
+  // is only needed when there's a dataUrl but no signatureUrl (e.g. upload
+  // failed or the user is on a stale client).
+  const patientInline = !!pSig?.dataUrl && !pSig.signatureUrl
+  const nurseInline   = !!nSig?.dataUrl && !nSig.signatureUrl
+  const needsMultipart = patientInline || nurseInline
 
-  const postPayload = { post_assessment: serializePostAssessment(body.postAssessment) }
+  const postPayload: Record<string, unknown> = {
+    post_assessment: serializePostAssessment(body.postAssessment),
+  }
+  if (pSig?.signatureUrl) {
+    postPayload.patient_signature_url = pSig.signatureUrl
+    if (pSig.signedAt) postPayload.patient_signature_signed_at = pSig.signedAt
+  }
+  if (nSig?.signatureUrl) {
+    postPayload.nurse_signature_url = nSig.signatureUrl
+    if (nSig.signedAt) postPayload.nurse_signature_signed_at = nSig.signedAt
+  }
 
   if (!needsMultipart) {
     const res = await apiClient.post(
@@ -839,16 +870,16 @@ export async function submitFlowSheetPostTreatment(
   const fd = new FormData()
   fd.append('data', JSON.stringify(postPayload))
 
-  if (hasPatientSig) {
-    fd.append('patient_signature', dataUrlToFile(body.patientSignature!.dataUrl, 'patient_signature'))
-    if (body.patientSignature!.signedAt) {
-      fd.append('patient_signature_signed_at', body.patientSignature!.signedAt)
+  if (patientInline) {
+    fd.append('patient_signature', dataUrlToFile(pSig!.dataUrl, 'patient_signature'))
+    if (pSig!.signedAt) {
+      fd.append('patient_signature_signed_at', pSig!.signedAt)
     }
   }
-  if (hasNurseSig) {
-    fd.append('nurse_signature', dataUrlToFile(body.nurseSignature!.dataUrl, 'nurse_signature'))
-    if (body.nurseSignature!.signedAt) {
-      fd.append('nurse_signature_signed_at', body.nurseSignature!.signedAt)
+  if (nurseInline) {
+    fd.append('nurse_signature', dataUrlToFile(nSig!.dataUrl, 'nurse_signature'))
+    if (nSig!.signedAt) {
+      fd.append('nurse_signature_signed_at', nSig!.signedAt)
     }
   }
 
@@ -938,6 +969,7 @@ export async function submitMorseFallsRiskAssessment(
  */
 export async function submitMedicationAdministration(input: {
   medicationId: number | string
+  visitId: number | string
   action: 0 | 1
   reason?: string | null
 }): Promise<unknown> {
@@ -948,12 +980,54 @@ export async function submitMedicationAdministration(input: {
       action: input.action,
       reason: input.action === 1 ? null : (input.reason ?? null),
     },
+    condition: {
+      form:     'flowsheet',
+      visit_id: Number(input.visitId),
+    },
   }
   const res = await apiClient.post(
     `/actions/patient-medications/${input.medicationId}`,
     body,
   )
   return res.data?.data ?? res.data
+}
+
+/**
+ * Map one raw API sari-screening row (flat snake/camel field names as returned
+ * by GET /visits/{id}) back into the canonical `SariScreening` model.
+ *
+ * API wire shape (flat):
+ *   name, date, travel, contact, exposure,
+ *   exposure1, exposure2, exposure3, exposure4,
+ *   step1 … step5
+ */
+function mapSariScreeningFromApi(raw: any): SariScreening {
+  return {
+    id:                       raw.id,
+    visitId:                  raw.visit_id ?? raw.visitId,
+    addressographPatientName: raw.name ?? raw.addressographPatientName ?? '',
+    dateTime:                 raw.date ?? raw.dateTime ?? '',
+    sariFeatures: {
+      fever:               raw.travel               ?? raw.sariFeatures?.fever               ?? null,
+      coughOrBreathing:    raw.contact              ?? raw.sariFeatures?.coughOrBreathing    ?? null,
+      radiographicEvidence:raw.exposure             ?? raw.sariFeatures?.radiographicEvidence?? null,
+    },
+    exposureCriteria: {
+      closeContactSari:              raw.exposure1 ?? raw.exposureCriteria?.closeContactSari              ?? null,
+      travelToPhacNotice:            raw.exposure2 ?? raw.exposureCriteria?.travelToPhacNotice            ?? null,
+      recentExposurePotentialSource: raw.exposure3 ?? raw.exposureCriteria?.recentExposurePotentialSource ?? null,
+      inconsistentWithOtherKnownCause: raw.exposure4 ?? raw.exposureCriteria?.inconsistentWithOtherKnownCause ?? null,
+    },
+    actions: {
+      thinkInfectionControl:            raw.step1 ?? raw.actions?.thinkInfectionControl            ?? null,
+      tellMedicalHealthOfficer:         raw.step2 ?? raw.actions?.tellMedicalHealthOfficer         ?? null,
+      tellInfectionControl:             raw.step3 ?? raw.actions?.tellInfectionControl             ?? null,
+      consultInfectiousDiseaseSpecialist: raw.step4 ?? raw.actions?.consultInfectiousDiseaseSpecialist ?? null,
+      test:                             raw.step5 ?? raw.actions?.test                             ?? null,
+    },
+    author:    raw.author    ?? '',
+    createdAt: raw.created_at ?? raw.createdAt ?? '',
+  }
 }
 
 export async function submitSariScreening(
@@ -963,20 +1037,40 @@ export async function submitSariScreening(
     await mockSubmitSariScreening(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
-  const { visitId, ...body } = payload
+  const { visitId, addressographPatientName, dateTime, sariFeatures, exposureCriteria, actions } = payload
+  const body = {
+    name:      addressographPatientName,
+    date:      dateTime,
+    travel:    sariFeatures.fever,
+    contact:   sariFeatures.coughOrBreathing,
+    exposure:  sariFeatures.radiographicEvidence,
+    exposure1: exposureCriteria.closeContactSari,
+    exposure2: exposureCriteria.travelToPhacNotice,
+    exposure3: exposureCriteria.recentExposurePotentialSource,
+    exposure4: exposureCriteria.inconsistentWithOtherKnownCause,
+    step1:     actions.thinkInfectionControl,
+    step2:     actions.tellMedicalHealthOfficer,
+    step3:     actions.tellInfectionControl,
+    step4:     actions.consultInfectiousDiseaseSpecialist,
+    step5:     actions.test,
+  }
   const res = await apiClient.post(
-    `/visits/${visitId}/forms/sari_screening`,
+    `/visits/${visitId}/forms/respiratory-illness-screening`,
     body,
   )
   return unwrapVisit(res.data)
 }
 
 /**
- * Refusal save uses **multipart/form-data** so each party's signature uploads
- * as a real PNG file (not base64 inside JSON). The text payload (types,
- * reason, risks, party metadata) goes in a single `data` JSON field; the four
- * signature files come on `witness_signature` / `relative_signature` /
- * `doctor_signature` / `interpreter_signature`.
+ * Discontinuation-of-Hemodialysis (refusal) save.
+ *
+ * Endpoint: `POST /visits/{id}/forms/dis-of-hemodialysis`
+ *
+ * The wire shape is a single flat JSON object with bilingual fields keyed by
+ * `<field>_en` / `<field>_ar`. Drawn signatures (witness / relative /
+ * interpreter) ride as pre-uploaded URLs from POST /signatures/upload; the
+ * doctor's signature is typed (the name itself is the signature). See
+ * `data/transform/disOfHemodialysis.ts` for the field map.
  */
 export async function submitRefusal(payload: RefusalInput): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) {
@@ -984,67 +1078,12 @@ export async function submitRefusal(payload: RefusalInput): Promise<Visit> {
     return patchMockVisit(payload.visitId, 'in_progress')
   }
 
-  const fd = new FormData()
-
-  /**
-   * Normalize a party for the JSON body:
-   *  • Strip `signatureData` (the base64 PNG bytes ride as a multipart file)
-   *  • Strip `signatureUrl` (server-only field; would round-trip stale URLs)
-   *  • Coerce `signedAt` to `""` when missing so the wire shape always carries
-   *    the key (matches the spec for unsigned parties)
-   */
-  type PartyOut = {
-    name: string
-    signed: boolean
-    signedAt: string
-    relationship?: string
-    address?: string
-  }
-  const normalizeParty = (p: {
-    name?: string
-    signed?: boolean
-    signedAt?: string
-    relationship?: string
-    address?: string
-  }): PartyOut => {
-    const out: PartyOut = {
-      name:     p.name ?? '',
-      signed:   !!p.signed,
-      signedAt: p.signedAt ?? '',
-    }
-    if (p.relationship !== undefined) out.relationship = p.relationship
-    if (p.address !== undefined)      out.address      = p.address
-    return out
-  }
-
-  fd.append(
-    'data',
-    JSON.stringify({
-      types:              payload.types,
-      reason:             payload.reason,
-      risks:              payload.risks,
-      witness:            normalizeParty(payload.witness),
-      unableToSignReason: payload.unableToSignReason,
-      relative:           normalizeParty(payload.relative),
-      doctor:             normalizeParty(payload.doctor),
-      interpreter:        normalizeParty(payload.interpreter),
-    }),
-  )
-
-  const attachSig = (key: string, party: { signed: boolean; signatureData?: string }) => {
-    if (party.signed && party.signatureData) {
-      fd.append(key, dataUrlToFile(party.signatureData, key))
-    }
-  }
-  attachSig('witness_signature',     payload.witness)
-  attachSig('relative_signature',    payload.relative)
-  attachSig('doctor_signature',      payload.doctor)
-  attachSig('interpreter_signature', payload.interpreter)
-
+  const body = serializeDisOfHemodialysis(payload.en, payload.ar, {
+    currentUserId: payload.currentUserId,
+  })
   const res = await apiClient.post(
-    `/visits/${payload.visitId}/forms/refusal`,
-    fd,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
+    `/visits/${payload.visitId}/forms/dis-of-hemodialysis`,
+    body,
   )
   return unwrapVisit(res.data)
 }
@@ -1065,7 +1104,6 @@ export async function submitReferral(payload: ReferralInput): Promise<Visit> {
     return patchMockVisit(payload.visitId, 'in_progress')
   }
 
-  const fd = new FormData()
   const data: Record<string, unknown> = {
     status:                        payload.status,
     referral_by:                   payload.referralBy,
@@ -1082,6 +1120,21 @@ export async function submitReferral(payload: ReferralInput): Promise<Visit> {
     print_lab_result:              payload.printOptions.labResult,
     print_last_3_flowsheets:       payload.printOptions.last3FlowSheets,
   }
+
+  // Preferred path: attachment was already uploaded to /signatures/upload, so
+  // we send the returned token as plain JSON — no multipart needed.
+  if (payload.attachmentSignatureUrl) {
+    data.attachment_signature_url = payload.attachmentSignatureUrl
+    if (payload.attachmentName) data.attachment_name = payload.attachmentName
+    const res = await apiClient.post(
+      `/visits/${payload.visitId}/forms/referrals`,
+      data,
+    )
+    return unwrapVisit(res.data)
+  }
+
+  // Legacy fallback: upload the file inline as multipart on save.
+  const fd = new FormData()
   fd.append('data', JSON.stringify(data))
 
   if (payload.attachmentUri) {

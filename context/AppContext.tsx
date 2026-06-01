@@ -55,6 +55,8 @@ interface AppContextValue {
   setLanguage: (lang: Language) => Promise<void>;
   setTheme: (theme: Theme) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  /** Reload profile from `GET /me` (e.g. after avatar upload). */
+  refreshUser: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -198,6 +200,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [user, queryClient],
   );
 
+  const refreshUser = useCallback(async () => {
+    const me = await getMe();
+    setUser(me);
+    queryClient.setQueryData(["me"], me);
+  }, [queryClient]);
+
   const value = useMemo(
     () => ({
       user,
@@ -214,8 +222,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setLanguage,
       setTheme,
       updateProfile,
+      refreshUser,
     }),
-    [user, token, isReady, language, theme, isDark, rules, can, t, login, logout, setLanguage, setTheme, updateProfile],
+    [user, token, isReady, language, theme, isDark, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

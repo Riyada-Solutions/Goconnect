@@ -41,7 +41,11 @@ import { Colors } from "@/theme/colors";
 /** Convert the form-side SignatureValue to the API-side SavedSignature shape. */
 const toSaved = (v: SignatureValue) =>
   v.signed && v.dataUrl
-    ? { dataUrl: v.dataUrl, signedAt: v.signedAt ?? new Date().toISOString() }
+    ? {
+        dataUrl: v.dataUrl,
+        signedAt: v.signedAt ?? new Date().toISOString(),
+        signatureUrl: v.signatureUrl,
+      }
     : undefined;
 
 import { Card } from "@/components/common/Card";

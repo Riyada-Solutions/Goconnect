@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "goconnect",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
@@ -23,6 +23,7 @@
         "NSCameraUsageDescription": "Goconnect needs camera access to capture patient documents.",
         "NSPhotoLibraryUsageDescription": "Goconnect needs photo library access to upload patient documents.",
         "NSLocationWhenInUseUsageDescription": "Goconnect needs your location to verify visit check-in.",
+        "NSFaceIDUsageDescription": "Goconnect uses Face ID to sign you in securely.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -32,7 +33,11 @@
         "backgroundColor": "#2DAAAE"
       },
       "package": "com.careconnectksa.nurse",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png",
@@ -46,7 +51,13 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Goconnect uses Face ID to sign you in securely."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

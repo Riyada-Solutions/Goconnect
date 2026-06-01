@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 
 import { ClickToSignButton } from "@/components/ui/ClickToSignButton";
 import { DateTimeField } from "@/components/ui/DateTimeField";
 import { SelectField } from "@/components/ui/SelectField";
 import { useApp } from "@/context/AppContext";
 import { translations } from "@/config/i18n";
+import { uploadSignature } from "@/data/signature_repository";
 import { RELATIONSHIP_OPTIONS, type PartyInfo } from "@/data/models/refusal";
 
 import { visitDetailStyles as s } from "../../../visit-detail.styles";
@@ -64,6 +65,8 @@ export function PartyInfoSection({
 }: Props) {
   const { t } = useApp();
   const [signatureOpen, setSignatureOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const relationshipOptions = useMemo(
     () =>
       RELATIONSHIP_OPTIONS.map((opt) => {
@@ -135,6 +138,15 @@ export function PartyInfoSection({
             unsignedLabel={clickToSign}
             onPress={() => setSignatureOpen(true)}
           />
+          {uploading ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+              <ActivityIndicator size="small" color="#0891B2" />
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>Uploading…</Text>
+            </View>
+          ) : null}
+          {uploadError ? (
+            <Text style={{ fontSize: 11, color: "#EF4444", marginTop: 4 }}>{uploadError}</Text>
+          ) : null}
         </View>
       </View>
 
@@ -170,14 +182,39 @@ export function PartyInfoSection({
             ? value.signatureData ?? value.signatureUrl ?? undefined
             : undefined
         }
-        onConfirm={(signatureData) => {
+        onConfirm={async (signatureData) => {
+          const signedAt = new Date().toISOString();
+          // Immediately mark signed so the UI updates; clear any old URL since
+          // the bytes just changed.
           onChange({
             ...value,
             signed: true,
-            signedAt: new Date().toISOString(),
+            signedAt,
             signatureData,
+            signatureUrl: undefined,
           });
           setSignatureOpen(false);
+          if (!signatureData) return;
+          setUploading(true);
+          setUploadError(null);
+          try {
+            const r = await uploadSignature({
+              uri:  signatureData,
+              name: `${title.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.png`,
+              type: "image/png",
+            });
+            onChange({
+              ...value,
+              signed: true,
+              signedAt,
+              signatureData,
+              signatureUrl: r.signatureUrl,
+            });
+          } catch (e: any) {
+            setUploadError(e?.message ?? "Upload failed");
+          } finally {
+            setUploading(false);
+          }
         }}
         onClose={() => setSignatureOpen(false)}
         colors={colors}

@@ -1,15 +1,19 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { uploadSignature } from "@/data/signature_repository";
 import { SignatureConfirmSheet } from "@/app/visits/components/visitForms/refusal/SignatureConfirmSheet";
 
 export interface SignatureValue {
   signed: boolean;
   dataUrl?: string;
   signedAt?: string;
+  /** Server-side token returned by POST /signatures/upload. When present, the
+   *  form save endpoint should send this URL instead of the binary `dataUrl`. */
+  signatureUrl?: string;
 }
 
 interface Props {
@@ -56,6 +60,8 @@ export function SignatureField({
 }: Props) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const signedColor = "#22C55E";
   const showSigned = value.signed && !!value.dataUrl;
@@ -210,6 +216,20 @@ export function SignatureField({
         </Pressable>
       )}
 
+      {uploading ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+          <ActivityIndicator size="small" color={accentColor} />
+          <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_500Medium" }}>
+            Uploading signature…
+          </Text>
+        </View>
+      ) : null}
+      {uploadError ? (
+        <Text style={{ fontSize: 11, color: "#EF4444", fontFamily: "Inter_500Medium", marginTop: 4 }}>
+          {uploadError}
+        </Text>
+      ) : null}
+
       <SignatureConfirmSheet
         visible={open}
         title={label}
@@ -219,9 +239,32 @@ export function SignatureField({
         clearLabel={clearLabel}
         signHereLabel={signHereLabel}
         confirmLabel={confirmLabel}
-        onConfirm={(dataUrl) => {
-          onChange({ signed: true, dataUrl, signedAt: new Date().toISOString() });
+        onConfirm={async (dataUrl) => {
+          const signedAt = new Date().toISOString();
+          // Show the captured signature immediately, then upload in the
+          // background. The form save will pick up `signatureUrl` once ready.
+          onChange({ signed: true, dataUrl, signedAt });
           setOpen(false);
+          if (!dataUrl) return;
+          setUploading(true);
+          setUploadError(null);
+          try {
+            const result = await uploadSignature({
+              uri:  dataUrl,
+              name: `signature_${Date.now()}.png`,
+              type: "image/png",
+            });
+            onChange({
+              signed: true,
+              dataUrl,
+              signedAt,
+              signatureUrl: result.signatureUrl,
+            });
+          } catch (e: any) {
+            setUploadError(e?.message ?? "Upload failed");
+          } finally {
+            setUploading(false);
+          }
         }}
         onClose={() => setOpen(false)}
         colors={colors}

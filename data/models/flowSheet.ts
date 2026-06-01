@@ -211,6 +211,9 @@ export interface MorseFallScale {
 export interface SavedSignature {
   dataUrl: string // base64 PNG data URI (local only — never sent in JSON)
   signedAt: string // ISO 8601
+  /** Server-side token returned by POST /signatures/upload. When set, save
+   *  endpoints send this URL instead of uploading the binary again. */
+  signatureUrl?: string
 }
 
 /**

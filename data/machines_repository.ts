@@ -1,5 +1,6 @@
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
+import { MOCK_MACHINES } from './mock/settings_mock'
 import { type Machine, parseMachine } from './models/machine'
 
 const MACHINES_PER_PAGE = 100
@@ -39,7 +40,7 @@ async function fetchPage(page: number, perPage: number): Promise<RawPage> {
  *  - `Machine[]`
  */
 export async function getMachines(): Promise<Machine[]> {
-  if (ENV.USE_MOCK_DATA) return []
+  if (ENV.USE_MOCK_DATA) return MOCK_MACHINES
 
   const first = await fetchPage(1, MACHINES_PER_PAGE)
   const allRaw: any[] = [...first.items]

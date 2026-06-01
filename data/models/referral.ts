@@ -51,6 +51,9 @@ export interface ReferralInput {
   printOptions: ReferralPrintOptions
   attachmentUri?: string
   attachmentName?: string
+  /** Pre-uploaded file token returned by POST /signatures/upload. When set, the
+   *  referral submit sends `attachment_signature_url` instead of the binary file. */
+  attachmentSignatureUrl?: string
 }
 
 export const REFERRAL_TYPES = [

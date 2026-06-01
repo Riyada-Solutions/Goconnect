@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { DateTimeField } from "@/components/ui/DateTimeField";
@@ -15,6 +15,7 @@ import {
   type SariAnswer,
   type SariExposure,
   type SariFeatures,
+  type SariScreening,
 } from "@/data/models/sariScreening";
 
 import { visitDetailStyles as s } from "../../visit-detail.styles";
@@ -34,6 +35,9 @@ interface Props {
   isReadOnly: boolean;
   initialExpanded?: boolean;
   defaultPatientName?: string;
+  /** Persisted screening loaded from the server — pre-fills all fields. */
+  initial?: SariScreening | null;
+  isSaving?: boolean;
   onSave: (data: SariScreeningFormData) => void;
   t: (key: any) => string;
 }
@@ -47,15 +51,29 @@ export function SariScreeningForm({
   isReadOnly,
   initialExpanded,
   defaultPatientName,
+  initial,
+  isSaving = false,
   onSave,
   t,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
-  const [patientName, setPatientName] = useState(defaultPatientName ?? "");
-  const [dateTime, setDateTime] = useState(nowIso());
-  const [features, setFeatures] = useState<SariFeatures>(EMPTY_SARI_FEATURES);
-  const [exposure, setExposure] = useState<SariExposure>(EMPTY_SARI_EXPOSURE);
-  const [actions, setActions] = useState<SariActions>(EMPTY_SARI_ACTIONS);
+  const [patientName, setPatientName] = useState(initial?.addressographPatientName ?? defaultPatientName ?? "");
+  const [dateTime, setDateTime] = useState(initial?.dateTime ?? nowIso());
+  const [features, setFeatures] = useState<SariFeatures>(initial?.sariFeatures ?? EMPTY_SARI_FEATURES);
+  const [exposure, setExposure] = useState<SariExposure>(initial?.exposureCriteria ?? EMPTY_SARI_EXPOSURE);
+  const [actions, setActions] = useState<SariActions>(initial?.actions ?? EMPTY_SARI_ACTIONS);
+
+  // Re-hydrate when the server data arrives / changes (e.g. pull-to-refresh).
+  useEffect(() => {
+    if (!initial) return;
+    setPatientName(initial.addressographPatientName ?? defaultPatientName ?? "");
+    setDateTime(initial.dateTime ?? nowIso());
+    setFeatures(initial.sariFeatures ?? EMPTY_SARI_FEATURES);
+    setExposure(initial.exposureCriteria ?? EMPTY_SARI_EXPOSURE);
+    setActions(initial.actions ?? EMPTY_SARI_ACTIONS);
+  // Re-seed only when the persisted record identity changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial?.id, initial?.createdAt]);
 
   const canSave =
     patientName.trim() !== "" &&
@@ -160,12 +178,16 @@ export function SariScreeningForm({
 
           <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: canSave ? Colors.primary : colors.border, flex: 1 }]}
+              style={[s.saveFlowBtn, { backgroundColor: canSave && !isSaving ? Colors.primary : colors.border, flex: 1 }]}
               onPress={handleSave}
-              disabled={!canSave}
+              disabled={!canSave || isSaving}
             >
-              <Feather name="save" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("save")}</Text>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="save" size={16} color="#fff" />
+              )}
+              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
             </Pressable>
             <Pressable
               style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]}

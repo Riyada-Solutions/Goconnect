@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -28,6 +28,7 @@ interface ToggleRowProps {
   icon: string;
   iconBg: string;
   iconColor: string;
+  iconFamily?: "feather" | "material";
   label: string;
   sub: string;
   value: boolean;
@@ -38,7 +39,7 @@ interface ToggleRowProps {
   subColor: string;
 }
 function ToggleRow({
-  icon, iconBg, iconColor, label, sub, value, onToggle,
+  icon, iconBg, iconColor, iconFamily = "feather", label, sub, value, onToggle,
   borderBottom, borderColor, textColor, subColor,
 }: ToggleRowProps) {
   return (
@@ -47,7 +48,11 @@ function ToggleRow({
       borderBottom && { borderBottomWidth: 1, borderBottomColor: borderColor },
     ]}>
       <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-        <Feather name={icon as any} size={17} color={iconColor} />
+        {iconFamily === "material" ? (
+          <MaterialCommunityIcons name={icon as any} size={19} color={iconColor} />
+        ) : (
+          <Feather name={icon as any} size={17} color={iconColor} />
+        )}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.rowLabel, { color: textColor }]}>{label}</Text>
@@ -104,19 +109,27 @@ export default function AppSettingsScreen() {
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
 
-  const [pushNotif, setPushNotif] = useState(true);
-  const [emailNotif, setEmailNotif] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricType, setBiometricType] = useState<"face" | "fingerprint" | "generic">("generic");
 
   useEffect(() => {
     (async () => {
       try {
         const compatible = await LocalAuthentication.hasHardwareAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
-        // Only show the toggle when hardware is present AND the login API
-        // returned a face_token (meaning the backend supports biometric auth).
-        setBiometricAvailable(compatible && enrolled && !!user?.face_token);
+        // Require hardware + enrollment. face_token requirement is checked
+        // separately in toggleBiometric when actually saving the token.
+        const available = compatible && enrolled;
+        setBiometricAvailable(available);
+        if (available) {
+          const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+          if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+            setBiometricType("face");
+          } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+            setBiometricType("fingerprint");
+          }
+        }
         const stored = await AsyncStorage.getItem("@goconnect/biometric");
         if (stored === "true") setBiometricEnabled(true);
       } catch {}
@@ -127,12 +140,27 @@ export default function AppSettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const next = !biometricEnabled;
     if (next) {
+      // Allow passcode as fallback here — this step is just confirming the
+      // device belongs to the user. Pure biometric-only auth happens on login.
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: t("biometricLogin"),
-        fallbackLabel: t("cancel"),
+        promptMessage:
+          biometricType === "face"
+            ? t("faceIdLogin")
+            : biometricType === "fingerprint"
+            ? t("fingerprintLogin")
+            : t("biometricLogin"),
+        cancelLabel: t("cancel"),
+        disableDeviceFallback: false,
       });
       if (!result.success) return;
-      if (user?.face_token) await setFaceToken(user.face_token);
+      // Store the server-issued token so biometric login can call /auth/verify-face
+      if (user?.face_token) {
+        await setFaceToken(user.face_token);
+      } else {
+        // No face_token from the server means this account doesn't support
+        // biometric login — silently abort so the toggle stays off.
+        return;
+      }
     } else {
       await clearFaceToken();
     }
@@ -257,45 +285,25 @@ export default function AppSettingsScreen() {
         </Animated.View>
 
         {/* ── Notifications ── */}
-        {/* <Animated.View entering={FadeInDown.delay(140).springify()}>
+        <Animated.View entering={FadeInDown.delay(140).springify()}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
             {t("notifications")}
           </Text>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <ToggleRow
+            <NavRow
               icon="bell"
               iconBg={Colors.pastel.purple}
               iconColor={Colors.icon.purple}
-              label={t("pushNotifications")}
-              sub={pushNotif ? t("receivingAlerts") : t("notificationsPaused")}
-              value={pushNotif}
-              onToggle={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setPushNotif((v) => !v);
-              }}
-              borderBottom
-              borderColor={bd}
-              textColor={colors.text}
-              subColor={colors.textSecondary}
-            />
-            <ToggleRow
-              icon="mail"
-              iconBg={Colors.pastel.blue}
-              iconColor={Colors.icon.blue}
-              label={t("emailNotifications")}
-              sub={emailNotif ? t("emailAlertsActive") : t("emailAlertsOff")}
-              value={emailNotif}
-              onToggle={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setEmailNotif((v) => !v);
-              }}
+              label={t("notifications")}
+              value={t("manageAlerts")}
+              onPress={() => router.push("/(settings)/notifications")}
               borderBottom={false}
               borderColor={bd}
               textColor={colors.text}
               subColor={colors.textSecondary}
             />
           </View>
-        </Animated.View> */}
+        </Animated.View>
 
         {/* ── Security ── */}
         <Animated.View entering={FadeInDown.delay(180).springify()}>
@@ -327,11 +335,30 @@ export default function AppSettingsScreen() {
             />
             {biometricAvailable && (
               <ToggleRow
-                icon="smartphone"
+                icon={
+                  biometricType === "face"
+                    ? "face-recognition"
+                    : biometricType === "fingerprint"
+                    ? "fingerprint"
+                    : "smartphone"
+                }
+                iconFamily={biometricType !== "generic" ? "material" : "feather"}
                 iconBg={Colors.pastel.blue}
                 iconColor={Colors.icon.blue}
-                label={t("biometricLogin")}
-                sub={t("biometricSub")}
+                label={
+                  biometricType === "face"
+                    ? t("faceIdLogin")
+                    : biometricType === "fingerprint"
+                    ? t("fingerprintLogin")
+                    : t("biometricLogin")
+                }
+                sub={
+                  biometricType === "face"
+                    ? t("faceIdSub")
+                    : biometricType === "fingerprint"
+                    ? t("fingerprintSub")
+                    : t("biometricSub")
+                }
                 value={biometricEnabled}
                 onToggle={toggleBiometric}
                 borderBottom={false}

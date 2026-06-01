@@ -26,6 +26,7 @@ import { FlowSheetForm } from "./components/visitForms/FlowSheetForm";
 import { ProgressNoteGroup } from "./components/visitForms/ProgressNoteGroup";
 import { ReferralForm } from "./components/visitForms/ReferralForm";
 import { RefusalForm } from "./components/visitForms/RefusalForm";
+import { parseDisOfHemodialysis } from "@/data/transform/disOfHemodialysis";
 import { SariScreeningForm } from "./components/visitForms/SariScreeningForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
 import { NurseSignatureSheet } from "./components/NurseSignatureSheet";
@@ -54,7 +55,7 @@ export default function VisitDetailScreen() {
 
 function VisitDetailScreenInner() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
-  const { t } = useApp();
+  const { t, user } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad } = useScreenPadding({ hasActionBar: true });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
@@ -443,7 +444,7 @@ function VisitDetailScreenInner() {
             isReadOnly={isReadOnly}
             // initialExpanded={initialPhase === "completed"}
             primaryPhysician={(record as any)?.provider ?? "Physician"}
-            referralBy="Waleed abdelrahman"
+            referralBy={user?.name ?? ""}
             previousReferrals={(record as any)?.referrals ?? []}
             onSave={(data) => {
               submitReferral.mutate(data, {
@@ -461,9 +462,27 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             initialExpanded={false}
+            isSaving={submitRefusal.isPending}
+            initial={(() => {
+              // Two possible response shapes from /visits/{id}:
+              //   1. Unified `forms` map: forms["dis-of-hemodialysis"][0].value
+              //   2. Typed top-level array: refusals[0] (already the flat wire object)
+              const rec = record as any;
+              const forms = rec?.forms;
+              const fromMap = forms && !Array.isArray(forms)
+                ? forms["dis-of-hemodialysis"]?.[0]?.value
+                : undefined;
+              const fromArray = Array.isArray(rec?.refusals) ? rec.refusals[0] : undefined;
+              const raw = fromMap ?? fromArray;
+              return raw ? parseDisOfHemodialysis(raw) : null;
+            })()}
             onSave={(data) => {
-              const primary = data.en.types.length > 0 || data.en.reason.trim() !== "" ? data.en : data.ar;
-              submitRefusal.mutate(primary, {
+              const currentUserId = Number(user?.id);
+              if (!Number.isFinite(currentUserId)) {
+                showDialog({ variant: "error", title: t("error"), message: "Missing user id" });
+                return;
+              }
+              submitRefusal.mutate({ ...data, currentUserId }, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("refusalTitle") }),
                 onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
               });
@@ -479,6 +498,9 @@ function VisitDetailScreenInner() {
             isReadOnly={isReadOnly}
             initialExpanded={false}
             defaultPatientName={(record as any)?.patientName}
+            initial={(record as any)?.sariScreenings?.[0] ?? null}
+            key={(record as any)?.sariScreenings?.[0]?.createdAt ?? "sari-new"}
+            isSaving={submitSariScreening.isPending}
             onSave={(data) => {
               submitSariScreening.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("sariScreeningTool") }),

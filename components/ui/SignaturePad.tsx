@@ -56,12 +56,14 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
     },
   }));
 
+  // White canvas (NOT transparent) — transparent canvas under Fabric/new-arch
+  // renders but silently swallows touch events on iOS.
   const webStyle = `
     .m-signature-pad { box-shadow: none; border: none; margin: 0; }
     .m-signature-pad--body { border: none; }
     .m-signature-pad--footer { display: none; margin: 0; }
-    body, html { width: 100%; height: 100%; margin: 0; padding: 0; background: transparent; }
-    canvas { background-color: transparent; }
+    body, html { width: 100%; height: 100%; margin: 0; padding: 0; background: #FFFFFF; }
+    canvas { background-color: #FFFFFF; }
   `;
 
   return (
@@ -72,7 +74,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
         borderColor: hasContent ? "#22C55E" : colors.border,
         borderRadius: 12,
         borderStyle: hasContent ? "solid" : "dashed",
-        backgroundColor: hasContent ? "#F0FDF4" : colors.card,
+        backgroundColor: "#FFFFFF",
         overflow: "hidden",
       }}
     >
@@ -84,7 +86,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
         dataURL={canvasDataUrl}
         descriptionText={placeholderLabel}
         penColor={penColor}
-        backgroundColor="transparent"
+        backgroundColor="#FFFFFF"
         onBegin={() => {
           if (!hasContent) {
             setHasContent(true);
