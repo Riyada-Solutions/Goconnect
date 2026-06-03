@@ -16,6 +16,7 @@ import { visitDetailStyles as s } from "../visit-detail.styles";
 export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
 
 interface Props {
+  visitId?: number | string;
   visitDate?: string;
   visitTime?: string;
   procedureTime?: string;
@@ -56,6 +57,7 @@ export function VisitInfoCard(p: Props) {
     <Animated.View entering={FadeInDown.delay(70).springify()} style={s.section}>
       <Card style={s.sectionCard}>
         <View style={s.visitInfoGrid}>
+          <InfoCell label={t("visitId")} value={p.visitId != null && p.visitId !== "" ? `#${p.visitId}` : "—"} colors={colors} />
           <InfoCell label={t("visitDate")} value={p.visitDate || "—"} colors={colors} />
           <View style={s.visitInfoCell}>
             <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{t("procedureTime")}</Text>

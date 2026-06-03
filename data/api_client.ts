@@ -41,8 +41,37 @@ apiClient.interceptors.response.use(
       TAG,
       `ERROR\nURL: ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}\nHTTP Status: ${error.response?.status ?? 'NO_RESPONSE'}\nAxios Code: ${error.code ?? 'NONE'}\nMessage: ${error.message}\nServer Body: ${fmtJson(error.response?.data ?? {})}`,
     )
-    const message =
-      error.response?.data?.message ?? error.message ?? 'Unknown error'
-    throw new Error(message)
+    const data = error.response?.data
+    let message = data?.message ?? error.message ?? 'Unknown error'
+
+    // Laravel 422 returns the per-field failures under `errors` (keyed by
+    // field name). The top-level `message` is generic ("The given data was
+    // invalid."), so append the specific field messages — otherwise the user
+    // sees a validation error with no clue which field to fix.
+    const fieldErrors =
+      data?.errors && typeof data.errors === 'object' ? data.errors : undefined
+    if (fieldErrors) {
+      const fields = Object.keys(fieldErrors)
+      if (fields.length > 0) {
+        const MAX = 15
+        const lines = fields.slice(0, MAX).map((f) => {
+          const msgs = fieldErrors[f]
+          const first = Array.isArray(msgs) ? msgs[0] : String(msgs)
+          return `• ${first || f}`
+        })
+        if (fields.length > MAX) lines.push(`• …and ${fields.length - MAX} more`)
+        message = `${message}\n${lines.join('\n')}`
+      }
+    }
+
+    // Carry the structured details on the Error so callers can map per-field
+    // validation errors onto the matching form inputs (see register.tsx).
+    const err = new Error(message) as Error & {
+      status?: number
+      fieldErrors?: Record<string, string[] | string>
+    }
+    if (error.response?.status) err.status = error.response.status
+    if (fieldErrors) err.fieldErrors = fieldErrors
+    throw err
   }
 )

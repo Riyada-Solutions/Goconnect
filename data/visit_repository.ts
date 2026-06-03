@@ -79,6 +79,19 @@ export async function getVisitById(
   const res = await apiClient.get(`/visits/${id}`)
   const raw = res.data?.data ?? res.data
   if (!raw) return undefined
+  return mapVisitFromApi(raw)
+}
+
+/**
+ * Map a raw `Visit` body from the wire (flat snake_case sections) into the
+ * canonical client model. Shared by `getVisitById` and `unwrapVisit` so a
+ * Visit returned from a save and pushed into the query cache is shaped
+ * identically to a freshly-fetched one. Without this, saving any flow-sheet
+ * section would write the raw API shape into the cache, and the form would
+ * read `flowSheet.dialysisParams` / `bpSite` / `preTreatmentVitals` as
+ * `undefined` — the fields would blank out right after a save.
+ */
+function mapVisitFromApi(raw: any): Visit {
   return {
     ...raw,
     ...mapVisitTimestamps(raw),
@@ -584,7 +597,7 @@ const mapVisitTimestamps = (raw: any) => ({
 const unwrapVisit = (raw: any): Visit => {
   const v = raw?.data ?? raw
   if (!v || typeof v !== 'object') return v
-  return { ...v, ...mapVisitTimestamps(v) }
+  return mapVisitFromApi(v)
 }
 
 async function patchMockVisit(
@@ -776,7 +789,10 @@ const serializeDialysisParam = (p: FlowSheetDialysisParam) => ({
   time:                     p.time,
   blood_pressure_systolic:  p.systolic,
   blood_pressure_diastolic: p.diastolic,
+  // Web's Dialysis Parameters table reads the BP site from `site`; we also keep
+  // `bp_site` so the mobile round-trip (which reads either) stays intact.
   bp_site:                  p.bpSite ?? p.site,
+  site:                     p.bpSite ?? p.site,
   pulse:                    p.pulse,
   dialysate_rate:           p.dialysateRate,
   uf_rate:                  p.uf,

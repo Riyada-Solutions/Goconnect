@@ -39,11 +39,15 @@ export default function RegisterScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<RegisterErrors>({});
+  // Server-level error not tied to a specific field (e.g. invalid register code).
+  const [formError, setFormError] = useState<string | null>(null);
 
   const s = makeStyles(colors);
 
-  const clearError = (field: keyof RegisterErrors) =>
+  const clearError = (field: keyof RegisterErrors) => {
     setErrors((e) => ({ ...e, [field]: undefined }));
+    setFormError(null);
+  };
 
   const validate = (): boolean => {
     const e: RegisterErrors = {};
@@ -65,7 +69,22 @@ export default function RegisterScreen() {
     return true;
   };
 
+  // Server validation field name → form field. Accepts snake_case and the
+  // exact body keys we send so 422 errors land under the right input.
+  const SERVER_FIELD_MAP: Record<string, keyof RegisterErrors> = {
+    register_code: "registerCode",
+    registerCode: "registerCode",
+    phone: "phone",
+    username: "username",
+    name: "name",
+    email: "email",
+    password: "password",
+    password_confirmation: "passwordConfirmation",
+    passwordConfirmation: "passwordConfirmation",
+  };
+
   const handleRegister = async () => {
+    setFormError(null);
     if (!validate()) return;
     setLoading(true);
     try {
@@ -79,7 +98,31 @@ export default function RegisterScreen() {
         password_confirmation: passwordConfirmation,
       });
       router.push({ pathname: "/(auth)/otp", params: { email, purpose: "register" } });
-    } catch {
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const fieldErrors = err?.fieldErrors as
+        | Record<string, string[] | string>
+        | undefined;
+      const mapped: RegisterErrors = {};
+      const unmapped: string[] = [];
+      if (fieldErrors && typeof fieldErrors === "object") {
+        for (const [serverKey, msgs] of Object.entries(fieldErrors)) {
+          const msg = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          const field = SERVER_FIELD_MAP[serverKey];
+          if (field) mapped[field] = msg;
+          else if (msg) unmapped.push(msg);
+        }
+      }
+      if (Object.keys(mapped).length > 0) {
+        setErrors((e) => ({ ...e, ...mapped }));
+      }
+      // Show a banner for any error not tied to a known field (and when there
+      // were no field errors at all, e.g. a network/server failure).
+      if (unmapped.length > 0) {
+        setFormError(unmapped.join("\n"));
+      } else if (Object.keys(mapped).length === 0) {
+        setFormError(err?.message ?? t("error"));
+      }
     } finally {
       setLoading(false);
     }
@@ -231,6 +274,13 @@ export default function RegisterScreen() {
             {errors.passwordConfirmation && <Text style={s.errorText}>{errors.passwordConfirmation}</Text>}
           </View>
 
+          {formError && (
+            <View style={s.formErrorBox}>
+              <Feather name="alert-circle" size={16} color={colors.error} />
+              <Text style={s.formErrorText}>{formError}</Text>
+            </View>
+          )}
+
           <Pressable style={[s.registerBtn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
             <Text style={s.registerBtnText}>{loading ? t("loading") : t("register")}</Text>
           </Pressable>
@@ -246,7 +296,7 @@ export default function RegisterScreen() {
 function makeStyles(colors: typeof Colors.light | typeof Colors.dark) {
   return StyleSheet.create({
     flex: { flex: 1, backgroundColor: colors.background },
-    header: { backgroundColor: colors.background, paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "flex-start", gap: 12 },
+    header: { backgroundColor: colors.background, paddingHorizontal: 16, paddingBottom: 16, flexDirection: "row", alignItems: "flex-start", gap: 12 },
     backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", marginTop: 4, borderWidth: 1, borderColor: colors.border },
     headerCenter: { flex: 1, gap: 4 },
     headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: colors.text },
@@ -263,6 +313,8 @@ function makeStyles(colors: typeof Colors.light | typeof Colors.dark) {
     inputIcon: { marginRight: 10 },
     input: { flex: 1, paddingVertical: 14, fontFamily: "Inter_400Regular", fontSize: 15, color: colors.text },
     errorText: { fontFamily: "Inter_400Regular", fontSize: 12, color: colors.error, marginLeft: 4 },
+    formErrorBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: `${colors.error}14`, borderRadius: 12, padding: 12 },
+    formErrorText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 13, color: colors.error, lineHeight: 18 },
     registerBtn: { backgroundColor: Colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: "center", marginTop: 4 },
     registerBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: "#fff" },
     loginLink: { fontFamily: "Inter_400Regular", fontSize: 14, color: colors.textSecondary, textAlign: "center", marginTop: 4 },

@@ -210,6 +210,7 @@ export const translations = {
     appointmentConfirmedMessage: "Appointment confirmed successfully.",
     patientCheckedInMessage: "Patient checked in successfully.",
     visitInfo: "Visit Info",
+    visitId: "Visit ID",
 
     // Visits
     visitList: "Visits",
@@ -687,6 +688,7 @@ export const translations = {
     appointmentConfirmedMessage: "تم تأكيد الموعد بنجاح.",
     patientCheckedInMessage: "تم تسجيل دخول المريض بنجاح.",
     visitInfo: "معلومات الزيارة",
+    visitId: "رقم الزيارة",
     pending: "معلق",
     cancelled: "ملغي",
     canceled: "ملغي",

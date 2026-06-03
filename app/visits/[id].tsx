@@ -133,9 +133,16 @@ function VisitDetailScreenInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialPhase]);
 
+  // The Flow Sheet records the dialysis treatment itself, so it locks as soon
+  // as the nurse ends the procedure — earlier than the rest of the screen,
+  // which stays editable until checkout (`completed`).
+  const isFlowSheetLocked = PHASE_RANK[visitPhase] >= PHASE_RANK.end_procedure;
+
   const { visitElapsed, procedureElapsed } = useVisitTimers(visitPhase, {
     visitStart: (record as any)?.startTime,
+    visitEnd: (record as any)?.endTime,
     procedureStart: (record as any)?.startProcedureTime,
+    procedureEnd: (record as any)?.endProcedureTime,
   });
 
   const startVisitMutation = useStartVisit(numId);
@@ -440,6 +447,7 @@ function VisitDetailScreenInner() {
         </View>
         
         <VisitInfoCard
+          visitId={(record as any)?.id ?? numId}
           visitDate={visitDate || (record as any).date}
           visitTime={visitTime || (record as any).time}
           procedureTime={procedureTime}
@@ -488,7 +496,7 @@ function VisitDetailScreenInner() {
         <Animated.View entering={FadeInDown.delay(215).springify()} style={s.section}>
           <FlowSheetForm
             colors={colors}
-            isReadOnly={isReadOnly}
+            isReadOnly={isFlowSheetLocked}
             // initialExpanded={initialPhase === "completed"}
             visitId={numId}
             initial={(record as any)?.flowSheet}

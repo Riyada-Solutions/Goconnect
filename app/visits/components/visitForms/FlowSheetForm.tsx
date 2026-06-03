@@ -373,6 +373,45 @@ export function FlowSheetForm(props: Props) {
     }
   }, [init?.patientSignature?.url, init?.nurseSignature?.url]);
 
+  // Seed the form fields once the visit detail finishes loading after first
+  // mount. `useState`'s lazy initializer only runs on mount, and the form is
+  // NOT always remounted when the data arrives — the parent's `key` stays
+  // "new" until the flow sheet is formally submitted (`submittedAt` is null
+  // for an in-progress visit). So without this, saved pre-treatment vitals,
+  // `bpSite`, and every other section would stay blank even though the API
+  // returned them. Guarded by a ref so it seeds only the first time `init`
+  // becomes available — later refetches must not clobber the nurse's edits.
+  const seededRef = React.useRef(!!init);
+  React.useEffect(() => {
+    if (seededRef.current || !init) return;
+    seededRef.current = true;
+    setVitals(init.vitals ?? EMPTY_VITALS);
+    setBpSite(init.bpSite ?? "");
+    setMethod(init.method ?? "");
+    setMachine(init.machine ?? "");
+    setPain(init.pain ?? "");
+    setPainDetails(init.painDetails ?? EMPTY_PAIN);
+    setFallRisk(init.fallRisk ?? "");
+    setHighFallRisk(init.highFallRisk ?? false);
+    setOutsideDialysis(init.outsideDialysis ?? false);
+    setAlarmsTest(init.alarmsTest ?? false);
+    if (init.nursingActions && init.nursingActions.length > 0) setNursingActions(init.nursingActions);
+    if (init.dialysisParams && init.dialysisParams.length > 0) setDialysisParams(init.dialysisParams);
+    setIntake(init.intake ?? "");
+    setOutput(init.output ?? "");
+    setCar(init.car ?? EMPTY_CAR);
+    setDialysate(init.dialysate ?? EMPTY_DIALYSATE);
+    setAccess(init.access ?? "");
+    setAnticoag({
+      type: init.anticoagType ?? "",
+      bolusValue: init.anticoagBolusValue ?? "",
+      hourlyValue: init.anticoagHourlyValue ?? "",
+      dialyzerType: init.dialyzerType ?? "",
+      dialyzerSurfaceArea: init.dialyzerSurfaceArea ?? "",
+    });
+    setPostTx(initPostTx());
+  }, [init]);
+
   const updateVital = useCallback(
     (key: keyof FlowSheetFormVitals, v: string) => setVitals((p) => ({ ...p, [key]: v })),
     [],
@@ -490,7 +529,7 @@ export function FlowSheetForm(props: Props) {
         title="Flow Sheet"
         icon="file-text"
         iconColor="#22C55E"
-        // badges={[{ text: "Easy Fill", bg: "#D1FAE5", fg: "#065F46" }]}
+        badges={isReadOnly ? [{ text: "Locked", bg: "#FEE2E2", fg: "#991B1B" }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors} 

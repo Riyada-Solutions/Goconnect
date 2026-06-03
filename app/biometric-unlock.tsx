@@ -28,8 +28,8 @@ export default function BiometricUnlockScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleBiometricUnlock = async (forcePasscode = false) => {
-    console.log("[bio-unlock] button pressed, forcePasscode:", forcePasscode);
+  const handleBiometricUnlock = async () => {
+    console.log("[bio-unlock] button pressed");
     try {
       setError(null);
       const faceToken = await getFaceToken();
@@ -52,20 +52,16 @@ export default function BiometricUnlockScreen() {
         LocalAuthentication.AuthenticationType.FINGERPRINT,
       );
 
-      const biometricUsable = compatible && enrolled && !forcePasscode;
-
-      // Priority chain: Face ID → Fingerprint → device passcode.
-      // The OS prompts the enrolled biometric and (with disableDeviceFallback: false)
+      // Priority chain (handled automatically by the OS): Face ID → Fingerprint → device passcode.
+      // With disableDeviceFallback: false the OS prompts the enrolled biometric and
       // falls back to the passcode automatically if it fails or none is available.
-      const promptMessage = biometricUsable
-        ? hasFace
-          ? t("faceIdLogin")
-          : hasFingerprint
-          ? t("fingerprintLogin")
-          : t("biometricLogin")
-        : t("usePasscode");
+      const promptMessage = hasFace
+        ? t("faceIdLogin")
+        : hasFingerprint
+        ? t("fingerprintLogin")
+        : t("biometricLogin");
 
-      console.log("[bio-unlock] calling authenticateAsync, biometricUsable:", biometricUsable, "promptMessage:", promptMessage);
+      console.log("[bio-unlock] calling authenticateAsync, promptMessage:", promptMessage);
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage,
         fallbackLabel: t("usePasscode"),
@@ -117,7 +113,7 @@ export default function BiometricUnlockScreen() {
   // Auto-prompt on mount when Face ID is supported in this build
   useEffect(() => {
     if (isFaceIdSupportedInCurrentBuild()) {
-      void handleBiometricUnlock(false);
+      void handleBiometricUnlock();
     } else {
       setError(getBiometricErrorMessage("missing_usage_description", t));
     }
@@ -167,7 +163,7 @@ export default function BiometricUnlockScreen() {
 
           {/* Retry biometric */}
           <Pressable
-            onPress={() => handleBiometricUnlock(false)}
+            onPress={() => handleBiometricUnlock()}
             disabled={loading}
             style={({ pressed }) => [styles.bioBtn, pressed && { opacity: 0.8 }]}
           >
@@ -186,16 +182,6 @@ export default function BiometricUnlockScreen() {
                 </>
               )}
             </LinearGradient>
-          </Pressable>
-
-          {/* Use device passcode */}
-          <Pressable
-            onPress={() => handleBiometricUnlock(true)}
-            disabled={loading}
-            style={({ pressed }) => [styles.passBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Feather name="hash" size={15} color={Colors.primary} />
-            <Text style={styles.passBtnText}>{t("usePasscode")}</Text>
           </Pressable>
 
           {/* Use password instead */}

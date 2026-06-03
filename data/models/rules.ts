@@ -625,9 +625,14 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   submit_flow_sheet_post_treatment:      BackendRule.Patient.FlowsheetEdit,
 
   // ── Progress notes / referrals / screenings ───────────────────────
-  submit_nursing_progress_note:       BackendRule.Patient.NursingProgressNoteEdit,
-  submit_doctor_progress_note:        BackendRule.Patient.ProgressNotesEdit,
-  submit_social_worker_progress_note: BackendRule.Patient.SocialWorkerProgressNoteEdit,
+  // Each note accepts EITHER its dedicated visit note rule (the ones the
+  // backend actually grants per role — `patients.doctor-note`,
+  // `patients.nurse-note`, `patients.social-worker-progress-note`) OR the
+  // generic `*-progress-note(.edit)` rule, so a user granted only one is not
+  // wrongly locked out.
+  submit_nursing_progress_note:       [BackendRule.Patient.NursingProgressNoteEdit, BackendRule.Patient.NurseNote],
+  submit_doctor_progress_note:        [BackendRule.Patient.ProgressNotesEdit, BackendRule.Patient.DoctorNote],
+  submit_social_worker_progress_note: [BackendRule.Patient.SocialWorkerProgressNoteEdit, BackendRule.Patient.SocialWorkerProgressNote],
   submit_referral:                    BackendRule.Patient.ReferralsEdit,
   submit_sari_screening:              BackendRule.Patient.RespiratoryIllnessScreeningEdit,
   submit_inventory_usage:             [BackendRule.InventoryAction.UseItem, BackendRule.InventoryAction.CreateUsage],

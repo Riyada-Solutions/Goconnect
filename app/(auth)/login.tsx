@@ -4,8 +4,10 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -38,10 +40,30 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Biometric has its own loading flag so a slow/interrupted Face ID flow can
+  // never leave the password Sign In button stuck.
+  const [bioLoading, setBioLoading] = useState(false);
+  // Guards against two concurrent authenticateAsync calls (the mount
+  // auto-prompt + a manual tap) — on iOS the second silently never resolves.
+  const authInFlightRef = useRef(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   const [biometricReady, setBiometricReady] = useState(false);
   const [biometricType, setBiometricType] = useState<"face" | "fingerprint" | "generic">("generic");
   const [biometricInfo, setBiometricInfo] = useState<string | null>(null);
+
+  // Returning from background can leave a biometric attempt that was suspended
+  // mid-flight (its network promise never settles) — clear the loading state so
+  // the screen is usable again on resume.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        authInFlightRef.current = false;
+        setBioLoading(false);
+        setLoading(false);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,27 +74,33 @@ export default function LoginScreen() {
         console.log("[biometric] compatible:", compatible, "enrolled:", enrolled);
         if (cancelled) return;
 
-        if (compatible && enrolled) {
-          const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-          if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-            setBiometricType("face");
-          } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-            setBiometricType("fingerprint");
-          }
-          setBiometricReady(isFaceIdSupportedInCurrentBuild());
+        // Detect the available method just for the button icon/label.
+        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+          setBiometricType("face");
+        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+          setBiometricType("fingerprint");
         }
 
-        const enabled = await AsyncStorage.getItem("@goconnect/biometric");
+        // A saved face login exists when the user enabled biometric and we
+        // stored their face_token. The token is preserved across logout, so the
+        // button reappears on the login screen after signing out.
+        const enabled = (await AsyncStorage.getItem("@goconnect/biometric")) === "true";
         const faceToken = await getFaceToken();
-        console.log("[biometric] setting enabled:", enabled, "hasToken:", !!faceToken);
-        if (
-          compatible &&
-          enrolled &&
-          isFaceIdSupportedInCurrentBuild() &&
-          enabled === "true" &&
-          faceToken
-        ) {
-          void handleBiometricLogin();
+        const hasSavedFaceLogin = enabled && !!faceToken;
+        console.log("[biometric] enabled:", enabled, "hasToken:", !!faceToken);
+
+        // Show the button (and auto-prompt) whenever a saved face login exists
+        // and the current build can show the native prompt.
+        const canPrompt = hasSavedFaceLogin && isFaceIdSupportedInCurrentBuild();
+        setBiometricReady(canPrompt);
+        if (canPrompt) {
+          // Delay so the screen is fully interactive before the native prompt —
+          // calling authenticateAsync during a cold launch can otherwise fail
+          // to present the Face ID sheet on iOS.
+          setTimeout(() => {
+            if (!cancelled) void handleBiometricLogin();
+          }, 500);
         }
       } catch (e) {
         console.warn("[biometric] init error", e);
@@ -84,20 +112,14 @@ export default function LoginScreen() {
   }, []);
 
   const handleBiometricLogin = async () => {
+    if (authInFlightRef.current) {
+      console.log("[biometric] already in flight — ignoring duplicate trigger");
+      return;
+    }
+    authInFlightRef.current = true;
     console.log("[biometric] button pressed");
     setBiometricInfo(null);
     try {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      const enrolled = await LocalAuthentication.isEnrolledAsync();
-      console.log("[biometric] press → compatible:", compatible, "enrolled:", enrolled);
-      if (!compatible) {
-        setBiometricInfo(t("biometricNoHardware"));
-        return;
-      }
-      if (!enrolled) {
-        setBiometricInfo(t("biometricNotEnrolled"));
-        return;
-      }
       const enabled =
         (await AsyncStorage.getItem("@goconnect/biometric")) === "true";
       const faceToken = await getFaceToken();
@@ -107,16 +129,29 @@ export default function LoginScreen() {
         return;
       }
 
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const hasFace = types.includes(
+        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
+      );
+      const hasFingerprint = types.includes(
+        LocalAuthentication.AuthenticationType.FINGERPRINT,
+      );
+
+      // Priority chain (handled automatically by the OS): Face ID → Fingerprint
+      // → device passcode. With disableDeviceFallback: false the OS prompts the
+      // enrolled biometric and falls back to the passcode if it fails or none
+      // is enrolled.
+      const promptMessage = hasFace
+        ? t("faceIdLogin")
+        : hasFingerprint
+        ? t("fingerprintLogin")
+        : t("biometricLogin");
+
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage:
-          biometricType === "face"
-            ? t("faceIdLogin")
-            : biometricType === "fingerprint"
-            ? t("fingerprintLogin")
-            : t("biometricLogin"),
-        fallbackLabel: t("cancel"),
+        promptMessage,
+        fallbackLabel: t("usePasscode"),
         cancelLabel: t("cancel"),
-        disableDeviceFallback: true,
+        disableDeviceFallback: false,
       });
       console.log("[biometric] auth result:", result);
       if (!result.success) {
@@ -125,7 +160,7 @@ export default function LoginScreen() {
         }
         return;
       }
-      setLoading(true);
+      setBioLoading(true);
       const { accessToken, user } = await verifyFace({ face_token: faceToken });
       await login(user, accessToken);
       if (user.face_token) await setFaceToken(user.face_token);
@@ -136,7 +171,8 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setBiometricInfo(`${t("biometricFailed")}${e?.message ? ` — ${e.message}` : ""}`);
     } finally {
-      setLoading(false);
+      setBioLoading(false);
+      authInFlightRef.current = false;
     }
   };
 
@@ -319,25 +355,32 @@ export default function LoginScreen() {
           {biometricReady && (
             <Pressable
               onPress={handleBiometricLogin}
+              disabled={bioLoading}
               style={({ pressed }) => [
                 styles.biometricBtn,
-                pressed && { opacity: 0.7 },
+                (pressed || bioLoading) && { opacity: 0.7 },
               ]}
             >
-              {biometricType === "face" ? (
-                <MaterialCommunityIcons name="face-recognition" size={22} color={Colors.primary} />
-              ) : biometricType === "fingerprint" ? (
-                <MaterialCommunityIcons name="fingerprint" size={22} color={Colors.primary} />
+              {bioLoading ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
               ) : (
-                <Feather name="smartphone" size={20} color={Colors.primary} />
+                <>
+                  {biometricType === "face" ? (
+                    <MaterialCommunityIcons name="face-recognition" size={22} color={Colors.primary} />
+                  ) : biometricType === "fingerprint" ? (
+                    <MaterialCommunityIcons name="fingerprint" size={22} color={Colors.primary} />
+                  ) : (
+                    <Feather name="smartphone" size={20} color={Colors.primary} />
+                  )}
+                  <Text style={styles.biometricText}>
+                    {biometricType === "face"
+                      ? t("faceIdLogin")
+                      : biometricType === "fingerprint"
+                      ? t("fingerprintLogin")
+                      : t("biometricLogin")}
+                  </Text>
+                </>
               )}
-              <Text style={styles.biometricText}>
-                {biometricType === "face"
-                  ? t("faceIdLogin")
-                  : biometricType === "fingerprint"
-                  ? t("fingerprintLogin")
-                  : t("biometricLogin")}
-              </Text>
             </Pressable>
           )}
 

@@ -261,15 +261,43 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, initial, isSa
     nonEmpty(pick(enData)) || nonEmpty(pick(arData));
   const relationFilled = (pick: (d: RefusalFormSideData) => PartyInfo) =>
     eitherSide((d) => pick(d).relationship) || eitherSide((d) => pick(d).customRelationship);
+  // A party "has a signature" when it was drawn (signed/url/data) or, for the
+  // doctor, typed (the name IS the signature).
+  const signedEither = (pick: (d: RefusalFormSideData) => PartyInfo) => {
+    const en = pick(enData);
+    const ar = pick(arData);
+    return (
+      en.signed || ar.signed ||
+      nonEmpty(en.signatureUrl) || nonEmpty(ar.signatureUrl) ||
+      nonEmpty(en.signatureData) || nonEmpty(ar.signatureData)
+    );
+  };
 
   const typesOk = enData.types.length > 0 || arData.types.length > 0;
   const reasonOk = eitherSide((d) => d.reason);
+  // Witness — relationship, address, name and a signature.
   const witnessRelationOk = relationFilled((d) => d.witness);
   const witnessAddressOk = eitherSide((d) => d.witness.address);
+  const witnessNameOk = eitherSide((d) => d.witness.name);
+  const witnessSignedOk = signedEither((d) => d.witness);
+  // Relative — relationship, name and a signature.
   const relativeRelationOk = relationFilled((d) => d.relative);
+  const relativeNameOk = eitherSide((d) => d.relative.name);
+  const relativeSignedOk = signedEither((d) => d.relative);
+  // Doctor — typed signature: the name itself satisfies the server's signature.
+  const doctorOk = eitherSide((d) => d.doctor.name) || signedEither((d) => d.doctor);
 
   const canSave =
-    typesOk && reasonOk && witnessRelationOk && witnessAddressOk && relativeRelationOk;
+    typesOk &&
+    reasonOk &&
+    witnessRelationOk &&
+    witnessAddressOk &&
+    witnessNameOk &&
+    witnessSignedOk &&
+    relativeRelationOk &&
+    relativeNameOk &&
+    relativeSignedOk &&
+    doctorOk;
 
   const handleSave = () => {
     if (!canSave || isSaving) return;
