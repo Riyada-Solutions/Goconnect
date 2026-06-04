@@ -14,7 +14,8 @@
       "backgroundColor": "#2DAAAE"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "requiresFullScreen": true,
       "displayName": "Goconnect",
       "bundleIdentifier": "com.careconnectksa.nurse",
       "buildNumber": "1",
