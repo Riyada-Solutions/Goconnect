@@ -489,9 +489,9 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     v.patientSignature?.url ??
     pSigLegacy.patient_signature_signature_url ??
     null
-  // Nurse signature lives inside `post_assessment` (no separate
-  // `post-assessment` / `nurse-signature` wrappers anymore).
-  const rawNurseUrl = paRaw.signature_image ?? null
+  // Nurse signature lives inside `post_assessment`.
+  // Backend may use `post_assessment_signature_url` (current) or legacy `signature_image`.
+  const rawNurseUrl = paRaw.post_assessment_signature_url ?? paRaw.signature_image ?? null
   const patientSignature = rawPatientUrl
     ? {
         url:      resolveSignatureUrl(String(rawPatientUrl)),
@@ -1000,10 +1000,9 @@ export async function submitFlowSheetPostTreatment(
     if (pSig.signedAt) postPayload.patient_signature_signed_at = pSig.signedAt
   }
   if (nSig?.signatureUrl) {
-    // Nurse signature rides inside `post_assessment.signature_image`
-    // alongside the rest of the assessment fields. No separate wrapper.
     const pa = postPayload.post_assessment as Record<string, unknown>
-    pa.signature_image = nSig.signatureUrl
+    pa.post_assessment_signature_url = nSig.signatureUrl
+    pa.signature_image = nSig.signatureUrl  // legacy fallback key
     if (nSig.signedAt) pa.signature_date = nSig.signedAt
   }
   // Nurse confirmation audit (read-only mode or freshly drawn) — merged into
@@ -1011,9 +1010,8 @@ export async function submitFlowSheetPostTreatment(
   // fields. Emitted even when there's no image.
   if (nSig) {
     const fmtDate = (iso: string | undefined): string => {
-      if (!iso) return ''
-      const d = new Date(iso)
-      if (Number.isNaN(d.getTime())) return iso
+      const d = new Date(iso ?? Date.now())
+      if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10).replace(/-/g, '/')
       const pad = (n: number) => String(n).padStart(2, '0')
       return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
     }
