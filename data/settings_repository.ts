@@ -2,6 +2,9 @@ import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
 import {
   mockGetNotificationPreferences,
+  mockGetWorkspace,
+  mockSetSelectedBranch,
+  mockSetSelectedSystem,
   mockUpdateNotificationPreferences,
   mockUploadAvatar,
 } from './mock/settings_mock'
@@ -9,6 +12,7 @@ import type {
   NotificationPreferences,
   NotificationPreferencesPatch,
 } from './models/notificationPreferences'
+import type { Workspace } from './models/workspace'
 
 function unwrapData<T>(body: unknown): T {
   if (body && typeof body === 'object' && 'data' in body) {
@@ -54,4 +58,27 @@ export async function uploadAvatar(
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return unwrapData<{ avatarUrl: string }>(res.data)
+}
+
+// ---------------------------------------------------------------------------
+// Workspace — branch & system switching
+// ---------------------------------------------------------------------------
+
+/** Branches + systems the user is allowed to switch between. */
+export async function getWorkspace(): Promise<Workspace> {
+  if (ENV.USE_MOCK_DATA) return mockGetWorkspace()
+  const res = await apiClient.get('/settings/workspace')
+  return unwrapData<Workspace>(res.data)
+}
+
+/** Persist the user's selected system (e.g. "center" | "home"). */
+export async function setSelectedSystem(system: string): Promise<void> {
+  if (ENV.USE_MOCK_DATA) return mockSetSelectedSystem(system)
+  await apiClient.post('/settings/selected-system', { system })
+}
+
+/** Persist the user's selected branch by id. */
+export async function setSelectedBranch(branchId: number): Promise<void> {
+  if (ENV.USE_MOCK_DATA) return mockSetSelectedBranch(branchId)
+  await apiClient.post('/settings/selected-branch', { branch_id: branchId })
 }

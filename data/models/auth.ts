@@ -1,3 +1,5 @@
+import type { Branch, Workspace, WorkspaceSystem } from './workspace'
+
 export interface User {
   id: string
   name: string
@@ -14,6 +16,14 @@ export interface User {
   avatarUrl?: string | null
   /** @deprecated use avatarUrl */
   avatar?: string
+  /** Currently-selected system ("center" | "home" | …). */
+  selected_system?: WorkspaceSystem | null
+  /** Id of the currently-selected branch. */
+  selected_branch_id?: number | null
+  /** Full record of the currently-selected branch (may be null until resolved). */
+  selected_branch?: Branch | null
+  /** Available branches + systems the user can switch between. */
+  workspace?: Workspace | null
 }
 
 export interface LoginRequest {

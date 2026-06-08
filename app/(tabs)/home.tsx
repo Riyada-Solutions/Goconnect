@@ -29,6 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
 import { useHome } from "@/hooks/useHome";
 import { useTheme } from "@/hooks/useTheme";
+import { formatWorkspace } from "@/utils/workspace";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -49,6 +50,7 @@ export default function HomeScreen() {
   const { data: home, refetch: refetchHome, isFetching } = useHome();
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const workspaceLabel = formatWorkspace(user, t as (k: string) => string);
   // Pulling on Home should refresh everything the dashboard renders. The
   // `/dashboard` rollup covers stats, today's visits, appointments and the
   // notification count — but other tabs read the same data through separate
@@ -181,7 +183,10 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{t(greetingKey)}</Text>
             <Text style={styles.userName}>{user?.name ?? "Doctor"}</Text>
-            <Text style={styles.roleText}>{user?.role}</Text>
+            <Text style={styles.roleText} numberOfLines={1}>
+              {user?.role}
+              {workspaceLabel ? ` - ${workspaceLabel}` : ""}
+            </Text>
           </View>
           <View style={styles.headerActions}>
             {/* Bell */}

@@ -64,6 +64,8 @@ interface AppContextValue {
   updateProfile: (data: Partial<User>) => Promise<void>;
   /** Reload profile from `GET /me` (e.g. after avatar upload). */
   refreshUser: () => Promise<void>;
+  /** Locally patch the user's selected system / branch (optimistic update). */
+  updateWorkspaceSelection: (patch: Partial<User>) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -219,6 +221,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     queryClient.setQueryData(["me"], me);
   }, [queryClient]);
 
+  const updateWorkspaceSelection = useCallback(
+    (patch: Partial<User>) => {
+      setUser((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...patch };
+        queryClient.setQueryData(["me"], next);
+        return next;
+      });
+    },
+    [queryClient],
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -236,8 +250,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       updateProfile,
       refreshUser,
+      updateWorkspaceSelection,
     }),
-    [user, token, isReady, language, theme, isDark, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser],
+    [user, token, isReady, language, theme, isDark, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, updateWorkspaceSelection],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

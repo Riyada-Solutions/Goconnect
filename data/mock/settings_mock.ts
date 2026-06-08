@@ -1,5 +1,6 @@
 import type { NotificationPreferences } from '../models/notificationPreferences'
 import type { Machine } from '../models/machine'
+import type { Workspace } from '../models/workspace'
 
 const mockDelay = (ms = 400) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms))
@@ -53,4 +54,41 @@ export async function mockUpdateNotificationPreferences(
 export async function mockUploadAvatar(_uri: string): Promise<{ avatarUrl: string }> {
   await mockDelay(800)
   return { avatarUrl: 'https://picsum.photos/seed/goconnect-avatar/200' }
+}
+
+const mockWorkspace: Workspace = {
+  branches: [
+    {
+      id: 1,
+      branch_code: '01',
+      name: 'Main Branch',
+      medical_center_name: 'Medical Center',
+      address: 'Riyadh',
+      phone: '01000000000',
+      email: 'main@branch.com',
+    },
+    {
+      id: 2,
+      branch_code: '02',
+      name: 'Jeddah',
+      medical_center_name: null,
+      address: 'Jeddah',
+      phone: '01000000001',
+      email: 'branch1@branch.com',
+    },
+  ],
+  systems: ['center', 'home'],
+}
+
+export async function mockGetWorkspace(): Promise<Workspace> {
+  await mockDelay(400)
+  return { branches: [...mockWorkspace.branches], systems: [...mockWorkspace.systems] }
+}
+
+export async function mockSetSelectedSystem(_system: string): Promise<void> {
+  await mockDelay(350)
+}
+
+export async function mockSetSelectedBranch(_branchId: number): Promise<void> {
+  await mockDelay(350)
 }

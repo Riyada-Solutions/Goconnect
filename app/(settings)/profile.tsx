@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { formatWorkspace } from "@/utils/workspace";
 
 interface InfoRowProps {
   icon: string;
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const { user, t } = useApp();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const workspaceLabel = formatWorkspace(user, t as (k: string) => string);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
@@ -84,6 +86,15 @@ export default function ProfileScreen() {
             </View>
             <Text style={[styles.profileName, { color: colors.text }]}>{user?.name ?? "—"}</Text>
             <Text style={[styles.profileRole, { color: colors.textSecondary }]}>{user?.role ?? "—"}</Text>
+
+            {workspaceLabel ? (
+              <View style={[styles.workspacePill, { backgroundColor: Colors.pastel.blue }]}>
+                <Feather name="briefcase" size={13} color={Colors.icon.blue} />
+                <Text style={[styles.workspacePillText, { color: Colors.icon.blue }]}>
+                  {workspaceLabel}
+                </Text>
+              </View>
+            ) : null}
 
             <Pressable
               onPress={() => { Haptics.selectionAsync(); router.push("/(settings)/edit-profile"); }}
@@ -139,6 +150,17 @@ const styles = StyleSheet.create({
   },
   profileName: { fontSize: 20, fontFamily: "Inter_700Bold" },
   profileRole: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  workspacePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    marginTop: 8,
+    maxWidth: "100%",
+  },
+  workspacePillText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
   editProfileBtn: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 20, paddingVertical: 10,

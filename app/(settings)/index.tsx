@@ -11,12 +11,14 @@ import {
   View,
 } from "react-native";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
+import { WorkspaceSheet } from "@/components/common/WorkspaceSheet";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { formatWorkspace } from "@/utils/workspace";
 
 interface MenuItemProps {
   icon: string;
@@ -76,6 +78,9 @@ export default function ProfileMainScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { dialogProps, show: showDialog } = useFeedbackDialog();
+  const [workspaceOpen, setWorkspaceOpen] = React.useState(false);
+
+  const workspaceLabel = formatWorkspace(user, t as (k: string) => string);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
@@ -110,6 +115,10 @@ export default function ProfileMainScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FeedbackDialog {...dialogProps} />
+      <WorkspaceSheet
+        visible={workspaceOpen}
+        onClose={() => setWorkspaceOpen(false)}
+      />
       {/* Header */}
       <Animated.View
         entering={FadeInDown.delay(0).springify()}
@@ -171,8 +180,12 @@ export default function ProfileMainScreen() {
             <Text style={[styles.profileName, { color: textColor }]}>
               {user?.name ?? "—"}
             </Text>
-            <Text style={[styles.profileRole, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.profileRole, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
               {user?.role ?? "—"}
+              {workspaceLabel ? ` - ${workspaceLabel}` : ""}
             </Text>
           </View>
         </Animated.View>
@@ -189,6 +202,17 @@ export default function ProfileMainScreen() {
               iconColor={Colors.icon.teal}
               iconBg={Colors.pastel.teal}
               onPress={() => router.push("/(settings)/edit-profile")}
+              isDark={isDark}
+              border={border}
+              text={textColor}
+            />
+            <MenuItem
+              icon="briefcase"
+              label={t("switchWorkspace")}
+              subText={workspaceLabel ?? t("switchWorkspaceSub")}
+              iconColor={Colors.icon.blue}
+              iconBg={Colors.pastel.blue}
+              onPress={() => setWorkspaceOpen(true)}
               isDark={isDark}
               border={border}
               text={textColor}

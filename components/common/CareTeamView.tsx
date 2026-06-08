@@ -10,6 +10,7 @@ import { SectionHeader } from "@/components/common/SectionHeader";
 import { Colors } from "@/theme/colors";
 import { useTheme } from "@/hooks/useTheme";
 import type { CareTeamMember } from "@/data/models/careTeam";
+import { CustomButton } from "./CustomButton";
 
 export type { CareTeamMember };
 
@@ -57,10 +58,12 @@ function MemberAction({
   confirmingMemberId?: string | number | null;
   confirmedLabel?: string;
 }) {
+
+
   if (member.confirmed) {
     return (
-      <View style={styles.confirmBtn} >
-        <Feather name="check" size={14} color={Colors.primary} />
+      <View style={styles.confirmedBadge} >
+        <Feather name="check" size={20} color={Colors.primary} />
 
       </View>
 
@@ -70,22 +73,14 @@ function MemberAction({
   if (onConfirmMember && member.id != null) {
     const isLoading = confirmingMemberId != null && confirmingMemberId === member.id;
     return (
-
-      <Pressable
+      <CustomButton
+        loading={isLoading}
+        title={confirmedLabel}
+        textStyle={{ fontSize: 14, fontWeight: "semibold" }}
         onPress={() => !isLoading && onConfirmMember(member)}
         style={styles.confirmBtn}
-      >
+      />
 
-        {isLoading ? (
-          <ActivityIndicator size={14} color={Colors.primary} />
-        ) : (
-          <View style={styles.confirmedBadge}>
-            <Feather name="check" size={11} color="#00A67E" />
-            <Text style={styles.confirmedText}>{confirmedLabel}</Text>
-          </View>
-          // <Feather name="check" size={14} color={Colors.primary} />
-        )}
-      </Pressable>
     );
   }
   return null;
@@ -244,21 +239,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
   },
   confirmBtn: {
-    width: 32,
+    width: 120,
     height: 32,
+
     borderRadius: 6,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: `${Colors.primary}15`,
   },
   confirmedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 4,
-    backgroundColor: "#E6F9F2",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    height: 32,
+    width: 32,
+    backgroundColor: `${Colors.primary}15`,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   confirmedText: {
     fontSize: 11,

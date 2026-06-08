@@ -1,12 +1,12 @@
 /**
  * Centralised date/time conversion for the whole app.
  *
- * The backend stores every timestamp in UTC (ISO `...Z`, e.g.
- * `2026-05-31T22:53:00.000000Z`) and round-trips it verbatim — the time the
- * nurse picks is the time that comes back. So we format and submit timestamps
- * in **UTC wall-clock** space, NOT the device's local timezone. Using the
- * device timezone (`Date#getHours`) made the same stored value render
- * differently on every phone (`22:53Z` showing as `1:53 AM` on a UTC+3 device).
+ * The backend stores KSA wall-clock time in one of two shapes:
+ *   • ISO `...Z` (e.g. `2026-05-31T22:53:00.000000Z`)
+ *   • plain `YYYY-MM-DD HH:mm:ss` (e.g. `2026-06-06 11:43:41`)
+ * Both must be read as **UTC wall-clock** — the digits the nurse sees — NOT
+ * the device's local timezone. Using `Date#getHours` made the same stored
+ * value render differently on every phone (`22:53Z` → `1:53 AM` on UTC+3).
  *
  * All display + API conversions go through this class so the behaviour is
  * identical everywhere.
@@ -20,10 +20,34 @@ export class DateTimeConverter {
   /** KSA is Arabia Standard Time, UTC+3, no DST. */
   static readonly KSA_OFFSET_MS = 3 * 60 * 60 * 1000
 
+  /**
+   * The backend may send either ISO-8601 with `Z` (wall-clock KSA mislabelled
+   * UTC) or a plain `YYYY-MM-DD HH:mm:ss` / `YYYY-MM-DDTHH:mm:ss` with no
+   * timezone. The latter must be read as UTC wall-clock — the same convention
+   * as the `Z` form — not the device local timezone; otherwise a UTC+3 phone
+   * shows `8:43` for a stored `11:43` and the elapsed timer is 3h too long.
+   */
+  static normalize(input: string): string {
+    const s = input.trim()
+    if (/[zZ]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) return s
+    const plain = s.match(
+      /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/,
+    )
+    if (plain) return `${plain[1]}T${plain[2]}Z`
+    return s
+  }
+
   /** Parse anything date-like into a `Date`, or `null` when empty/invalid. */
   static parse(input: DateInput): Date | null {
     if (input == null || input === '') return null
-    const d = input instanceof Date ? input : new Date(input)
+    if (input instanceof Date) {
+      return Number.isNaN(input.getTime()) ? null : input
+    }
+    if (typeof input === 'number') {
+      const d = new Date(input)
+      return Number.isNaN(d.getTime()) ? null : d
+    }
+    const d = new Date(this.normalize(input))
     return Number.isNaN(d.getTime()) ? null : d
   }
 

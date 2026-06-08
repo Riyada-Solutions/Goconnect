@@ -412,6 +412,10 @@ function VisitDetailScreenInner() {
           .join(", ")
       : ((record as any).provider as string | undefined);
 
+  // Primary physician = the care-team member flagged isPrimary (by name).
+  const primaryPhysician =
+    (careTeam as CareTeamMember[]).find((m) => m.isPrimary)?.name ?? "Physician";
+
   const alertCount =
     (alerts?.allergies?.length ?? 0) +
     (alerts?.contamination?.length ?? 0) +
@@ -552,7 +556,8 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             // initialExpanded={initialPhase === "completed"}
-            primaryPhysician={(record as any)?.provider ?? "Physician"}
+            visitId={numId}
+            primaryPhysician={primaryPhysician}
             referralBy={user?.name ?? ""}
             previousReferrals={(record as any)?.referrals ?? []}
             onSave={(data) => {

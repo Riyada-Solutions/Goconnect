@@ -8,7 +8,7 @@ import { Card } from "@/components/common/Card";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateTimeField } from "@/components/ui/DateTimeField";
 import { SelectField } from "@/components/ui/SelectField";
-import { useSignatureUpload } from "@/hooks/useSignatureUpload";
+import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 import { Colors } from "@/theme/colors";
 import {
   REFERRAL_HOSPITALS,
@@ -51,6 +51,8 @@ interface Props {
   colors: any;
   isReadOnly: boolean;
   initialExpanded?: boolean;
+  /** Visit id — required to upload the attachment to /agent/attachments/upload. */
+  visitId: number;
   primaryPhysician: string;
   referralBy: string;
   /** Previously-submitted referrals for this visit (newest first). */
@@ -68,6 +70,7 @@ export function ReferralForm({
   colors,
   isReadOnly,
   initialExpanded,
+  visitId,
   primaryPhysician,
   referralBy,
   previousReferrals,
@@ -87,8 +90,9 @@ export function ReferralForm({
   const [attachmentUri, setAttachmentUri] = useState<string | undefined>();
   // Server-side attachment from existing referral (URL only — no local URI).
   const [existingAttachmentUrl, setExistingAttachmentUrl] = useState<string | null>(null);
-  // Uploaded file token returned by /signatures/upload — sent with form save.
-  const attachmentUpload = useSignatureUpload();
+  // Attachment uploaded to /agent/attachments/upload (referrals only). The
+  // returned `fileName` is sent with the form save under the existing keys.
+  const attachmentUpload = useAttachmentUpload(visitId, "referrals");
 
   // Seed form fields from the latest referral the first time data arrives.
   const seeded = useRef(false);
@@ -141,7 +145,8 @@ export function ReferralForm({
     primaryPhysician,
     attachmentUri,
     attachmentName,
-    attachmentSignatureUrl: attachmentUpload.result?.signatureUrl,
+    // Send the uploaded file name via the existing save key (unchanged contract).
+    attachmentSignatureUrl: attachmentUpload.result?.fileName,
   });
 
   const canSave =
@@ -187,11 +192,12 @@ export function ReferralForm({
     setAttachmentName(name);
     setExistingAttachmentUrl(null);
 
-    // Upload immediately to /signatures/upload so the form save only needs the URL.
+    // Upload immediately to /agent/attachments/upload so the form save only
+    // needs the returned file name.
     await attachmentUpload.upload({
       uri:  asset.uri,
       name,
-      type: asset.mimeType,
+      mimeType: asset.mimeType,
     });
   };
 
@@ -290,7 +296,7 @@ export function ReferralForm({
             }}
             uploading={attachmentUpload.uploading}
             uploadError={attachmentUpload.error}
-            uploadedUrl={attachmentUpload.result?.fullUrl ?? null}
+            uploadedUrl={attachmentUpload.result?.fileUrl ?? null}
             colors={colors}
             t={t}
           />

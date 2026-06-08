@@ -323,7 +323,7 @@ export default function AppointmentDetailScreen() {
             members={careTeam}
             confirmedLabel={t("confirmed")}
             onConfirmMember={
-              canConfirmForOthers && status === AppointmentStatus.New
+              canConfirmForOthers &&( status === AppointmentStatus.New || status === AppointmentStatus.Pending)
                 ? (member) => {
                   console.log("member", member, status);
                     if (member.id == null) return;
