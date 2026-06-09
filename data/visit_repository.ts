@@ -54,6 +54,7 @@ import type { RefusalInput } from './models/refusal'
 import { serializeDisOfHemodialysis } from './transform/disOfHemodialysis'
 import type { SariScreening, SariScreeningInput } from './models/sariScreening'
 import { clock12hToApiTime } from '@/utils/time'
+import { DateTimeConverter } from '@/utils/datetime'
 
 export const VISITS_PER_PAGE = 20
 
@@ -988,35 +989,26 @@ export async function submitFlowSheetPostTreatment(
     post_assessment: serializePostAssessment(body.postAssessment),
   }
   if (pSig?.signatureUrl) {
-    // Mirror the backend's response shape: hyphenated wrapper
-    // `patient-signature` carrying the `_signature_url` / `_signed_at` /
-    // `_is_relative` fields. Legacy flat keys are kept for back-compat.
+    const signedAt = DateTimeConverter.toApiDatetime(pSig.signedAt)
     postPayload['patient-signature'] = {
       patient_signature_signature_url: pSig.signatureUrl,
-      patient_signature_signed_at:     pSig.signedAt ?? '',
+      patient_signature_signed_at:     signedAt,
       patient_signature_is_relative:   '0',
     }
     postPayload.patient_signature_url = pSig.signatureUrl
-    if (pSig.signedAt) postPayload.patient_signature_signed_at = pSig.signedAt
+    postPayload.patient_signature_signed_at = signedAt
   }
   if (nSig?.signatureUrl) {
     const pa = postPayload.post_assessment as Record<string, unknown>
     pa.post_assessment_signature_url = nSig.signatureUrl
     pa.signature_image = nSig.signatureUrl  // legacy fallback key
-    if (nSig.signedAt) pa.signature_date = nSig.signedAt
+    pa.signature_date = DateTimeConverter.toApiDatetime(nSig.signedAt)
   }
-  // Nurse confirmation audit (read-only mode or freshly drawn) — merged into
-  // the existing `post_assessment` object as `post_assessment_signature_*`
-  // fields. Emitted even when there's no image.
+  // Nurse confirmation audit — merged into `post_assessment` as
+  // `post_assessment_signature_*` fields. Emitted even when there's no image.
   if (nSig) {
-    const fmtDate = (iso: string | undefined): string => {
-      const d = new Date(iso ?? Date.now())
-      if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10).replace(/-/g, '/')
-      const pad = (n: number) => String(n).padStart(2, '0')
-      return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}`
-    }
     const pa = postPayload.post_assessment as Record<string, unknown>
-    pa.post_assessment_signature_signed_at = fmtDate(nSig.signedAt)
+    pa.post_assessment_signature_signed_at = DateTimeConverter.toApiDatetime(nSig.signedAt)
     pa.post_assessment_signature_signed_by = body.currentUserId != null ? String(body.currentUserId) : ''
   }
 
@@ -1033,15 +1025,11 @@ export async function submitFlowSheetPostTreatment(
 
   if (patientInline) {
     fd.append('patient_signature', dataUrlToFile(pSig!.dataUrl, 'patient_signature'))
-    if (pSig!.signedAt) {
-      fd.append('patient_signature_signed_at', pSig!.signedAt)
-    }
+    fd.append('patient_signature_signed_at', DateTimeConverter.toApiDatetime(pSig!.signedAt))
   }
   if (nurseInline) {
     fd.append('nurse_signature', dataUrlToFile(nSig!.dataUrl, 'nurse_signature'))
-    if (nSig!.signedAt) {
-      fd.append('nurse_signature_signed_at', nSig!.signedAt)
-    }
+    fd.append('nurse_signature_signed_at', DateTimeConverter.toApiDatetime(nSig!.signedAt))
   }
 
   const res = await apiClient.post(

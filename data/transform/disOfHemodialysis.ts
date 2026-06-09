@@ -1,4 +1,5 @@
 import { EMPTY_PARTY, EMPTY_REFUSAL_SIDE, type PartyInfo, type RefusalSide, type RefusalType } from "../models/refusal"
+import { DateTimeConverter } from "@/utils/datetime"
 
 /**
  * Wire shape for `GET/POST /api/visits/{id}/forms/dis-of-hemodialysis`.
@@ -47,16 +48,7 @@ const DEFAULT_LABELS = {
  */
 function formatSignedAt(value: string | undefined | null): string {
   if (!value) return ""
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  const yyyy = d.getFullYear()
-  const mm = pad(d.getMonth() + 1)
-  const dd = pad(d.getDate())
-  let hours = d.getHours()
-  const ampm = hours >= 12 ? "PM" : "AM"
-  hours = hours % 12 || 12
-  return `${yyyy}/${mm}/${dd} ${pad(hours)}:${pad(d.getMinutes())} ${ampm}`
+  return DateTimeConverter.toApiDatetime(value)
 }
 
 /**

@@ -117,4 +117,27 @@ export class DateTimeConverter {
     const [h = '00', m = '00'] = hhmm.split(':')
     return `${h}:${m}:00`
   }
+
+  /**
+   * Format any date-like value as `"YYYY-MM-DD HH:MM:SS"` — the standard
+   * datetime format for all API payloads in this project.
+   * Defaults to the current time when `input` is null/undefined.
+   */
+  static toApiDatetime(input?: DateInput): string {
+    const d = input != null ? this.parse(input) : null
+    const dt = d ?? new Date()
+    const date = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`
+    const time = `${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}:${pad(dt.getUTCSeconds())}`
+    return `${date} ${time}`
+  }
+
+  /**
+   * Format any date-like value as `"YYYY-MM-DD"` only — for fields that need
+   * just the date portion in the API payload.
+   */
+  static toApiDate(input?: DateInput): string {
+    const d = input != null ? this.parse(input) : null
+    const dt = d ?? new Date()
+    return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`
+  }
 }
