@@ -11,6 +11,11 @@
       "prebuildCommand": "expo prebuild --clean",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_USE_MOCK_DATA": "false",
+        "EXPO_PUBLIC_API_BASE_URL": "https://nurse-app.careconnectksa.com/api",
+        "EXPO_PUBLIC_SIGNATURE_API_BASE_URL": "https://staging.careconnectksa.com/api"
       }
     },
     "preview": {
@@ -21,11 +26,21 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_USE_MOCK_DATA": "false",
+        "EXPO_PUBLIC_API_BASE_URL": "https://nurse-app.careconnectksa.com/api",
+        "EXPO_PUBLIC_SIGNATURE_API_BASE_URL": "https://staging.careconnectksa.com/api"
       }
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "expo prebuild --clean"
+      "prebuildCommand": "expo prebuild --clean",
+      "env": {
+        "EXPO_PUBLIC_USE_MOCK_DATA": "false",
+        "EXPO_PUBLIC_API_BASE_URL": "https://nurse-app.careconnectksa.com/api",
+        "EXPO_PUBLIC_SIGNATURE_API_BASE_URL": "https://staging.careconnectksa.com/api"
+      }
     }
   },
   "submit": {
