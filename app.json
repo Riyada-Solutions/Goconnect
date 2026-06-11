@@ -2,7 +2,7 @@
   "expo": {
     "name": "Goconnect",
     "slug": "CareConnectNurse",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "goconnect",
@@ -33,7 +33,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#2DAAAE"
       },
-      "package": "com.careconnectksa.nurse",
+      "package": "com.goconnect",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
