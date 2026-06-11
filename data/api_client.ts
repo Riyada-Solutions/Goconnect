@@ -1,7 +1,12 @@
 import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
+import { Platform } from 'react-native'
 import { ENV } from '@/constants/env'
 import { fmtJson, log } from '@/utils/logger'
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
+const APP_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android'
 
 const TAG = 'API Request'
 
@@ -18,6 +23,9 @@ apiClient.interceptors.request.use(async (config) => {
   const lang = (await AsyncStorage.getItem('@goconnect/language')) || 'en'
   config.headers['Accept-Language'] = lang
   config.headers['X-Lang'] = lang
+  config.headers['X-App-Version'] = APP_VERSION
+  config.headers['Version'] = APP_VERSION
+  config.headers['X-Platform'] = APP_PLATFORM
 
   log(
     TAG,

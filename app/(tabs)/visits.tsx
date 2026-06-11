@@ -41,13 +41,6 @@ const FILTERS: VisitFilter[] = [
   "completed",
 ];
 
-const FILTER_LABELS: Record<VisitFilter, string> = {
-  all: "All",
-  in_progress: "In Progress",
-  start_procedure: "Start Procedure",
-  end_procedure: "End Procedure",
-  completed: "Completed",
-};
 
 const VISIT_TYPE_ICONS: Record<string, string> = {
   "Home Visit": "home",
@@ -59,6 +52,13 @@ const VISIT_TYPE_ICONS: Record<string, string> = {
 export default function VisitsScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
+  const FILTER_LABELS: Record<VisitFilter, string> = {
+    all: t("all"),
+    in_progress: t("visitFilterInProgress"),
+    start_procedure: t("visitFilterStartProcedure"),
+    end_procedure: t("visitFilterEndProcedure"),
+    completed: t("completed"),
+  };
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [activeFilter, setActiveFilter] = useState<VisitFilter>("all");
   const {

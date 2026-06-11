@@ -120,14 +120,16 @@ export function SocialWorkerProgressNoteForm({
             />
           </View>
 
-          <Pressable
-            style={[s.saveFlowBtn, { backgroundColor: currentNote.trim() ? Colors.primary : colors.border }]}
-            onPress={handleSave}
-            disabled={!currentNote.trim()}
-          >
-            <Feather name="save" size={16} color="#fff" />
-            <Text style={s.mainBtnText}>{t("save")}</Text>
-          </Pressable>
+          {!isReadOnly && (
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: currentNote.trim() ? Colors.primary : colors.border }]}
+              onPress={handleSave}
+              disabled={!currentNote.trim()}
+            >
+              <Feather name="save" size={16} color="#fff" />
+              <Text style={s.mainBtnText}>{t("save")}</Text>
+            </Pressable>
+          )}
     </View>
   );
 

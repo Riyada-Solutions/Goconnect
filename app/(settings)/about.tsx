@@ -90,8 +90,8 @@ export default function AboutScreen() {
                 <Feather name="users" size={16} color={Colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.featureTitle, { color: colors.text }]}>Patient Management</Text>
-                <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Comprehensive patient records and health tracking</Text>
+                <Text style={[styles.featureTitle, { color: colors.text }]}>{t("patientManagement")}</Text>
+                <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>{t("patientManagementDesc")}</Text>
               </View>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
@@ -100,8 +100,8 @@ export default function AboutScreen() {
                 <Feather name="calendar" size={16} color="#6366F1" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.featureTitle, { color: colors.text }]}>Smart Scheduling</Text>
-                <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Efficient appointment and schedule management</Text>
+                <Text style={[styles.featureTitle, { color: colors.text }]}>{t("smartScheduling")}</Text>
+                <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>{t("smartSchedulingDesc")}</Text>
               </View>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
@@ -110,14 +110,14 @@ export default function AboutScreen() {
                 <Feather name="map-pin" size={16} color="#10B981" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.featureTitle, { color: colors.text }]}>Visit Tracking</Text>
-                <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Home and clinic visit management with location tracking</Text>
+                <Text style={[styles.featureTitle, { color: colors.text }]}>{t("visitTracking")}</Text>
+                <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>{t("visitTrackingDesc")}</Text>
               </View>
             </View>
           </Card>
 
           <Text style={[styles.copyright, { color: colors.textTertiary }]}>
-            © 2025 GoConnect. All rights reserved.
+            {t("copyright")}
           </Text>
         </View>
       </ScrollView>

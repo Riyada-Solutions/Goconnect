@@ -76,7 +76,15 @@ export const RELATIONSHIP_OPTIONS = [
   "Daughter",
   "Brother",
   "Sister",
+  "Grandfather",
+  "Grandmother",
+  "Uncle",
+  "Aunt",
+  "Cousin",
+  "Nephew",
+  "Niece",
   "Guardian",
+  "Partner",
   "Other",
 ] as const
 

@@ -56,7 +56,7 @@ export default function VisitDetailScreen() {
 
 function VisitDetailScreenInner() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
-  const { t, user } = useApp();
+  const { t, user, can } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad } = useScreenPadding({ hasActionBar: true });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
@@ -161,12 +161,23 @@ function VisitDetailScreenInner() {
   }, [startVisitMutation]);
 
   const handleEndProcedure = useCallback(() => {
+    const meds: any[] = (record as any)?.flowSheet?.dialysisMedications ?? [];
+    const pending = meds.filter((m: any) => m?.administered?.data?.action == null);
+    if (pending.length > 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      showDialog({
+        variant: "error",
+        title: t("endProcedureMedsPendingTitle"),
+        message: `${t("endProcedureMedsPendingMessage")}\n${pending.length} ${t("endProcedureMedsPendingCount")}`,
+      });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setVisitPhase("end_procedure");
     setProcedureEndTimeStr(DateTimeConverter.time(new Date()));
     setEditProcEnd(DateTimeConverter.time(new Date()));
     endVisitMutation.mutate();
-  }, [endVisitMutation]);
+  }, [endVisitMutation, record, showDialog, t]);
 
   const handleCheckOut = useCallback(() => {
     setShowCheckoutModal(false);
@@ -523,6 +534,9 @@ function VisitDetailScreenInner() {
           <ProgressNoteGroup
             colors={colors}
             isReadOnly={isReadOnly}
+            canSubmitDoctor={can("submit_doctor_progress_note")}
+            canSubmitNursing={can("submit_nursing_progress_note")}
+            canSubmitSocial={can("submit_social_worker_progress_note")}
             // initialExpanded={initialPhase === "completed"}
             doctorVitals={preTreatmentVitals}
             doctorNotes={doctorProgressNotes}

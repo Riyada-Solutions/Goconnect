@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useApp } from "@/context/AppContext";
 import { Colors } from "@/theme/colors";
 
 interface Props {
@@ -36,9 +37,10 @@ type Item = { label: string; state: number | null; setState: (v: number) => void
 
 export function MorseFallScaleSheet(props: Props) {
   const insets = useSafeAreaInsets();
+  const { t } = useApp();
   const { colors, morseTotal } = props;
   const riskColor = morseTotal >= 45 ? "#EF4444" : morseTotal >= 25 ? "#F59E0B" : "#22C55E";
-  const riskLabel = morseTotal >= 45 ? "HIGH RISK" : morseTotal >= 25 ? "MODERATE RISK" : "LOW RISK";
+  const riskLabel = morseTotal >= 45 ? t("morseHighRisk") : morseTotal >= 25 ? t("morseModerateRisk") : t("morseLowRisk");
 
   const allFilled =
     props.morseA != null && props.morseB != null && props.morseC != null &&
@@ -64,24 +66,24 @@ export function MorseFallScaleSheet(props: Props) {
       props.onClose();
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(e instanceof Error ? e.message : "Save failed. Please try again.");
+      setError(e instanceof Error ? e.message : t("morseSaveFailed"));
       setBusy(false);
     }
   };
 
   const items: Item[] = [
-    { label: "A. History of Falling (immediate or < 3 months)", state: props.morseA, setState: props.setMorseA, options: [{ label: "No", value: 0 }, { label: "Yes", value: 25 }] },
-    { label: "B. Secondary Diagnosis", state: props.morseB, setState: props.setMorseB, options: [{ label: "No", value: 0 }, { label: "Yes", value: 15 }] },
-    { label: "C. Ambulatory Aid", state: props.morseC, setState: props.setMorseC, options: [{ label: "None / Bedrest / Nurse assist", value: 0 }, { label: "Crutches / Cane / Walker", value: 15 }, { label: "Furniture", value: 30 }] },
-    { label: "D. IV Therapy / Heparin Lock", state: props.morseD, setState: props.setMorseD, options: [{ label: "No", value: 0 }, { label: "Yes", value: 20 }] },
-    { label: "E. Gait / Transfer", state: props.morseE, setState: props.setMorseE, options: [{ label: "Normal / Bedrest / Wheelchair", value: 0 }, { label: "Weak gait", value: 10 }, { label: "Impaired gait", value: 20 }] },
-    { label: "F. Mental Status", state: props.morseF, setState: props.setMorseF, options: [{ label: "Oriented to own ability", value: 0 }, { label: "Forgets limitations", value: 15 }] },
+    { label: t("morseItemA"), state: props.morseA, setState: props.setMorseA, options: [{ label: t("morseOptNo"), value: 0 }, { label: t("morseOptYes"), value: 25 }] },
+    { label: t("morseItemB"), state: props.morseB, setState: props.setMorseB, options: [{ label: t("morseOptNo"), value: 0 }, { label: t("morseOptYes"), value: 15 }] },
+    { label: t("morseItemC"), state: props.morseC, setState: props.setMorseC, options: [{ label: t("morseOptNoneBedrest"), value: 0 }, { label: t("morseOptCrutches"), value: 15 }, { label: t("morseOptFurniture"), value: 30 }] },
+    { label: t("morseItemD"), state: props.morseD, setState: props.setMorseD, options: [{ label: t("morseOptNo"), value: 0 }, { label: t("morseOptYes"), value: 20 }] },
+    { label: t("morseItemE"), state: props.morseE, setState: props.setMorseE, options: [{ label: t("morseOptNormalBedrest"), value: 0 }, { label: t("morseOptWeakGait"), value: 10 }, { label: t("morseOptImpairedGait"), value: 20 }] },
+    { label: t("morseItemF"), state: props.morseF, setState: props.setMorseF, options: [{ label: t("morseOptOrientedOwn"), value: 0 }, { label: t("morseOptForgetsLimits"), value: 15 }] },
   ];
 
   const groups = [
-    { group: "LOW RISK (0–24)", color: "#22C55E", bg: "#D1FAE5", actions: ["standard_fp", "patient_edu", "safe_env"], labels: { standard_fp: "Standard fall precautions", patient_edu: "Patient education", safe_env: "Safe environment review" } },
-    { group: "MODERATE RISK (25–44)", color: "#F59E0B", bg: "#FEF3C7", actions: ["assist_amb", "bed_low", "review_meds", "reassess_24"], labels: { assist_amb: "Assist with ambulation", bed_low: "Keep bed low and locked", review_meds: "Review medications", reassess_24: "Reassess within 24 hours" } },
-    { group: "HIGH RISK (≥45)", color: "#EF4444", bg: "#FEE2E2", actions: ["hr_protocol", "bed_alarm", "nurse_mobility", "freq_monitor", "family_edu", "reassess_shift"], labels: { hr_protocol: "High-risk fall protocol", bed_alarm: "Bed alarm if available", nurse_mobility: "Nurse-assisted mobility", freq_monitor: "Frequent monitoring", family_edu: "Family/caregiver education", reassess_shift: "Reassess every shift" } },
+    { group: t("morseLowRiskRange"), color: "#22C55E", bg: "#D1FAE5", actions: ["standard_fp", "patient_edu", "safe_env"], labels: { standard_fp: t("morseActStandardFP"), patient_edu: t("morseActPatientEdu"), safe_env: t("morseActSafeEnv") } },
+    { group: t("morseModerateRiskRange"), color: "#F59E0B", bg: "#FEF3C7", actions: ["assist_amb", "bed_low", "review_meds", "reassess_24"], labels: { assist_amb: t("morseActAssistAmb"), bed_low: t("morseActBedLow"), review_meds: t("morseActReviewMeds"), reassess_24: t("morseActReassess24") } },
+    { group: t("morseHighRiskRange"), color: "#EF4444", bg: "#FEE2E2", actions: ["hr_protocol", "bed_alarm", "nurse_mobility", "freq_monitor", "family_edu", "reassess_shift"], labels: { hr_protocol: t("morseActHrProtocol"), bed_alarm: t("morseActBedAlarm"), nurse_mobility: t("morseActNurseMobility"), freq_monitor: t("morseActFreqMonitor"), family_edu: t("morseActFamilyEdu"), reassess_shift: t("morseActReassessShift") } },
   ];
 
   return (
@@ -94,14 +96,14 @@ export function MorseFallScaleSheet(props: Props) {
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Feather name="clipboard" size={18} color="#F59E0B" />
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 17, color: colors.text }}>Morse Fall Scale Items</Text>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 17, color: colors.text }}>{t("morseFallScaleItems")}</Text>
           </View>
           <Pressable onPress={props.onClose} style={{ padding: 4 }}>
             <Feather name="x" size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
-          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: colors.textSecondary }}>Total Morse Score</Text>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: colors.textSecondary }}>{t("totalMorseScore")}</Text>
           <View style={{ backgroundColor: riskColor, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5, flexDirection: "row", gap: 6, alignItems: "center" }}>
             <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>{morseTotal}</Text>
             <Text style={{ fontFamily: "Inter_500Medium", fontSize: 11, color: "#fff" }}>{riskLabel}</Text>
@@ -112,9 +114,9 @@ export function MorseFallScaleSheet(props: Props) {
             <View key={item.label} style={{ backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
               <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#F59E0B", marginBottom: 8 }}>{item.label}</Text>
               <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.borderLight, paddingBottom: 4, marginBottom: 4 }}>
-                <Text style={{ flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 11, color: colors.textSecondary }}>Option</Text>
-                <Text style={{ width: 50, fontFamily: "Inter_600SemiBold", fontSize: 11, color: colors.textSecondary, textAlign: "center" }}>Score</Text>
-                <Text style={{ width: 40, fontFamily: "Inter_600SemiBold", fontSize: 11, color: colors.textSecondary, textAlign: "center" }}>Pick</Text>
+                <Text style={{ flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 11, color: colors.textSecondary }}>{t("morseOptionCol")}</Text>
+                <Text style={{ width: 50, fontFamily: "Inter_600SemiBold", fontSize: 11, color: colors.textSecondary, textAlign: "center" }}>{t("morseScoreCol")}</Text>
+                <Text style={{ width: 40, fontFamily: "Inter_600SemiBold", fontSize: 11, color: colors.textSecondary, textAlign: "center" }}>{t("morsePickCol")}</Text>
               </View>
               {item.options.map((opt) => (
                 <Pressable key={opt.value} onPress={() => { Haptics.selectionAsync(); item.setState(opt.value); }} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 7 }}>
@@ -131,7 +133,7 @@ export function MorseFallScaleSheet(props: Props) {
           ))}
 
           <View style={{ backgroundColor: colors.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: colors.text, marginBottom: 10 }}>5. Recommended Actions Based on Risk Score</Text>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: colors.text, marginBottom: 10 }}>{t("morseRecommendedActions")}</Text>
             {groups.map((group) => (
               <View key={group.group} style={{ marginBottom: 10 }}>
                 <View style={{ backgroundColor: group.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: "flex-start", marginBottom: 6 }}>
@@ -160,7 +162,7 @@ export function MorseFallScaleSheet(props: Props) {
             </View>
           ) : !allFilled ? (
             <Text style={{ color: colors.textSecondary, fontFamily: "Inter_500Medium", fontSize: 11, textAlign: "center", marginBottom: 8 }}>
-              Select an option for all 6 categories to enable save.
+              {t("morseSelectAll")}
             </Text>
           ) : null}
           <Pressable
@@ -183,7 +185,7 @@ export function MorseFallScaleSheet(props: Props) {
               <Feather name="save" size={15} color="#fff" />
             )}
             <Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 15 }}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("saving") : t("save")}
             </Text>
           </Pressable>
         </View>

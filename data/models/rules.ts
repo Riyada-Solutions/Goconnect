@@ -63,9 +63,14 @@ export type RuleAction =
   | 'submit_flow_sheet_anticoagulation'
   | 'submit_flow_sheet_medications'
   | 'submit_flow_sheet_post_treatment'
+  | 'view_nursing_progress_note'
   | 'submit_nursing_progress_note'
+  | 'view_doctor_progress_note'
   | 'submit_doctor_progress_note'
+  | 'view_social_worker_progress_note'
   | 'submit_social_worker_progress_note'
+  | 'view_nutrition_progress_note'
+  | 'submit_nutrition_progress_note'
   | 'submit_referral'
   | 'submit_refusal'
   | 'submit_sari_screening'
@@ -128,9 +133,14 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
   'submit_flow_sheet_anticoagulation',
   'submit_flow_sheet_medications',
   'submit_flow_sheet_post_treatment',
+  'view_nursing_progress_note',
   'submit_nursing_progress_note',
+  'view_doctor_progress_note',
   'submit_doctor_progress_note',
+  'view_social_worker_progress_note',
   'submit_social_worker_progress_note',
+  'view_nutrition_progress_note',
+  'submit_nutrition_progress_note',
   'submit_referral',
   'submit_refusal',
   'submit_sari_screening',
@@ -604,8 +614,10 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   // ── Visits ────────────────────────────────────────────────────────
   view_visits:        [BackendRule.Visit.ViewEditMy, BackendRule.Visit.ViewAll, BackendRule.Module.Visits],
   view_visit_detail:  [BackendRule.WaitingRoomAction.ViewVisitDetails, BackendRule.Visit.ViewEditMy, BackendRule.Visit.ViewAll],
-  start_visit:        [BackendRule.Visit.StartMy, BackendRule.Visit.StartAll],
-  end_visit:          [BackendRule.Visit.EndMy, BackendRule.Visit.EndAll],
+  // start_visit / end_visit = "Start Procedure" / "End Procedure" buttons.
+  // Accept both the bare visit start/end rules AND the procedure-specific rules.
+  start_visit:        [BackendRule.Visit.StartMy, BackendRule.Visit.StartAll, BackendRule.Visit.StartEndMyProcedure, BackendRule.Visit.StartEndAllProcedure],
+  end_visit:          [BackendRule.Visit.EndMy, BackendRule.Visit.EndAll, BackendRule.Visit.StartEndMyProcedure, BackendRule.Visit.StartEndAllProcedure],
 
   // ── Flow sheet submissions — all gated by the patient flowsheet edit rule ──
   submit_flow_sheet_outside_dialysis:    BackendRule.Patient.FlowsheetEdit,
@@ -630,10 +642,16 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   // `patients.nurse-note`, `patients.social-worker-progress-note`) OR the
   // generic `*-progress-note(.edit)` rule, so a user granted only one is not
   // wrongly locked out.
-  submit_nursing_progress_note:       [BackendRule.Patient.NursingProgressNoteEdit, BackendRule.Patient.NurseNote],
-  submit_doctor_progress_note:        [BackendRule.Patient.ProgressNotesEdit, BackendRule.Patient.DoctorNote],
-  submit_social_worker_progress_note: [BackendRule.Patient.SocialWorkerProgressNoteEdit, BackendRule.Patient.SocialWorkerProgressNote],
+  view_nursing_progress_note:          BackendRule.Patient.NurseNote,
+  submit_nursing_progress_note:        BackendRule.Patient.NursingProgressNoteEdit,
+  view_doctor_progress_note:           BackendRule.Patient.DoctorNote,
+  submit_doctor_progress_note:         BackendRule.Patient.ProgressNotesEdit,
+  view_social_worker_progress_note:    BackendRule.Patient.SocialWorkerProgressNote,
+  submit_social_worker_progress_note:  BackendRule.Patient.SocialWorkerProgressNoteEdit,
+  view_nutrition_progress_note:        BackendRule.Patient.NutritionProgressNotes,
+  submit_nutrition_progress_note:      BackendRule.Patient.NutritionProgressNotesEdit,
   submit_referral:                    BackendRule.Patient.ReferralsEdit,
+  submit_refusal:                     BackendRule.Patient.DisOfHemodialysisEdit,
   submit_sari_screening:              BackendRule.Patient.RespiratoryIllnessScreeningEdit,
   submit_inventory_usage:             [BackendRule.InventoryAction.UseItem, BackendRule.InventoryAction.CreateUsage],
 

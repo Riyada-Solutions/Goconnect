@@ -11,15 +11,23 @@ import { RELATIONSHIP_OPTIONS, type PartyInfo } from "@/data/models/refusal";
 import { visitDetailStyles as s } from "../../../visit-detail.styles";
 
 const RELATIONSHIP_KEYS: Record<(typeof RELATIONSHIP_OPTIONS)[number], string> = {
-  Father: "relationshipFather",
-  Mother: "relationshipMother",
-  Spouse: "relationshipSpouse",
-  Son: "relationshipSon",
-  Daughter: "relationshipDaughter",
-  Brother: "relationshipBrother",
-  Sister: "relationshipSister",
-  Guardian: "relationshipGuardian",
-  Other: "relationshipOther",
+  Father:      "relationshipFather",
+  Mother:      "relationshipMother",
+  Spouse:      "relationshipSpouse",
+  Son:         "relationshipSon",
+  Daughter:    "relationshipDaughter",
+  Brother:     "relationshipBrother",
+  Sister:      "relationshipSister",
+  Grandfather: "relationshipGrandfather",
+  Grandmother: "relationshipGrandmother",
+  Uncle:       "relationshipUncle",
+  Aunt:        "relationshipAunt",
+  Cousin:      "relationshipCousin",
+  Nephew:      "relationshipNephew",
+  Niece:       "relationshipNiece",
+  Guardian:    "relationshipGuardian",
+  Partner:     "relationshipPartner",
+  Other:       "relationshipOther",
 };
 
 interface Props {

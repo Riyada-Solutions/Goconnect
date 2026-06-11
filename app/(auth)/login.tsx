@@ -34,7 +34,7 @@ import { getFaceToken, setFaceToken } from "@/data/secure_storage";
 import { getBiometricErrorMessage, isFaceIdSupportedInCurrentBuild } from "@/utils/biometric";
 
 export default function LoginScreen() {
-  const { login, t } = useApp();
+  const { login, t, appSettings } = useApp();
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -407,46 +407,50 @@ export default function LoginScreen() {
           )}
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInUp.delay(400).springify()}
-          style={styles.registerRow}
-        >
-          <Text style={styles.registerText}>{t("dontHaveAccount")} </Text>
-          <Pressable onPress={() => router.push("/(auth)/register")}>
-            <Text style={styles.registerLink}>{t("createAccount")}</Text>
-          </Pressable>
-        </Animated.View>
-
-        <Animated.View
-          entering={FadeInUp.delay(500).springify()}
-          style={styles.guestRow}
-        >
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              const guestUser = {
-                id: "guest",
-                name: t("guest"),
-                role: "guest",
-                email: "",
-                hospital: null,
-                phone: null,
-                department: null,
-                employeeId: "guest",
-              };
-              login(guestUser as any, "guest-token").then(() => {
-                router.replace("/(tabs)/home");
-              });
-            }}
-            style={({ pressed }) => [
-              styles.guestBtn,
-              pressed && { opacity: 0.75 },
-            ]}
+        {appSettings.allowRegister && (
+          <Animated.View
+            entering={FadeInUp.delay(400).springify()}
+            style={styles.registerRow}
           >
-            <Feather name="user" size={16} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.guestText}>{t("continueAsGuest")}</Text>
-          </Pressable>
-        </Animated.View>
+            <Text style={styles.registerText}>{t("dontHaveAccount")} </Text>
+            <Pressable onPress={() => router.push("/(auth)/register")}>
+              <Text style={styles.registerLink}>{t("createAccount")}</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {appSettings.allowGuestMode && (
+          <Animated.View
+            entering={FadeInUp.delay(500).springify()}
+            style={styles.guestRow}
+          >
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                const guestUser = {
+                  id: "guest",
+                  name: t("guest"),
+                  role: "guest",
+                  email: "",
+                  hospital: null,
+                  phone: null,
+                  department: null,
+                  employeeId: "guest",
+                };
+                login(guestUser as any, "guest-token").then(() => {
+                  router.replace("/(tabs)/home");
+                });
+              }}
+              style={({ pressed }) => [
+                styles.guestBtn,
+                pressed && { opacity: 0.75 },
+              ]}
+            >
+              <Feather name="user" size={16} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.guestText}>{t("continueAsGuest")}</Text>
+            </Pressable>
+          </Animated.View>
+        )}
 
         <Animated.View
           entering={FadeInUp.delay(600).springify()}

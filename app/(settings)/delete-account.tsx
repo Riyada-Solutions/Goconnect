@@ -20,15 +20,15 @@ import { deleteAccount } from "@/data/auth_repository";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
 
-const CONSEQUENCES = [
-  { icon: "users", text: "All your patient data will be permanently deleted" },
-  { icon: "calendar", text: "All scheduled visits and history will be lost" },
-  { icon: "settings", text: "Your account settings and preferences will be removed" },
-  { icon: "shield-off", text: "You will lose access to all GoConnect services" },
-];
 
 export default function DeleteAccountScreen() {
   const { logout, can, t } = useApp();
+  const CONSEQUENCES = [
+    { icon: "users", text: t("deleteConsequence1") },
+    { icon: "calendar", text: t("deleteConsequence2") },
+    { icon: "settings", text: t("deleteConsequence3") },
+    { icon: "shield-off", text: t("deleteConsequence4") },
+  ];
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -49,7 +49,7 @@ export default function DeleteAccountScreen() {
     showDialog({
       variant: "confirm",
       title: t("deleteAccount"),
-      message: "This action is permanent and cannot be undone. Are you absolutely sure?",
+      message: t("deleteAccountWarning"),
       primaryAction: {
         label: t("deleteAccount"),
         destructive: true,
@@ -64,7 +64,7 @@ export default function DeleteAccountScreen() {
           } catch (err) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setPasswordError(
-              err instanceof Error ? err.message : "Failed to delete account.",
+              err instanceof Error ? err.message : t("deleteAccountFailed"),
             );
           } finally {
             setLoading(false);
@@ -92,7 +92,7 @@ export default function DeleteAccountScreen() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.text }]}>{t("deleteAccount")}</Text>
-          <Text style={[styles.sub, { color: colors.textSecondary }]}>Permanent action</Text>
+          <Text style={[styles.sub, { color: colors.textSecondary }]}>{t("permanentAction")}</Text>
         </View>
       </View>
 
@@ -106,17 +106,14 @@ export default function DeleteAccountScreen() {
             <View style={styles.warningIcon}>
               <Feather name="alert-triangle" size={28} color="#E53935" />
             </View>
-            <Text style={styles.warningTitle}>Warning: Irreversible Action</Text>
-            <Text style={styles.warningText}>
-              Deleting your account is permanent. All your data will be erased and cannot be
-              recovered.
-            </Text>
+            <Text style={styles.warningTitle}>{t("deleteWarningTitle")}</Text>
+            <Text style={styles.warningText}>{t("deleteWarningText")}</Text>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            WHAT WILL BE DELETED
+            {t("whatWillBeDeleted")}
           </Text>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
             {CONSEQUENCES.map((c, i) => (
@@ -146,7 +143,7 @@ export default function DeleteAccountScreen() {
         {canDeleteAccount ? (
           <Animated.View entering={FadeInDown.delay(140).springify()}>
             <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-              CONFIRM DELETION
+              {t("confirmDeletion")}
             </Text>
             <View style={[styles.card, { backgroundColor: colors.surface, gap: 12, padding: 16 }]}>
               <View>
@@ -178,7 +175,7 @@ export default function DeleteAccountScreen() {
               </View>
               <View>
                 <Text style={[styles.confirmLabel, { color: colors.textSecondary }]}>
-                  Type <Text style={styles.deleteKeyword}>DELETE</Text> to confirm
+                  {t("typeDeleteToConfirm")}
                 </Text>
                 <TextInput
                   style={[
@@ -191,7 +188,7 @@ export default function DeleteAccountScreen() {
                   ]}
                   value={confirm}
                   onChangeText={setConfirm}
-                  placeholder="Type DELETE here"
+                  placeholder={t("typeDeletePlaceholder")}
                   placeholderTextColor={colors.textTertiary}
                   autoCapitalize="characters"
                 />
@@ -200,7 +197,7 @@ export default function DeleteAccountScreen() {
           </Animated.View>
         ) : (
           <Text style={[styles.noPermission, { color: colors.textSecondary }]}>
-            You do not have permission to delete this account.
+            {t("noDeletePermission")}
           </Text>
         )}
 
@@ -227,7 +224,7 @@ export default function DeleteAccountScreen() {
                 { color: canSubmit ? "#fff" : colors.textTertiary },
               ]}
             >
-              {loading ? t("saving") : "Delete My Account"}
+              {loading ? t("saving") : t("deleteMyAccount")}
             </Text>
           </Pressable>
         </Animated.View>

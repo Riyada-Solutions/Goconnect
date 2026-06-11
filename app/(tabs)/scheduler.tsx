@@ -31,7 +31,6 @@ import {
   normalizeAppointmentStatus,
 } from "@/data/models/scheduler";
 
-const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TODAY_INDEX = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
 
 const TYPE_COLORS: Record<string, string> = {
@@ -57,12 +56,11 @@ function buildCalendarDays() {
     const d = new Date(startMonday);
     d.setDate(startMonday.getDate() + i);
     return {
-      name: DAY_NAMES[i % 7],
+      dayIndex: i % 7,
       date: d.getDate(),
       month: d.toLocaleString("default", { month: "short" }),
       fullDate: d,
-      isToday:
-        d.toDateString() === now.toDateString(),
+      isToday: d.toDateString() === now.toDateString(),
       globalIndex: i,
     };
   });
@@ -84,6 +82,7 @@ function to12h(time: string): { time: string; meridiem: "AM" | "PM" } {
 export default function SchedulerScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
+  const DAY_LABELS = [t("dayMon"), t("dayTue"), t("dayWed"), t("dayThu"), t("dayFri"), t("daySat"), t("daySun")];
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [selectedGlobal, setSelectedGlobal] = useState(
     TODAY_GLOBAL >= 0 ? TODAY_GLOBAL : 2 * 7 + TODAY_INDEX,
@@ -174,7 +173,7 @@ export default function SchedulerScreen() {
                       },
                     ]}
                   >
-                    {day.name}
+                    {DAY_LABELS[day.dayIndex]}
                   </Text>
                   <Text
                     style={[
@@ -231,9 +230,9 @@ export default function SchedulerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
-          {CALENDAR_DAYS[selectedGlobal]?.name},{" "}
+          {DAY_LABELS[CALENDAR_DAYS[selectedGlobal]?.dayIndex ?? 0]},{" "}
           {CALENDAR_DAYS[selectedGlobal]?.date}{" "}
-          {CALENDAR_DAYS[selectedGlobal]?.month} — {slots.length} appointments
+          {CALENDAR_DAYS[selectedGlobal]?.month} — {slots.length} {t("appointmentsCount")}
         </Text>
 
         {slots.map((slot, i) => {

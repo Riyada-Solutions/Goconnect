@@ -24,6 +24,10 @@ interface Props {
   isReadOnly: boolean;
   initialExpanded?: boolean;
 
+  canSubmitDoctor?: boolean;
+  canSubmitNursing?: boolean;
+  canSubmitSocial?: boolean;
+
   // Doctor
   doctorVitals?: DoctorProgressNoteVitals;
   doctorNotes: DoctorProgressNote[];
@@ -63,6 +67,9 @@ export function ProgressNoteGroup(props: Props) {
   );
 
   const { colors, isReadOnly, t } = props;
+  const readOnlyDoctor  = isReadOnly || props.canSubmitDoctor  === false;
+  const readOnlyNursing = isReadOnly || props.canSubmitNursing === false;
+  const readOnlySocial  = isReadOnly || props.canSubmitSocial  === false;
 
   const totalCount =
     props.doctorNotes.length + props.nursingNotes.length + props.socialWorkerNotes.length;
@@ -88,12 +95,12 @@ export function ProgressNoteGroup(props: Props) {
             isOpen={!!sections.doctor}
             onToggle={() => toggle("doctor")}
             colors={colors}
-            isReadOnly={isReadOnly}
+            isReadOnly={readOnlyDoctor}
           >
             <DoctorProgressNoteForm
               embedded
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={readOnlyDoctor}
               vitals={props.doctorVitals}
               previousNotes={props.doctorNotes}
               onSave={props.onSaveDoctor}
@@ -108,12 +115,12 @@ export function ProgressNoteGroup(props: Props) {
             isOpen={!!sections.nursing}
             onToggle={() => toggle("nursing")}
             colors={colors}
-            isReadOnly={isReadOnly}
+            isReadOnly={readOnlyNursing}
           >
             <NursingProgressNoteForm
               embedded
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={readOnlyNursing}
               previousNotes={props.nursingNotes}
               onSave={props.onSaveNursing}
               t={t}
@@ -127,12 +134,12 @@ export function ProgressNoteGroup(props: Props) {
             isOpen={!!sections.social}
             onToggle={() => toggle("social")}
             colors={colors}
-            isReadOnly={isReadOnly}
+            isReadOnly={readOnlySocial}
           >
             <SocialWorkerProgressNoteForm
               embedded
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={readOnlySocial}
               previousNotes={props.socialWorkerNotes}
               onSave={props.onSaveSocialWorker}
               t={t}

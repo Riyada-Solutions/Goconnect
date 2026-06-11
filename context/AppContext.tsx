@@ -18,6 +18,12 @@ import {
   registerDevice,
   updateMe,
 } from "@/data/auth_repository";
+import {
+  fetchAppSettings,
+  DEFAULT_APP_SETTINGS,
+  type AppSettings,
+} from "@/data/app_settings_repository";
+import { setUploadApiBase } from "@/data/upload_config";
 import type { User } from "@/data/models/auth";
 import {
   ALL_BACKEND_RULES,
@@ -52,6 +58,8 @@ interface AppContextValue {
   language: Language;
   theme: Theme;
   isDark: boolean;
+  /** Remote app settings (allow_register, allow_guest_mode, upload_media_url). */
+  appSettings: AppSettings;
   /** Action keys the user is allowed to perform. */
   rules: Set<string>;
   /** True when `action` is in the rules list. Use this to gate buttons/screens. */
@@ -82,6 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [language, setLanguageState] = useState<Language>("en");
   const [theme, setThemeState] = useState<Theme>("system");
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [rules, setRules] = useState<Set<string>>(new Set());
   // Wildcard mode: backend returns an empty rules array for super-admin /
   // role-less accounts. Treat that as "all actions permitted" so admins can
@@ -105,11 +114,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let done = false;
     const load = async () => {
       try {
-        const [storedToken, storedLang, storedTheme] = await Promise.all([
+        const [storedToken, storedLang, storedTheme, settings] = await Promise.all([
           AsyncStorage.getItem(ACCESS_TOKEN_KEY),
           AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
+          fetchAppSettings(),
         ]);
+        setAppSettings(settings);
+        if (settings.uploadMediaUrl) setUploadApiBase(settings.uploadMediaUrl);
         if (storedLang) setLanguageState(storedLang as Language);
         if (storedTheme) setThemeState(storedTheme as Theme);
 
@@ -241,6 +253,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       language,
       theme,
       isDark,
+      appSettings,
       rules,
       can,
       t,
@@ -252,7 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshUser,
       updateWorkspaceSelection,
     }),
-    [user, token, isReady, language, theme, isDark, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, updateWorkspaceSelection],
+    [user, token, isReady, language, theme, isDark, appSettings, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, updateWorkspaceSelection],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

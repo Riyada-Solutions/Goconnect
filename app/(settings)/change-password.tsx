@@ -89,9 +89,9 @@ export default function ChangePasswordScreen() {
 
   const handleSave = async () => {
     const e: Record<string, string> = {};
-    if (!current) e.current = "Current password is required";
-    if (!newPass || newPass.length < 8) e.newPass = "Password must be at least 8 characters";
-    if (newPass !== confirm) e.confirm = "Passwords do not match";
+    if (!current) e.current = t("currentPasswordRequired");
+    if (!newPass || newPass.length < 8) e.newPass = t("passwordMinLength");
+    if (newPass !== confirm) e.confirm = t("passwordMismatch");
     if (Object.keys(e).length > 0) {
       setErrors(e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -103,13 +103,13 @@ export default function ChangePasswordScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showDialog({
         variant: "success",
-        title: "Password Changed",
-        message: "Your password has been updated successfully.",
-        primaryAction: { label: "OK", onPress: () => router.back() },
+        title: t("passwordChangedTitle"),
+        message: t("passwordChangedMessage"),
+        primaryAction: { label: t("ok"), onPress: () => router.back() },
       });
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setErrors({ current: "Failed to change password. Please check your current password." });
+      setErrors({ current: t("failedChangePassword") });
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,7 @@ export default function ChangePasswordScreen() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.text }]}>{t("changePassword")}</Text>
-          <Text style={[styles.sub, { color: colors.textSecondary }]}>Update your password</Text>
+          <Text style={[styles.sub, { color: colors.textSecondary }]}>{t("updateYourPassword")}</Text>
         </View>
       </View>
 
@@ -150,7 +150,7 @@ export default function ChangePasswordScreen() {
             <Feather name="lock" size={36} color={Colors.icon.orange} />
           </View>
           <Text style={[styles.iconTopText, { color: colors.textSecondary }]}>
-            Choose a strong password with at least 8 characters
+            {t("chooseStrongPassword")}
           </Text>
         </Animated.View>
 
@@ -159,7 +159,7 @@ export default function ChangePasswordScreen() {
           style={[styles.card, { backgroundColor: colors.surface }]}
         >
           <PasswordField
-            label="Current Password"
+            label={t("currentPassword")}
             value={current}
             onChange={(v) => { setCurrent(v); setErrors((e) => ({ ...e, current: "" })); }}
             show={showCurrent}
@@ -169,7 +169,7 @@ export default function ChangePasswordScreen() {
           />
           <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
           <PasswordField
-            label="New Password"
+            label={t("newPassword")}
             value={newPass}
             onChange={(v) => { setNewPass(v); setErrors((e) => ({ ...e, newPass: "" })); }}
             show={showNew}
@@ -179,7 +179,7 @@ export default function ChangePasswordScreen() {
           />
           <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
           <PasswordField
-            label="Confirm New Password"
+            label={t("confirmNewPassword")}
             value={confirm}
             onChange={(v) => { setConfirm(v); setErrors((e) => ({ ...e, confirm: "" })); }}
             show={showConfirm}
@@ -200,7 +200,7 @@ export default function ChangePasswordScreen() {
           >
             <Feather name="check" size={18} color="#fff" />
             <Text style={styles.saveBtnText}>
-              {loading ? "Saving..." : "Update Password"}
+              {loading ? t("saving") : t("updatePassword")}
             </Text>
           </Pressable>
         </Animated.View>
