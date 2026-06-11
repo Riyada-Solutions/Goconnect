@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/common/Avatar";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
+import { GuestWall } from "@/components/ui/GuestWall";
 import { useApp } from "@/context/AppContext";
 import { uploadAvatar } from "@/data/settings_repository";
 import { useTheme } from "@/hooks/useTheme";
@@ -111,6 +112,8 @@ export default function EditProfileScreen() {
     }
   };
 
+  const isGuest = !user || user.role === "guest";
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -149,7 +152,7 @@ export default function EditProfileScreen() {
         ) : null}
       </View>
 
-      <ScrollView
+      {isGuest ? <GuestWall>{null}</GuestWall> : <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: botPad + 16, gap: 20 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -295,7 +298,7 @@ export default function EditProfileScreen() {
             </Pressable>
           </Animated.View>
         ) : null}
-      </ScrollView>
+      </ScrollView>}
     </KeyboardAvoidingView>
   );
 }

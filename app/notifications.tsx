@@ -21,6 +21,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Shimmer } from "@/components/ui/Shimmer";
+import { GuestWall } from "@/components/ui/GuestWall";
 import { useApp } from "@/context/AppContext";
 import type { ApiNotification } from "@/data/models/notification";
 import {
@@ -230,7 +231,12 @@ type ListItem =
   | { kind: "notif"; notif: ApiNotification; isLast: boolean; group: Group };
 
 export default function NotificationsScreen() {
-  const { t } = useApp();
+  return <NotificationsContent />;
+}
+
+function NotificationsContent() {
+  const { t, user } = useApp();
+  const isGuest = !user || user.role === "guest";
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -342,6 +348,15 @@ export default function NotificationsScreen() {
 
   // ── Loading ────────────────────────────────────────────────────────────
   const showSkeleton = (query.isLoading && !query.data) || refreshing;
+
+  if (isGuest) {
+    return (
+      <View style={[s.container, { backgroundColor: colors.background }]}>
+        {header}
+        <GuestWall>{null}</GuestWall>
+      </View>
+    );
+  }
 
   if (showSkeleton) {
     return (

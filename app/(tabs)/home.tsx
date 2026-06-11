@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { VisitCardSkeleton } from "@/components/skeletons/VisitCardSkeleton";
 import { Shimmer } from "@/components/ui/Shimmer";
+import { GuestWall } from "@/components/ui/GuestWall";
 import { Colors } from "@/theme/colors";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -120,6 +121,8 @@ export default function HomeScreen() {
   // the shimmers so the user gets unambiguous "loading" feedback each time.
   const showSkeleton = isFetching;
 
+  const isGuest = !user || user.role === "guest";
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.screenBg} pointerEvents="none">
@@ -142,7 +145,7 @@ export default function HomeScreen() {
       </View>
     <ScrollView
       style={{ flex: 1, backgroundColor: "transparent" }}
-      contentContainerStyle={{ paddingBottom: botPad }}
+      contentContainerStyle={{ paddingBottom: botPad, flexGrow: 1 }}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -223,8 +226,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Stats Row */}
-        <ScrollView
+        {/* Stats Row — hidden for guests */}
+        {!isGuest && <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.statsScroll}
@@ -272,11 +275,16 @@ export default function HomeScreen() {
               </View>
             </Animated.View>
           ))}
-        </ScrollView>
+        </ScrollView>}
       </LinearGradient>
 
+      {/* Guest login prompt — replaces all body content */}
+      {isGuest && (
+        <GuestWall>{null}</GuestWall>
+      )}
+
       {/* Skeleton — visits + appointments shimmer while fetching */}
-      {showSkeleton && (
+      {showSkeleton && !isGuest && (
         <>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -295,7 +303,7 @@ export default function HomeScreen() {
       )}
 
       {/* Upcoming Visits — hidden when there's nothing to show */}
-      {!showSkeleton && todayVisits.length > 0 && (
+      {!showSkeleton && !isGuest && todayVisits.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -381,7 +389,7 @@ export default function HomeScreen() {
       )}
 
       {/* Upcoming Appointments — driven by `dashboard.appointments` */}
-      {!showSkeleton && appointments.length > 0 && (
+      {!showSkeleton && !isGuest && appointments.length > 0 && (
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -454,7 +462,7 @@ export default function HomeScreen() {
       )}
 
       {/* Empty state — nothing to do today (skipped while skeletons are up) */}
-      {!showSkeleton && !hasContent && (
+      {!showSkeleton && !isGuest && !hasContent && (
         <View style={styles.section}>
           <EmptyState
             icon="calendar"

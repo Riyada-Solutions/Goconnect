@@ -196,6 +196,7 @@ export default function ProfileMainScreen() {
             backgroundColor: colors.surface,
             shadowColor: isDark ? "#000" : "rgba(0,0,0,0.06)",
           }]}>
+            {user?.role !== "guest" && (
             <MenuItem
               icon="user"
               label={t("editProfile")}
@@ -206,6 +207,8 @@ export default function ProfileMainScreen() {
               border={border}
               text={textColor}
             />
+            )}
+            {user?.role !== "guest" && (
             <MenuItem
               icon="briefcase"
               label={t("switchWorkspace")}
@@ -217,6 +220,7 @@ export default function ProfileMainScreen() {
               border={border}
               text={textColor}
             />
+            )}
             <MenuItem
               icon="settings"
               label={t("settings")}
@@ -227,6 +231,7 @@ export default function ProfileMainScreen() {
               border={border}
               text={textColor}
             />
+            {user?.role !== "guest" && (
             <MenuItem
               icon="lock"
               label={t("changePassword")}
@@ -237,6 +242,7 @@ export default function ProfileMainScreen() {
               border={border}
               text={textColor}
             />
+            )}
             {/* <MenuItem
               icon="bell"
               label={t("notifications")}

@@ -21,6 +21,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListSkeleton, SlotCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { GuestWall } from "@/components/ui/GuestWall";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlots } from "@/hooks/useScheduler";
@@ -80,7 +81,8 @@ function to12h(time: string): { time: string; meridiem: "AM" | "PM" } {
 }
 
 export default function SchedulerScreen() {
-  const { t } = useApp();
+  const { t, user } = useApp();
+  const isGuest = !user || user.role === "guest";
   const { colors } = useTheme();
   const DAY_LABELS = [t("dayMon"), t("dayTue"), t("dayWed"), t("dayThu"), t("dayFri"), t("daySat"), t("daySun")];
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
@@ -204,7 +206,7 @@ export default function SchedulerScreen() {
       </View>
 
       {/* Slots list */}
-      {showSkeleton ? (
+      {isGuest ? <GuestWall>{null}</GuestWall> : showSkeleton ? (
         <ListSkeleton
           count={10}
           renderItem={() => <SlotCardSkeleton />}

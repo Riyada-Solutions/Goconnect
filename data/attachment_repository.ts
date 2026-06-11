@@ -1,5 +1,6 @@
 import { apiClient } from './api_client'
 import { getUploadApiBase } from './upload_config'
+import { ENV } from '../constants/env'
 
 export interface AttachmentUploadResult {
   /** Server-stored file name (e.g. `hf_20260602_120737_…png`).

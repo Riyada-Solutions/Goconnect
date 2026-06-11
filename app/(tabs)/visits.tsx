@@ -15,6 +15,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
+import { GuestWall } from "@/components/ui/GuestWall";
 import { PaginationList } from "@/components/common/PaginationList";
 import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -50,7 +51,8 @@ const VISIT_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function VisitsScreen() {
-  const { t } = useApp();
+  const { t, user } = useApp();
+  const isGuest = !user || user.role === "guest";
   const { colors } = useTheme();
   const FILTER_LABELS: Record<VisitFilter, string> = {
     all: t("all"),
@@ -148,7 +150,7 @@ export default function VisitsScreen() {
         </ScrollView>
       </View>
 
-      {showSkeleton ? (
+      {isGuest ? <GuestWall>{null}</GuestWall> : showSkeleton ? (
         <ListSkeleton
           count={10}
           renderItem={() => <VisitCardSkeleton />}

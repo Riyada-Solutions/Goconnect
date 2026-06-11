@@ -18,6 +18,7 @@ import {
   registerDevice,
   updateMe,
 } from "@/data/auth_repository";
+import { clearFaceToken } from "@/data/secure_storage";
 import {
   fetchAppSettings,
   DEFAULT_APP_SETTINGS,
@@ -184,6 +185,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await logoutApi();
+    await clearFaceToken();
     setUser(null);
     setToken(null);
     setRules(new Set());

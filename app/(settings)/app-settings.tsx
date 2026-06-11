@@ -311,6 +311,7 @@ export default function AppSettingsScreen() {
             {t("security")}
           </Text>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            {user?.role !== "guest" && (
             <NavRow
               icon="lock"
               iconBg={Colors.pastel.orange}
@@ -322,18 +323,19 @@ export default function AppSettingsScreen() {
               textColor={colors.text}
               subColor={colors.textSecondary}
             />
+            )}
             <NavRow
               icon="shield"
               iconBg={Colors.pastel.green}
               iconColor={Colors.icon.green}
               label={t("privacyPolicy")}
               onPress={() => router.push("/(settings)/privacy")}
-              borderBottom={biometricAvailable}
+              borderBottom={biometricAvailable && user?.role !== "guest"}
               borderColor={bd}
               textColor={colors.text}
               subColor={colors.textSecondary}
             />
-            {biometricAvailable && (
+            {biometricAvailable && user?.role !== "guest" && (
               <ToggleRow
                 icon={
                   biometricType === "face"

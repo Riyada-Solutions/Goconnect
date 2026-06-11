@@ -17,6 +17,7 @@ import { SearchBar } from "@/components/common/SearchBar";
 import { ListSkeleton, PatientCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { GuestWall } from "@/components/ui/GuestWall";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePatients } from "@/hooks/usePatients";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -28,7 +29,8 @@ type FilterStatus = "all" | "active" | "inactive";
 const FILTERS: FilterStatus[] = ["all", "active", "inactive"];
 
 export default function PatientsScreen() {
-  const { t } = useApp();
+  const { t, user } = useApp();
+  const isGuest = !user || user.role === "guest";
   const { colors } = useTheme();
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [search, setSearch] = useState("");
@@ -130,7 +132,7 @@ export default function PatientsScreen() {
         </View>
       </View>
 
-      {showSkeleton ? (
+      {isGuest ? <GuestWall>{null}</GuestWall> : showSkeleton ? (
         <ListSkeleton
           count={10}
           renderItem={() => <PatientCardSkeleton />}
