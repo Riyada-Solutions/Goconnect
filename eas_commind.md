@@ -11,4 +11,9 @@ BUILD AAB
 npx eas-cli build -p android --profile production
 
 RUN 
+Debug
 npx expo start --clear
+
+Release 
+npx expo run:ios --configuration Release
+npx expo run:android --variant release
