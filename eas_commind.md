@@ -1,39 +1,79 @@
-BUILD APK
-Windose
-eas build --platform android --profile preview
-eas build --platform ios --profile preview
 
-MAC
-npx eas-cli build --platform android --profile preview
-npx eas-cli build --platform ios --profile production
+# Expo / EAS Commands Reference
 
-BUILD AAB
-npx eas-cli build -p android --profile production
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## COMMON
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-RUN 
-Debug
+# Start Metro bundler (debug mode, clears cache)
 npx expo start --clear
 
-Release 
+# Build for both iOS and Android (testing)
+eas build --platform all --profile preview
+
+# Build for both iOS and Android (production)
+eas build --platform all --profile production
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## ANDROID
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Run on emulator (debug)
+npx expo run:android
+
+# Run on device (release)
+npx expo run:android --variant release
+
+# Build APK - direct install, no Play Store (EAS)
+eas build --platform android --profile preview
+
+# Build APK - locally, no EAS needed
+npx expo run:android --variant release
+# APK output: android/app/build/outputs/apk/release/app-release.apk
+
+# Build AAB - for Google Play Store (EAS)
+eas build --platform android --profile production
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## iOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Run on simulator (debug)
+npx expo run:ios
+
+# Run on device (release)
 npx expo run:ios --configuration Release
-npx expo run:android --variant release
 
+# Build IPA - internal testers, direct link, no TestFlight (EAS)
+eas build --platform ios --profile preview
 
-SUBMIT WITHOUT EAS
+# Build IPA - for App Store / TestFlight (EAS)
+eas build --platform ios --profile production
 
-iOS (manual via Transporter on Mac)
-1. Download IPA from EAS dashboard
-2. Open Transporter app (Mac App Store - free)
-3. Drag IPA into Transporter → click Deliver
+# ── Push to TestFlight via EAS ──────────────────
+# Step 1 - Build
+eas build --platform ios --profile production
+# Step 2 - Submit
+eas submit --platform ios --profile production
 
-iOS (via Xcode)
-Xcode → Window → Organizer → Distribute App
+# ── Push to TestFlight via Xcode (no EAS needed) ─
+# Use when EAS free quota is used up
 
-Android (manual APK upload)
-1. eas build --platform android --profile preview
-2. Download APK from EAS dashboard
-3. Upload to Google Play Console → Internal Testing → upload APK
+# Step 1 - Generate native iOS project
+npx expo prebuild --platform ios --clean
 
-Local APK (no EAS)
-npx expo run:android --variant release
-APK path: android/app/build/outputs/apk/release/app-release.apk
+# Step 2 - Open in Xcode
+open ios/Goconnect.xcworkspace
+
+# Step 3 - In Xcode:
+#   - Select project → Signing & Capabilities
+#   - Set Team to your Apple Developer account
+#   - Enable "Automatically manage signing"
+#   - In top bar select "Any iOS Device (arm64)"
+
+# Step 4 - Archive
+#   Xcode menu → Product → Archive → wait to finish
+
+# Step 5 - Distribute
+#   Organizer → Distribute App → App Store Connect → Upload
+#   Then appstoreconnect.apple.com → TestFlight (appears in ~15 min)
