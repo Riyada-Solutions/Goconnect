@@ -1,4 +1,5 @@
-import { apiClient } from './api_client'
+import axios from 'axios'
+import { ENV } from '@/constants/env'
 
 export interface AppSettings {
   allowRegister:  boolean
@@ -13,9 +14,18 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   uploadMediaUrl: null,
 }
 
+// Plain client with no auth header — /settings/app is a public endpoint
+// called before the user logs in. Using apiClient would inject a stale or
+// missing Bearer token and produce a noisy 401 on first launch.
+const publicClient = axios.create({
+  baseURL: ENV.API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
+})
+
 export async function fetchAppSettings(): Promise<AppSettings> {
   try {
-    const res  = await apiClient.get('/settings/app')
+    const res  = await publicClient.get('/settings/app')
     const items: Array<{ key: string; value: string }> = res.data?.data ?? []
     const map: Record<string, string> = {}
     for (const item of items) map[item.key] = item.value

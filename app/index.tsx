@@ -37,7 +37,7 @@ export default function Index() {
   if (!isReady || (user && checking)) return null;
 
   if (user) {
-    if (needsBioUnlock) return <Redirect href="/biometric-unlock" />;
+    if (needsBioUnlock) return <Redirect href="/(auth)/login" />;
     return <Redirect href="/(tabs)/home" />;
   }
   return <Redirect href="/(auth)/login" />;

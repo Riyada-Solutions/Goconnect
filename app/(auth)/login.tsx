@@ -2,9 +2,8 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -29,9 +28,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Logo from "@/assets/svg/logo.svg";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { login as authLogin, verifyFace } from "@/data/auth_repository";
+import { login as authLogin } from "@/data/auth_repository";
 import { getFaceToken, setFaceToken } from "@/data/secure_storage";
-import { getBiometricErrorMessage, isFaceIdSupportedInCurrentBuild } from "@/utils/biometric";
+import { useBiometricLogin } from "@/hooks/useBiometricLogin";
 
 export default function LoginScreen() {
   const { login, t, appSettings } = useApp();
@@ -40,144 +39,53 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Biometric has its own loading flag so a slow/interrupted Face ID flow can
-  // never leave the password Sign In button stuck.
-  const [bioLoading, setBioLoading] = useState(false);
-  // Guards against two concurrent authenticateAsync calls (the mount
-  // auto-prompt + a manual tap) — on iOS the second silently never resolves.
-  const authInFlightRef = useRef(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
-  const [biometricReady, setBiometricReady] = useState(false);
-  const [biometricType, setBiometricType] = useState<"face" | "fingerprint" | "generic">("generic");
-  const [biometricInfo, setBiometricInfo] = useState<string | null>(null);
 
-  // Returning from background can leave a biometric attempt that was suspended
-  // mid-flight (its network promise never settles) — clear the loading state so
-  // the screen is usable again on resume.
+  const {
+    trigger: triggerBiometric,
+    loading: bioLoading,
+    error: bioError,
+    setError: setBioError,
+    isAvailable: biometricAvailable,
+    setIsAvailable: setBiometricAvailable,
+    biometricType,
+  } = useBiometricLogin({
+    requireSetting: true,
+    onSuccess: () => router.replace("/(tabs)/home"),
+  });
+
+  // Clear stale bio error when app resumes from background
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        authInFlightRef.current = false;
-        setBioLoading(false);
-        setLoading(false);
-      }
+      if (state === "active") setBioError(null);
     });
     return () => sub.remove();
   }, []);
 
+  // On mount: show button + auto-trigger exactly like BiometricUnlockScreen
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const compatible = await LocalAuthentication.hasHardwareAsync();
-        const enrolled = await LocalAuthentication.isEnrolledAsync();
-        console.log("[biometric] compatible:", compatible, "enrolled:", enrolled);
-        if (cancelled) return;
-
-        // Detect the available method just for the button icon/label.
-        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-          setBiometricType("face");
-        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-          setBiometricType("fingerprint");
-        }
-
-        // A saved face login exists when the user enabled biometric and we
-        // stored their face_token. The token is preserved across logout, so the
-        // button reappears on the login screen after signing out.
-        const enabled = (await AsyncStorage.getItem("@goconnect/biometric")) === "true";
+        const enabled = await AsyncStorage.getItem("@goconnect/biometric");
         const faceToken = await getFaceToken();
-        const hasSavedFaceLogin = enabled && !!faceToken;
-        console.log("[biometric] enabled:", enabled, "hasToken:", !!faceToken);
-
-        // Show the button (and auto-prompt) whenever a saved face login exists
-        // and the current build can show the native prompt.
-        const canPrompt = hasSavedFaceLogin && isFaceIdSupportedInCurrentBuild();
-        setBiometricReady(canPrompt);
-        if (canPrompt) {
-          // Delay so the screen is fully interactive before the native prompt —
-          // calling authenticateAsync during a cold launch can otherwise fail
-          // to present the Face ID sheet on iOS.
-          setTimeout(() => {
-            if (!cancelled) void handleBiometricLogin();
-          }, 500);
+        if (cancelled) return;
+        const hasSetup = enabled === "true" && !!faceToken;
+        setBiometricAvailable(hasSetup);
+        // Always auto-trigger when biometric is set up.
+        // authenticateAsync with disableDeviceFallback:false handles the full
+        // chain: Face ID → fingerprint → device PIN — whichever is available.
+        if (hasSetup) {
+          void triggerBiometric();
         }
       } catch (e) {
-        console.warn("[biometric] init error", e);
+        console.warn("[login] biometric init", e);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  const handleBiometricLogin = async () => {
-    if (authInFlightRef.current) {
-      console.log("[biometric] already in flight — ignoring duplicate trigger");
-      return;
-    }
-    authInFlightRef.current = true;
-    console.log("[biometric] button pressed");
-    setBiometricInfo(null);
-    try {
-      const enabled =
-        (await AsyncStorage.getItem("@goconnect/biometric")) === "true";
-      const faceToken = await getFaceToken();
-      console.log("[biometric] press → enabled:", enabled, "hasToken:", !!faceToken);
-      if (!enabled || !faceToken) {
-        setBiometricInfo(t("biometricSetupRequired"));
-        return;
-      }
-
-      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-      const hasFace = types.includes(
-        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
-      );
-      const hasFingerprint = types.includes(
-        LocalAuthentication.AuthenticationType.FINGERPRINT,
-      );
-
-      // Priority chain (handled automatically by the OS): Face ID → Fingerprint
-      // → device passcode. With disableDeviceFallback: false the OS prompts the
-      // enrolled biometric and falls back to the passcode if it fails or none
-      // is enrolled.
-      const promptMessage = hasFace
-        ? t("faceIdLogin")
-        : hasFingerprint
-        ? t("fingerprintLogin")
-        : t("biometricLogin");
-
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage,
-        fallbackLabel: t("usePasscode"),
-        cancelLabel: t("cancel"),
-        disableDeviceFallback: false,
-      });
-      console.log("[biometric] auth result:", result);
-      if (!result.success) {
-        if ("error" in result && result.error) {
-          setBiometricInfo(getBiometricErrorMessage(result.error, t));
-        }
-        return;
-      }
-      setBioLoading(true);
-      const { accessToken, user } = await verifyFace({ face_token: faceToken });
-      await login(user, accessToken);
-      if (user.face_token) await setFaceToken(user.face_token);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)/home");
-    } catch (e: any) {
-      console.warn("[biometric] error", e);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setBiometricInfo(`${t("biometricFailed")}${e?.message ? ` — ${e.message}` : ""}`);
-    } finally {
-      setBioLoading(false);
-      authInFlightRef.current = false;
-    }
-  };
-
   const buttonScale = useSharedValue(1);
-
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
@@ -197,8 +105,6 @@ export default function LoginScreen() {
     try {
       const { accessToken, user } = await authLogin({ username, password });
       await login(user, accessToken);
-      // Persist face_token for next-time face login when the user has the
-      // biometric setting enabled.
       const biometricEnabled =
         (await AsyncStorage.getItem("@goconnect/biometric")) === "true";
       if (biometricEnabled && user.face_token) {
@@ -213,6 +119,15 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  const biometricIcon =
+    biometricType === "face" ? (
+      <MaterialCommunityIcons name="face-recognition" size={22} color="#fff" />
+    ) : biometricType === "fingerprint" ? (
+      <MaterialCommunityIcons name="fingerprint" size={22} color="#fff" />
+    ) : (
+      <Feather name="smartphone" size={20} color="#fff" />
+    );
 
   return (
     <KeyboardAvoidingView
@@ -269,8 +184,8 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 value={username}
-                onChangeText={(t) => {
-                  setUsername(t);
+                onChangeText={(v) => {
+                  setUsername(v);
                   setErrors((e) => ({ ...e, username: undefined }));
                 }}
                 placeholder={t("enterUsername")}
@@ -296,8 +211,8 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
+                onChangeText={(v) => {
+                  setPassword(v);
                   setErrors((e) => ({ ...e, password: undefined }));
                 }}
                 placeholder={t("enterPassword")}
@@ -322,89 +237,66 @@ export default function LoginScreen() {
             <Text style={styles.forgotText}>{t("forgotPassword")}</Text>
           </Pressable>
 
-          <Animated.View style={buttonStyle}>
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              onPressIn={() => {
-                buttonScale.value = withSpring(0.97);
-              }}
-              onPressOut={() => {
-                buttonScale.value = withSpring(1);
-              }}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={[Colors.primaryLight, Colors.primary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.buttonGradient}
+          {/* Sign In row — biometric icon button sits beside the Sign In button */}
+          <View style={styles.signInRow}>
+            <Animated.View style={[buttonStyle, { flex: 1 }]}>
+              <Pressable
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleLogin}
+                onPressIn={() => { buttonScale.value = withSpring(0.97); }}
+                onPressOut={() => { buttonScale.value = withSpring(1); }}
+                disabled={loading}
               >
-                {loading ? (
-                  <Text style={styles.buttonText}>{t("signingIn")}</Text>
-                ) : (
-                  <>
-                    <Text style={styles.buttonText}>{t("signIn")}</Text>
-                    <Feather name="arrow-right" size={18} color="#fff" />
-                  </>
-                )}
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-
-          {biometricReady && (
-            <Pressable
-              onPress={handleBiometricLogin}
-              disabled={bioLoading}
-              style={({ pressed }) => [
-                styles.biometricBtn,
-                (pressed || bioLoading) && { opacity: 0.7 },
-              ]}
-            >
-              {bioLoading ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
-              ) : (
-                <>
-                  {biometricType === "face" ? (
-                    <MaterialCommunityIcons name="face-recognition" size={22} color={Colors.primary} />
-                  ) : biometricType === "fingerprint" ? (
-                    <MaterialCommunityIcons name="fingerprint" size={22} color={Colors.primary} />
+                <LinearGradient
+                  colors={[Colors.primaryLight, Colors.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.buttonGradient}
+                >
+                  {loading ? (
+                    <Text style={styles.buttonText}>{t("signingIn")}</Text>
                   ) : (
-                    <Feather name="smartphone" size={20} color={Colors.primary} />
+                    <>
+                      <Text style={styles.buttonText}>{t("signIn")}</Text>
+                      <Feather name="arrow-right" size={18} color="#fff" />
+                    </>
                   )}
-                  <Text style={styles.biometricText}>
-                    {biometricType === "face"
-                      ? t("faceIdLogin")
-                      : biometricType === "fingerprint"
-                      ? t("fingerprintLogin")
-                      : t("biometricLogin")}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          )}
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
 
-          {biometricInfo && (
-            <View
-              style={{
-                backgroundColor: "#FEF3C7",
-                borderRadius: 10,
-                padding: 10,
-                marginTop: 8,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "#92400E",
-                  fontFamily: "Inter_500Medium",
-                  textAlign: "center",
-                }}
+            {biometricAvailable && (
+              <Pressable
+                onPress={triggerBiometric}
+                disabled={bioLoading || loading}
+                style={({ pressed }) => [
+                  styles.biometricIconBtn,
+                  (pressed || bioLoading) && { opacity: 0.7 },
+                ]}
               >
-                {biometricInfo}
-              </Text>
+                <LinearGradient
+                  colors={[Colors.primaryLight, Colors.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.biometricIconGradient}
+                >
+                  {bioLoading ? (
+                    <ActivityIndicator color="#fff" size={20} />
+                  ) : (
+                    biometricIcon
+                  )}
+                </LinearGradient>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Biometric error / info */}
+          {bioError ? (
+            <View style={styles.bioErrorBox}>
+              <Feather name="alert-circle" size={14} color="#92400E" />
+              <Text style={styles.bioErrorText}>{bioError}</Text>
             </View>
-          )}
+          ) : null}
         </Animated.View>
 
         {appSettings.allowRegister && (
@@ -456,9 +348,7 @@ export default function LoginScreen() {
           entering={FadeInUp.delay(600).springify()}
           style={styles.footer}
         >
-          <Text style={styles.footerText}>
-            {t("secureData")}
-          </Text>
+          <Text style={styles.footerText}>{t("secureData")}</Text>
           <Feather name="shield" size={14} color="rgba(255,255,255,0.4)" />
         </Animated.View>
       </ScrollView>
@@ -572,10 +462,25 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     marginTop: 4,
   },
+  forgotBtn: {
+    alignSelf: "flex-end",
+    marginTop: -8,
+    marginBottom: 4,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.primary,
+  },
+  signInRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 10,
+    marginTop: 8,
+  },
   button: {
     borderRadius: 14,
     overflow: "hidden",
-    marginTop: 8,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -597,15 +502,36 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: "#fff",
   },
-  forgotBtn: {
-    alignSelf: "flex-end",
-    marginTop: -8,
-    marginBottom: 4,
+  biometricIconBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  forgotText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.primary,
+  biometricIconGradient: {
+    width: 54,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bioErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+  },
+  bioErrorText: {
+    fontSize: 12,
+    color: "#92400E",
+    fontFamily: "Inter_500Medium",
+    flex: 1,
   },
   registerRow: {
     flexDirection: "row",
@@ -622,23 +548,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
     color: "#fff",
-  },
-  biometricBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.pastel.teal,
-    backgroundColor: "#F0FBFD",
-  },
-  biometricText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.primary,
   },
   guestRow: {
     alignItems: "center",

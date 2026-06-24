@@ -35,11 +35,15 @@
     },
     "production": {
       "autoIncrement": true,
+      "distribution": "internal",
       "prebuildCommand": "expo prebuild --clean",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_USE_MOCK_DATA": "false",
         "EXPO_PUBLIC_API_BASE_URL": "https://nurse-app.careconnectksa.com/api",
-        "EXPO_PUBLIC_SIGNATURE_API_BASE_URL": "https://staging.careconnectksa.com/api"
+        "EXPO_PUBLIC_SIGNATURE_API_BASE_URL": "https://nurse-app.careconnectksa.com/api"
       }
     }
   },

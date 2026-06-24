@@ -604,6 +604,13 @@ export const translations = {
     endProcedureMedsPendingTitle: "Medications Pending",
     endProcedureMedsPendingMessage: "You must take action on all medications in the flowsheet before ending the procedure.",
     endProcedureMedsPendingCount: "medication(s) still require action.",
+
+    // New forms
+    allergiesForm: "Allergies",
+    bloodSugarForm: "Blood Sugar Monitor",
+    socialAssessmentForm: "Social Assessment",
+    incidentsForm: "Incidents",
+    visualTriageChecklist: "Visual Triage Checklist",
   },
   ar: {
     // Common
@@ -1206,6 +1213,13 @@ export const translations = {
     endProcedureMedsPendingTitle: "أدوية معلّقة",
     endProcedureMedsPendingMessage: "يجب اتخاذ إجراء لجميع الأدوية في نموذج التدفق قبل إنهاء الإجراء.",
     endProcedureMedsPendingCount: "دواء/أدوية لا تزال تحتاج إجراءً.",
+
+    // New forms
+    allergiesForm: "الحساسية",
+    bloodSugarForm: "مراقبة سكر الدم",
+    socialAssessmentForm: "التقييم الاجتماعي",
+    incidentsForm: "الحوادث",
+    visualTriageChecklist: "قائمة التصنيف البصري",
   },
 } as const;
 

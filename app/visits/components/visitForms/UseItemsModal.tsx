@@ -1,6 +1,6 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
@@ -26,6 +26,11 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
   return (
     <>
       <Modal visible={visible} transparent animationType="slide">
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+        >
         <View style={s.modalOverlay}>
           <View style={[s.modalContent, { backgroundColor: colors.surface }]}>
             <View style={[s.modalHeader, { backgroundColor: Colors.primary }]}>
@@ -162,6 +167,7 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
       <FeedbackDialog {...modalDialogProps} />
     </>

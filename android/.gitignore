@@ -14,3 +14,12 @@ local.properties
 
 # Bundle artifacts
 *.jsbundle
+
+# Signing keystores — never commit to git
+app/release.keystore
+
+# JVM crash logs
+hs_err_pid*.log
+
+# Kotlin daemon error logs
+.kotlin/errors/

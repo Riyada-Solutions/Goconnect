@@ -3,7 +3,19 @@
     "allow": [
       "Bash(pnpm install:*)",
       "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -H 'Authorization: Bearer 129|C4t0UogJ46C7oWaHCDBw5H249VlnrEHrCpZgqStg3e5c390a' -H 'Accept: application/json' https://nurse-app.careconnectksa.com/api/visits/137)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "PowerShell(& \"D:\\\\Android\\\\Sdk\\\\cmake\\\\3.31.6\\\\bin\\\\cmake.exe\" --version 2>&1)",
+      "PowerShell($path = \"D:/work/React/waleed/careconnect/nurse/v4/Goconnect/node_modules/.pnpm/@react-native-async-storage_088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/react/renderer/components/rnasyncstorage/ComponentDescriptors.cpp\"; Write-Host \"Path length: $\\($path.Length\\)\")",
+      "PowerShell($val = Get-ItemProperty -Path \"HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\FileSystem\" -Name \"LongPathsEnabled\" -ErrorAction SilentlyContinue; Write-Host \"LongPathsEnabled: $\\($val.LongPathsEnabled\\)\")",
+      "PowerShell(\\([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent\\(\\)\\).IsInRole\\([Security.Principal.WindowsBuiltInRole]::Administrator\\))",
+      "PowerShell(Get-ChildItem \"D:\\\\build\\\\async_storage\" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5 | Select-Object FullName; if \\(-not \\(Test-Path \"D:\\\\build\\\\async_storage\"\\)\\) { Write-Host \"NOT redirected - directory does not exist\" } else { Write-Host \"Directory exists\" })",
+      "PowerShell(cd \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\"; ./gradlew assembleRelease 2>&1 | Where-Object { $_ -match \"\\(error:|FAILED|BUILD SUCCESS|BUILD FAILED|ninja|\\\\.cpp\\\\\\)|longer than\\)\" } | Select-Object -Last 30)",
+      "PowerShell(cd \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\"; ./gradlew assembleRelease 2>&1 | Where-Object { $_ -match \"\\(error:|FAILED|BUILD|Patched|ninja|longer than|\\\\.apk\\)\" } | Select-Object -Last 30)",
+      "PowerShell(Get-ChildItem \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\\\\app\\\\.cxx\\\\RelWithDebInfo\\\\622e1u23\\\\arm64-v8a\\\\CMakeFiles\" -Filter \"CMakeError.log\" | ForEach-Object { Get-Content $_.FullName | Select-Object -Last 40 })",
+      "PowerShell(Select-String -Path \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\\\\app\\\\.cxx\\\\RelWithDebInfo\\\\622e1u23\\\\arm64-v8a\\\\build.ninja\" -Pattern \"async.storage\" -CaseSensitive:$false)",
+      "PowerShell(cd \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\"; ./gradlew assembleRelease 2>&1 | Where-Object { $_ -match \"\\(error:|FAILED|BUILD|Patched|ninja|longer than|\\\\.apk|apk\\)\" } | Select-Object -Last 30)",
+      "Read(//d/Android/Sdk/cmake//**)",
+      "Bash(/d/Android/Sdk/cmake/3.22.1/bin/ninja.exe --version)"
     ]
   }
 }

@@ -11,7 +11,7 @@ import { useApp } from "@/context/AppContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useCheckoutVisit, useEndVisit, useSaveProcedureTimes, useStartVisit, useSubmitDoctorProgressNote, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialWorkerProgressNote, useVisit } from "@/hooks/useVisits";
+import { useCheckoutVisit, useCheckoutWithoutSapVisit, useCloseVisit, useEndVisit, useReopenVisit, useSaveProcedureTimes, useStartVisit, useSubmitAllergiesForm, useSubmitBloodSugarForm, useSubmitDoctorProgressNote, useSubmitIncidentsForm, useSubmitInventoryUsage, useSubmitInventoryUsageMultiple, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialAssessmentForm, useSubmitSocialWorkerProgressNote, useSubmitVisualTriageChecklist, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import type { InventoryItem } from "@/data/models/visit";
@@ -29,6 +29,11 @@ import { ReferralForm } from "./components/visitForms/ReferralForm";
 import { RefusalForm } from "./components/visitForms/RefusalForm";
 import { parseDisOfHemodialysis } from "@/data/transform/disOfHemodialysis";
 import { SariScreeningForm } from "./components/visitForms/SariScreeningForm";
+import { AllergiesForm } from "./components/visitForms/AllergiesForm";
+import { BloodSugarForm } from "./components/visitForms/BloodSugarForm";
+import { SocialAssessmentForm } from "./components/visitForms/SocialAssessmentForm";
+import { IncidentsForm } from "./components/visitForms/IncidentsForm";
+import { VisualTriageChecklistForm } from "./components/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
 import { NurseSignatureSheet } from "./components/NurseSignatureSheet";
 import { ReadOnlyBanner } from "./components/visitForms/ReadOnlyBanner";
@@ -37,6 +42,7 @@ import { PatientInventorySection } from "./components/visitForms/PatientInventor
 import { PatientSignatureSheet } from "./components/visitForms/PatientSignatureSheet";
 import { PhysicianCallModal } from "./components/visitForms/PhysicianCallModal";
 import { UseItemsModal } from "./components/visitForms/UseItemsModal";
+import { UseMultipleItemsModal } from "./components/visitForms/UseMultipleItemsModal";
 import { VisitDetailEmpty, VisitDetailError } from "./components/VisitDetailStates";
 import { VisitDetailSkeleton } from "./components/VisitDetailSkeleton";
 import { VisitInfoCard } from "./components/VisitInfoCard";
@@ -95,22 +101,68 @@ function VisitDetailScreenInner() {
     (record as any)?.refusals,
   ]);
 
+  // Pre-fill AllergiesForm from patient alerts when no visit form is saved yet.
+  const allergiesInitial = useMemo(() => {
+    const rec = record as any;
+    const saved = rec?.forms?.["allergies"]?.[0]?.value;
+    if (saved) return saved;
+    const allg: any[] = rec?.patient?.patientAlerts?.allergies ?? [];
+    const contam: string[] = rec?.patient?.patientAlerts?.contamination ?? [];
+    if (!allg.length && !contam.length) return null;
+    return {
+      drug_allergies:    allg.filter((a: any) => a.type === 'drug').map((a: any) => a.value).join(', '),
+      food_allergies:    allg.filter((a: any) => a.type === 'food').map((a: any) => a.value).join(', '),
+      general_allergies: allg.filter((a: any) => a.type === 'general').map((a: any) => a.value).join(', '),
+      contamination:     contam.join(', '),
+    };
+  }, [(record as any)?.forms?.["allergies"]?.[0]?.value, (record as any)?.patient?.patientAlerts]);
+
+  // Pre-fill IncidentsForm from patient + visit data when no saved form exists.
+  const incidentsInitial = useMemo(() => {
+    const rec = record as any;
+    const saved = rec?.forms?.["incidents"]?.[0]?.value;
+    if (saved) return saved;
+    if (!rec?.patient) return null;
+    return {
+      patient_name:          rec.patient.name ?? '',
+      patient_mrn:           rec.patient.mrn ?? '',
+      patient_dob:           rec.patient.dob ?? '',
+      dialysis_session_time: rec.date ?? '',
+    };
+  }, [(record as any)?.forms?.["incidents"]?.[0]?.value, (record as any)?.patient?.id]);
+
+  // Pre-fill VisualTriageChecklistForm from patient + visit data when no saved form exists.
+  const visualTriageInitial = useMemo(() => {
+    const rec = record as any;
+    const saved = rec?.forms?.["visual-triage-checklist"]?.[0]?.value;
+    if (saved) return saved;
+    if (!rec?.patient) return null;
+    return {
+      patient_name: rec.patient.name ?? '',
+      mrn:          rec.patient.mrn ?? '',
+      hospital:     rec.patient.hospital ?? '',
+      date:         rec.date ?? '',
+    };
+  }, [(record as any)?.forms?.["visual-triage-checklist"]?.[0]?.value, (record as any)?.patient?.id]);
+
   const isLoading = activeQuery.isLoading || activeQuery.isFetching;
   const isError = activeQuery.isError;
   const errorMessage = activeQuery.error instanceof Error ? activeQuery.error.message : "Something went wrong.";
   const refetch = () => activeQuery.refetch();
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
-  type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
+  type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
   const recordStatus = record?.status as string | undefined;
   const initialPhase: VisitPhase =
     recordStatus === "completed"
       ? "completed"
-      : recordStatus === "start_procedure"
-        ? "start_procedure"
-        : recordStatus === "end_procedure"
-          ? "end_procedure"
-          : "in_progress";
+      : recordStatus === "reopened"
+        ? "reopened"
+        : recordStatus === "start_procedure"
+          ? "start_procedure"
+          : recordStatus === "end_procedure"
+            ? "end_procedure"
+            : "in_progress";
   const [visitPhase, setVisitPhase] = useState<VisitPhase>(initialPhase);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [procedureStartTimeStr, setProcedureStartTimeStr] = useState("--:-- --");
@@ -119,14 +171,16 @@ function VisitDetailScreenInner() {
   const [editProcStart, setEditProcStart] = useState("");
   const [editProcEnd, setEditProcEnd] = useState("");
 
+  // reopened is editable (nurse can update forms); completed is read-only
   const isReadOnly = visitPhase === "completed";
 
   // Sync the local phase forward to the server status once the visit loads
   // (the query resolves async, so a visit already in `start_procedure` would
   // otherwise stay stuck at the initial `in_progress`). Forward-only so an
   // optimistic local advance isn't reverted before its mutation round-trips.
+  // reopened (4) ranks above completed (3) so it overrides a stale completed phase.
   const PHASE_RANK: Record<VisitPhase, number> = {
-    in_progress: 0, start_procedure: 1, end_procedure: 2, completed: 3,
+    in_progress: 0, start_procedure: 1, end_procedure: 2, completed: 3, reopened: 4,
   };
   useEffect(() => {
     setVisitPhase((prev) => (PHASE_RANK[initialPhase] > PHASE_RANK[prev] ? initialPhase : prev));
@@ -148,8 +202,12 @@ function VisitDetailScreenInner() {
   const startVisitMutation = useStartVisit(numId);
   const endVisitMutation = useEndVisit(numId);
   const checkoutVisitMutation = useCheckoutVisit(numId);
+  const checkoutWithoutSapMutation = useCheckoutWithoutSapVisit(numId);
+  const closeVisitMutation = useCloseVisit(numId);
+  const reopenVisitMutation = useReopenVisit(numId);
   const saveProcedureTimesMutation = useSaveProcedureTimes(numId);
   const submitInventoryUsageMutation = useSubmitInventoryUsage(numId);
+  const submitInventoryUsageMultipleMutation = useSubmitInventoryUsageMultiple(numId);
 
   const handleStartProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -194,6 +252,31 @@ function VisitDetailScreenInner() {
       },
     });
   }, [checkoutVisitMutation, showDialog, t]);
+
+  const handleCheckOutWithoutSap = useCallback(() => {
+    setShowCheckoutModal(false);
+    setVisitPhase("completed");
+    checkoutWithoutSapMutation.mutate(undefined, {
+      onError: (err) => {
+        setVisitPhase("end_procedure");
+        showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") });
+      },
+    });
+  }, [checkoutWithoutSapMutation, showDialog, t]);
+
+  const handleCloseVisit = useCallback(() => {
+    closeVisitMutation.mutate(undefined, {
+      onSuccess: () => setVisitPhase("completed"),
+      onError: (err) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+    });
+  }, [closeVisitMutation, showDialog, t]);
+
+  const handleReopenVisit = useCallback(() => {
+    reopenVisitMutation.mutate(undefined, {
+      onSuccess: () => setVisitPhase("reopened"),
+      onError: (err) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+    });
+  }, [reopenVisitMutation, showDialog, t]);
 
   // Collapsible states
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -320,6 +403,7 @@ function VisitDetailScreenInner() {
   const inventoryData: InventoryItem[] = (record as any)?.inventory ?? [];
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [useMultipleVisible, setUseMultipleVisible] = useState(false);
 
   // Progress Notes — `Visit.progressNotes` ships three buckets but the backend
   // sometimes dumps every kind into `doctor` regardless of `type`. We also see
@@ -347,6 +431,11 @@ function VisitDetailScreenInner() {
   const submitRefusal = useSubmitRefusal(numId);
   const submitSariScreening = useSubmitSariScreening(numId);
   const submitMorseFallsRisk = useSubmitMorseFallsRiskAssessment(numId);
+  const submitAllergies = useSubmitAllergiesForm(numId);
+  const submitBloodSugar = useSubmitBloodSugarForm(numId);
+  const submitSocialAssessment = useSubmitSocialAssessmentForm(numId);
+  const submitIncidents = useSubmitIncidentsForm(numId);
+  const submitVisualTriage = useSubmitVisualTriageChecklist(numId);
   // preTreatmentVitals now lives inside flowSheet (single source of truth).
   const preTreatmentVitals = (record as any)?.flowSheet?.preTreatmentVitals;
 
@@ -613,7 +702,7 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             initialExpanded={false}
-            defaultPatientName={(record as any)?.patientName}
+            defaultPatientName={patientName}
             initial={(record as any)?.sariScreenings?.[0] ?? null}
             key={(record as any)?.sariScreenings?.[0]?.createdAt ?? "sari-new"}
             isSaving={submitSariScreening.isPending}
@@ -627,11 +716,102 @@ function VisitDetailScreenInner() {
           />
         </Animated.View>
 
+        {/* ─── Allergies ───────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(241).springify()} style={s.section}>
+          <AllergiesForm
+            colors={colors}
+            isReadOnly={isReadOnly}
+            initialExpanded={false}
+            initial={allergiesInitial}
+            isSaving={submitAllergies.isPending}
+            onSave={(data) => {
+              submitAllergies.mutate(data, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("allergiesForm") }),
+                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
+            t={t}
+          />
+        </Animated.View>
+
+        {/* ─── Blood Sugar Monitor ─────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(244).springify()} style={s.section}>
+          <BloodSugarForm
+            colors={colors}
+            isReadOnly={isReadOnly}
+            initialExpanded={false}
+            initial={(record as any)?.forms?.["blood-sugar"]?.[0]?.value ?? null}
+            isSaving={submitBloodSugar.isPending}
+            onSave={(data) => {
+              submitBloodSugar.mutate(data, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("bloodSugarForm") }),
+                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
+            t={t}
+          />
+        </Animated.View>
+
+        {/* ─── Social Assessment ───────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(247).springify()} style={s.section}>
+          <SocialAssessmentForm
+            colors={colors}
+            isReadOnly={isReadOnly}
+            initialExpanded={false}
+            initial={(record as any)?.forms?.["social-assessment"]?.[0]?.value ?? null}
+            isSaving={submitSocialAssessment.isPending}
+            onSave={(data) => {
+              submitSocialAssessment.mutate(data, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialAssessmentForm") }),
+                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
+            t={t}
+          />
+        </Animated.View>
+
+        {/* ─── Incidents ───────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(250).springify()} style={s.section}>
+          <IncidentsForm
+            colors={colors}
+            isReadOnly={isReadOnly}
+            initialExpanded={false}
+            initial={incidentsInitial}
+            isSaving={submitIncidents.isPending}
+            onSave={(data) => {
+              submitIncidents.mutate(data, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("incidentsForm") }),
+                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
+            t={t}
+          />
+        </Animated.View>
+
+        {/* ─── Visual Triage Checklist ─────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(253).springify()} style={s.section}>
+          <VisualTriageChecklistForm
+            colors={colors}
+            isReadOnly={isReadOnly}
+            initialExpanded={false}
+            initial={visualTriageInitial}
+            isSaving={submitVisualTriage.isPending}
+            onSave={(data) => {
+              submitVisualTriage.mutate(data, {
+                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("visualTriageChecklist") }),
+                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+              });
+            }}
+            t={t}
+          />
+        </Animated.View>
+
         <PatientInventorySection
           items={inventoryItems}
           expanded={inventoryOpen}
           onToggle={() => setInventoryOpen(!inventoryOpen)}
           onSelectItem={(item) => { setSelectedItem(item); setUseModalVisible(true); }}
+          onUseMultiple={() => setUseMultipleVisible(true)}
           isReadOnly={isReadOnly}
           colors={colors}
         />
@@ -641,6 +821,9 @@ function VisitDetailScreenInner() {
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}
             onCheckOut={() => setShowCheckoutModal(true)}
+            onCheckOutWithoutSap={handleCheckOutWithoutSap}
+            onClose={handleCloseVisit}
+            onReopen={handleReopenVisit}
           />
         {/* )} */}
       </ScrollView>
@@ -713,10 +896,45 @@ function VisitDetailScreenInner() {
           );
           setUseModalVisible(false);
           submitInventoryUsageMutation.mutate(
-            { itemId: selectedItem.id, quantity: qty, notes: notes || undefined },
+            {
+              patientId:           patientRecord?.id ?? 0,
+              patientInventoryId:  selectedItem.id,
+              quantity:            qty,
+              notes:               notes || null,
+            },
             {
               onSuccess: () =>
                 showDialog({ variant: "success", title: "Success", message: `Used ${qty} × ${selectedItem.name}. Inventory updated.` }),
+              onError: (err) =>
+                showDialog({ variant: "error", title: t("error"), message: err.message }),
+            },
+          );
+        }}
+        colors={colors}
+      />
+      {/* Use Multiple Items Modal */}
+      <UseMultipleItemsModal
+        visible={useMultipleVisible}
+        items={inventoryItems}
+        onClose={() => setUseMultipleVisible(false)}
+        isLoading={submitInventoryUsageMultipleMutation.isPending}
+        onConfirm={(rows) => {
+          // Optimistic local deductions
+          setInventoryItems((prev) =>
+            prev.map((it) => {
+              const row = rows.find((r) => r.patientInventoryId === it.id);
+              return row ? { ...it, available: Math.max(0, it.available - row.quantity) } : it;
+            }),
+          );
+          setUseMultipleVisible(false);
+          submitInventoryUsageMultipleMutation.mutate(
+            {
+              patientId: patientRecord?.id ?? 0,
+              items: rows,
+            },
+            {
+              onSuccess: () =>
+                showDialog({ variant: "success", title: "Success", message: `${rows.length} item(s) usage recorded. Inventory updated.` }),
               onError: (err) =>
                 showDialog({ variant: "error", title: t("error"), message: err.message }),
             },

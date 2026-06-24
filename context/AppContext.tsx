@@ -18,7 +18,7 @@ import {
   registerDevice,
   updateMe,
 } from "@/data/auth_repository";
-import { clearFaceToken } from "@/data/secure_storage";
+import { clearFaceToken, getFaceToken } from "@/data/secure_storage";
 import {
   fetchAppSettings,
   DEFAULT_APP_SETTINGS,
@@ -127,20 +127,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (storedTheme) setThemeState(storedTheme as Theme);
 
         if (storedToken) {
-          setToken(storedToken);
-          try {
-            const me = await getMe();
-            setUser(me);
-            queryClient.setQueryData(["me"], me);
-            void syncDeviceWithProfile();
-            void syncRules();
-          } catch (error: any) {
-            const status = error?.response?.status;
-            if (status === 401 || status === 403 || status === 404) {
-              await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
-              setToken(null);
-              setUser(null);
-              queryClient.clear();
+          // When biometric auth is enabled and a face token is stored, skip
+          // GET /me entirely. The stored access_token may be expired and the
+          // 401 is noise. The biometric flow will call verifyFace() and then
+          // login() which restores the session with a fresh token.
+          const biometricEnabled = await AsyncStorage.getItem("@goconnect/biometric");
+          const faceToken = biometricEnabled === "true" ? await getFaceToken() : null;
+          const biometricPending = biometricEnabled === "true" && !!faceToken;
+
+          if (!biometricPending) {
+            setToken(storedToken);
+            try {
+              const me = await getMe();
+              setUser(me);
+              queryClient.setQueryData(["me"], me);
+              void syncDeviceWithProfile();
+              void syncRules();
+            } catch (error: any) {
+              const status = error?.response?.status;
+              if (status === 401 || status === 403 || status === 404) {
+                await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+                setToken(null);
+                setUser(null);
+                queryClient.clear();
+              }
             }
           }
         }

@@ -3,6 +3,7 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def appVersion = ["node", "-e", "console.log(require('./app.json').expo.version)"].execute(null, new File(projectRoot)).text.trim()
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -92,8 +93,8 @@ android {
         applicationId 'com.careconnectksa.nurse'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 5
+        versionName appVersion
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -104,15 +105,19 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile file('release.keystore')
+            storePassword '6ebc0bdf36cb2918651622f69aef52e7'
+            keyAlias 'b8a6b3b7948001283faa113622fbde3e'
+            keyPassword 'caa1c29e4da60de5a5307f89a97e549f'
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -125,10 +130,17 @@ android {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
+            // reanimated and worklets both ship libworklets.so; pick the first one found
+            pickFirsts += ['**/libworklets.so']
         }
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory "D:/cxx"
+        }
     }
 }
 
@@ -182,3 +194,63 @@ dependencies {
 }
 
 apply plugin: 'com.google.gms.google-services'
+
+// Patch autolinking CMake to replace pnpm deep paths with short D:/build paths.
+// pnpm nests packages under .pnpm/<hash>/node_modules/<pkg>/, which pushes source
+// file paths past 260 chars — the limit of ninja 1.10 on Windows.
+// The Gradle buildDir redirect (in root build.gradle) already outputs codegen JNI
+// to D:/build/<safeName>/, so we just need cmake to look there instead.
+def patchCmakeFile = { ->
+    def cmakeFile = new File("${projectDir}/build/generated/autolinking/src/main/jni/Android-autolinking.cmake")
+    if (!cmakeFile.exists()) return
+    def pnpmBase = "D:/work/React/waleed/careconnect/nurse/v4/Goconnect/node_modules/.pnpm/"
+    def content = cmakeFile.text
+    def patched = false
+    def buildBase = "D:/build/"
+
+    // Patch codegen JNI paths for packages whose pnpm paths exceed ninja's 260-char limit.
+    // Each entry needs a junction at D:/build/<safeName> pointing to the package's android/build dir.
+    if (content.contains(pnpmBase)) {
+        [
+            ["@react-native-async-storage_088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage",  "react-native-async-storage_async-storage"],
+            ["@react-native-community+dat_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker",      "react-native-community_datetimepicker"],
+            ["react-native-gesture-handle_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler",                "rng"],
+            ["react-native-reanimated@4.1_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated",                    "react-native-reanimated"],
+            ["react-native-webview@13.13._021b538aa29e8fcad8e0f42e5c76aafb/node_modules/react-native-webview",                       "react-native-webview"],
+            ["react-native-worklets@0.5.1_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets",                      "react-native-worklets"],
+        ].each { entry ->
+            def from = "${pnpmBase}${entry[0]}/android/build/generated/source/codegen/jni/"
+            def to   = "${buildBase}${entry[1]}/generated/source/codegen/jni/"
+            content  = content.replace(from, to)
+        }
+        patched = true
+    }
+
+    // Patch JNI add_subdirectory lines for packages whose pnpm paths push source file
+    // absolute paths past 260 chars. Each entry: [pnpm-subdir, junction-letter, binary-dir-name]
+    // Junction D:/X must exist and point to the package root (not android/build).
+    [
+        ["react-native-keyboard-contr_373f91cbae53ed7a3b95233952c068d4/node_modules/react-native-keyboard-controller",    "k",  "kbc_b",  "reactnativekeyboardcontroller_autolinked_build"],
+        ["react-native-safe-area-cont_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context",      "sa", "sa_b",   "safeareacontext_autolinked_build"],
+        ["react-native-screens@4.16.0_b8e1d3cca370dcdbbdf08944ff9ffe9a/node_modules/react-native-screens",                "sc", "sc_b",   "rnscreens_autolinked_build"],
+        ["react-native-svg@15.12.1_re_fa17ff263cafbba3f714588efc05ae00/node_modules/react-native-svg",                    "sv", "sv_b",   "rnsvg_autolinked_build"],
+    ].each { entry ->
+        def longJni = "${pnpmBase}${entry[0]}/android/src/main/jni/"
+        def replacement = "\"D:/${entry[1]}/android/src/main/jni/\" ${entry[2]}"
+        if (content.contains(longJni)) {
+            content = content.replace("\"${longJni}\" ${entry[3]}", replacement)
+            patched = true
+            println ">>> Patched ${entry[0].split('/').last()} JNI to D:/${entry[1]}"
+        }
+    }
+
+    if (!patched) return
+    cmakeFile.text = content
+    println ">>> Patched Android-autolinking.cmake with short D:/build paths"
+}
+
+tasks.whenTaskAdded { task ->
+    if (task.name.startsWith("configureCMake")) {
+        task.doFirst { patchCmakeFile() }
+    }
+}

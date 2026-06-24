@@ -27,12 +27,20 @@ npx expo run:android --variant release
 # Build APK - direct install, no Play Store (EAS)
 eas build --platform android --profile preview
 
-# Build APK - locally, no EAS needed
+# Build APK - locally, no EAS needed (No EAS)
 npx expo run:android --variant release
 # APK output: android/app/build/outputs/apk/release/app-release.apk
 
 # Build AAB - for Google Play Store (EAS)
 eas build --platform android --profile production
+
+# Build AAB - for Google Play Store (No EAS)
+# From the project root, first generate the bundle
+npx expo export --platform android
+
+# Then build the AAB via Gradle
+cd android
+./gradlew bundleRelease
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## iOS

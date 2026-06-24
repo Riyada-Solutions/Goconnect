@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as LocalAuthentication from "expo-local-authentication";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -18,90 +17,26 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Logo from "@/assets/svg/logo.svg";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
-import { verifyFace } from "@/data/auth_repository";
-import { clearFaceToken, getFaceToken, setFaceToken } from "@/data/secure_storage";
-import { getBiometricErrorMessage, isFaceIdSupportedInCurrentBuild } from "@/utils/biometric";
+import { clearFaceToken } from "@/data/secure_storage";
+import { isFaceIdSupportedInCurrentBuild, getBiometricErrorMessage } from "@/utils/biometric";
+import { useBiometricLogin } from "@/hooks/useBiometricLogin";
 
 export default function BiometricUnlockScreen() {
-  const { login, logout, t } = useApp();
+  const { logout, t } = useApp();
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleBiometricUnlock = async () => {
-    console.log("[bio-unlock] button pressed");
-    try {
-      setError(null);
-      const faceToken = await getFaceToken();
-      console.log("[bio-unlock] hasToken:", !!faceToken);
-      if (!faceToken) {
-        setError("No stored face token. Tap 'Use Password Instead' to login.");
-        return;
-      }
+  const { trigger, loading, error, setError } = useBiometricLogin({
+    requireSetting: false,
+    onSuccess: () => router.replace("/(tabs)/home"),
+  });
 
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      const enrolled = await LocalAuthentication.isEnrolledAsync();
-      console.log("[bio-unlock] compatible:", compatible, "enrolled:", enrolled);
-
-      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-      console.log("[bio-unlock] supported types:", types);
-      const hasFace = types.includes(
-        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
-      );
-      const hasFingerprint = types.includes(
-        LocalAuthentication.AuthenticationType.FINGERPRINT,
-      );
-
-      // Priority chain (handled automatically by the OS): Face ID → Fingerprint → device passcode.
-      // With disableDeviceFallback: false the OS prompts the enrolled biometric and
-      // falls back to the passcode automatically if it fails or none is available.
-      const promptMessage = hasFace
-        ? t("faceIdLogin")
-        : hasFingerprint
-        ? t("fingerprintLogin")
-        : t("biometricLogin");
-
-      console.log("[bio-unlock] calling authenticateAsync, promptMessage:", promptMessage);
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage,
-        fallbackLabel: t("usePasscode"),
-        disableDeviceFallback: false,
-        cancelLabel: t("cancel"),
-      });
-      console.log("[bio-unlock] auth result:", JSON.stringify(result));
-      if (!result.success) {
-        const err = "error" in result ? result.error : "unknown";
-        if (err === "missing_usage_description") {
-          setError(getBiometricErrorMessage(err, t));
-          return;
-        }
-        const warning = "warning" in result ? result.warning : undefined;
-        setError(
-          getBiometricErrorMessage(err, t) +
-            (warning ? ` (${warning})` : "") +
-            (err === "not_enrolled" || err === "not_available"
-              ? " Enable Face ID for this app in iOS Settings → Face ID & Passcode → Other Apps."
-              : err === "user_cancel" || err === "system_cancel"
-              ? " Tap the button to retry."
-              : ""),
-        );
-        return;
-      }
-
-      setLoading(true);
-      const { accessToken, user } = await verifyFace({ face_token: faceToken });
-      await login(user, accessToken);
-      if (user.face_token) await setFaceToken(user.face_token);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace("/(tabs)/home");
-    } catch (e: any) {
-      console.warn("[bio-unlock] error", e);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(`${t("biometricFailed")}${e?.message ? ` — ${e.message}` : ""}`);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isFaceIdSupportedInCurrentBuild()) {
+      void trigger();
+    } else {
+      setError(getBiometricErrorMessage("missing_usage_description", t));
     }
-  };
+  }, []);
 
   const handleUsePassword = async () => {
     Haptics.selectionAsync();
@@ -109,15 +44,6 @@ export default function BiometricUnlockScreen() {
     await logout();
     router.replace("/(auth)/login");
   };
-
-  // Auto-prompt on mount when Face ID is supported in this build
-  useEffect(() => {
-    if (isFaceIdSupportedInCurrentBuild()) {
-      void handleBiometricUnlock();
-    } else {
-      setError(getBiometricErrorMessage("missing_usage_description", t));
-    }
-  }, []);
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -163,7 +89,7 @@ export default function BiometricUnlockScreen() {
 
           {/* Retry biometric */}
           <Pressable
-            onPress={() => handleBiometricUnlock()}
+            onPress={trigger}
             disabled={loading}
             style={({ pressed }) => [styles.bioBtn, pressed && { opacity: 0.8 }]}
           >

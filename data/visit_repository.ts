@@ -103,15 +103,31 @@ function mapVisitFromApi(raw: any): Visit {
       return undefined
     })(),
     sariScreenings: (() => {
-      // Backend returns a single object under `respiratoryIllnessScreening`.
-      // Normalise to the array shape the UI expects.
-      const single = raw.respiratoryIllnessScreening ?? raw.respiratory_illness_screening
-      if (single && typeof single === 'object') {
-        return [mapSariScreeningFromApi({ ...single, id: single.id ?? 0, visit_id: raw.id })]
+      const rs = raw.respiratoryIllnessScreening ?? raw.respiratory_illness_screening
+      // Non-empty array from the backend → map each entry
+      if (Array.isArray(rs) && rs.length > 0) {
+        return rs.map((s: any) => mapSariScreeningFromApi({ ...s, visit_id: s.visit_id ?? raw.id }))
+      }
+      // Single object (not an array) → wrap in array
+      if (rs && !Array.isArray(rs) && typeof rs === 'object') {
+        return [mapSariScreeningFromApi({ ...rs, id: rs.id ?? 0, visit_id: raw.id })]
       }
       if (Array.isArray(raw.sariScreenings)) return raw.sariScreenings.map(mapSariScreeningFromApi)
       return raw.sariScreenings
     })(),
+    inventory: (() => {
+      const items: any[] = raw.patientInventory ?? raw.inventory ?? []
+      if (!Array.isArray(items)) return undefined
+      return items.map((item: any) => ({
+        id:         item.id,
+        name:       item.item_description ?? item.name ?? '',
+        itemNumber: item.item_no          ?? item.itemNumber ?? '',
+        available:  item.available_quantity ?? item.available ?? 0,
+      }))
+    })(),
+    careTeam: (Array.isArray(raw.careTeam) && raw.careTeam.length > 0)
+      ? raw.careTeam
+      : (raw.patient?.careTeam ?? raw.careTeam ?? []),
   }
 }
 
@@ -648,6 +664,27 @@ export async function endVisit(visitId: number | string): Promise<Visit> {
 export async function checkoutVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
   const res = await apiClient.post(`/visits/${visitId}/checkout`)
+  return unwrapVisit(res.data)
+}
+
+/** Check out without SAP sync → completes the visit, skips SAP posting. */
+export async function checkoutWithoutSapVisit(visitId: number | string): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
+  const res = await apiClient.post(`/visits/${visitId}/checkout-without-sap`)
+  return unwrapVisit(res.data)
+}
+
+/** Close a reopened visit → moves back to `completed`. */
+export async function closeVisit(visitId: number | string): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
+  const res = await apiClient.post(`/visits/${visitId}/close`)
+  return unwrapVisit(res.data)
+}
+
+/** Reopen a completed visit → moves to `reopened`. */
+export async function reopenVisit(visitId: number | string): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'reopened')
+  const res = await apiClient.post(`/visits/${visitId}/reopen`)
   return unwrapVisit(res.data)
 }
 
@@ -1331,21 +1368,151 @@ export async function submitSocialWorkerProgressNote(
 }
 
 /**
- * Record one inventory item consumed during this visit. Backend deducts the
- * `quantity` from the patient's available stock and returns the **updated
- * Visit** (single source of truth).
+ * Record one inventory item consumed during this visit.
+ * POST /patient-inventory/use
  */
 export async function submitInventoryUsage(
   payload: InventoryUsageInput,
-): Promise<Visit> {
+): Promise<unknown> {
   if (ENV.USE_MOCK_DATA) {
     await new Promise((r) => setTimeout(r, 200))
-    return patchMockVisit(payload.visitId, 'in_progress')
+    return undefined
   }
-  const { visitId, ...body } = payload
-  const res = await apiClient.post(
-    `/visits/${visitId}/forms/inventory_usage`,
-    body,
-  )
+  const res = await apiClient.post('/patient-inventory/use', {
+    patient_id:           payload.patientId,
+    visit_id:             payload.visitId,
+    patient_inventory_id: payload.patientInventoryId,
+    use_quantity:         payload.quantity,
+    notes:                payload.notes ?? null,
+  })
+  return res.data?.data ?? res.data
+}
+
+/** POST /patient-inventory/use-multiple */
+export async function submitInventoryUsageMultiple(
+  payload: import('./models/visit').InventoryUsageMultipleInput,
+): Promise<unknown> {
+  if (ENV.USE_MOCK_DATA) {
+    await new Promise((r) => setTimeout(r, 200))
+    return undefined
+  }
+  const res = await apiClient.post('/patient-inventory/use-multiple', {
+    patient_id: payload.patientId,
+    visit_id:   payload.visitId,
+    items: payload.items.map(i => ({
+      patient_inventory_id: i.patientInventoryId,
+      use_quantity:         i.quantity,
+      notes:                i.notes ?? null,
+    })),
+  })
+  return res.data?.data ?? res.data
+}
+
+export async function submitAllergiesForm(
+  visitId: number | string,
+  body: {
+    drug_allergies: string
+    food_allergies: string
+    general_allergies: string
+    contamination: string
+  },
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await apiClient.post(`/visits/${visitId}/forms/allergies`, body)
+  return unwrapVisit(res.data)
+}
+
+export async function submitBloodSugarForm(
+  visitId: number | string,
+  body: {
+    blood_sugar_monitor: Array<{
+      name: string
+      action: string
+      random: boolean
+      result: string
+      fasting: boolean
+      signed_at: string
+      signed_by: string | number
+    }>
+    relevant_medication: string
+    other_relevant_medication: string
+  },
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await apiClient.post(`/visits/${visitId}/forms/blood-sugar`, body)
+  return unwrapVisit(res.data)
+}
+
+export async function submitSocialAssessmentForm(
+  visitId: number | string,
+  body: {
+    patient_id: string
+    profession: string
+    data_source: string
+    marital_status: string
+    primary_doctor: string
+    assessment_type: string
+    education_level: string
+    facility_status: string
+    limited_ability: string
+    physical_status: string
+    social_assessment: string
+  },
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await apiClient.post(`/visits/${visitId}/forms/social-assessment`, body)
+  return unwrapVisit(res.data)
+}
+
+export async function submitIncidentsForm(
+  visitId: number | string,
+  body: {
+    description: string
+    patient_dob: string
+    patient_mrn: string
+    reported_at: string
+    reported_by: string
+    patient_name: string
+    physician_id: string | number
+    incident_type: string
+    supervisor_id: string | number
+    reported_by_id: string | number
+    severity_level: string
+    immediate_actions: string
+    dialysis_session_time: string
+  },
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await apiClient.post(`/visits/${visitId}/forms/incidents`, body)
+  return unwrapVisit(res.data)
+}
+
+export async function submitVisualTriageChecklist(
+  visitId: number | string,
+  body: {
+    mrn: string
+    date: string
+    time: string
+    score: string
+    hospital: string
+    national_id: string
+    patient_name: string
+    ad_cough: string
+    ad_fever: string
+    ad_renal: string
+    ad_nausea: string
+    ad_headache: string
+    ad_shortness: string
+    pe_cough: string
+    pe_fever: string
+    pe_renal: string
+    pe_nausea: string
+    pe_headache: string
+    pe_shortness: string
+    total_score: number
+  },
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await apiClient.post(`/visits/${visitId}/forms/visual-triage-checklist`, body)
   return unwrapVisit(res.data)
 }

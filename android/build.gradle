@@ -21,5 +21,22 @@ allprojects {
   }
 }
 
+subprojects {
+  if (project.name != 'app') {
+    def safeName = project.name.replaceAll(/[^a-zA-Z0-9_-]/, '_')
+    buildDir = "D:/build/${safeName}"
+  }
+
+  afterEvaluate {
+    if (project.name == "react-native-keyboard-controller") {
+      try {
+        android.sourceSets.main.java.srcDirs = android.sourceSets.main.java.srcDirs.findAll {
+          !it.path.contains("codegen")
+        }
+      } catch (Exception ignored) {}
+    }
+  }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"

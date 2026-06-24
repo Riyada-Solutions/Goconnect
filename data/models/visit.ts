@@ -126,11 +126,22 @@ export interface InventoryItem {
   available: number
 }
 
-/** Body for `POST /visits/{visitId}/inventory-usage`. */
+/** Body for `POST /patient-inventory/use`. */
 export interface InventoryUsageInput {
   visitId: number
-  itemId: number
-  /** Number of items consumed during this visit. Must be > 0 and ≤ available stock. */
+  patientId: number
+  patientInventoryId: number
   quantity: number
-  notes?: string
+  notes?: string | null
+}
+
+/** Body for `POST /patient-inventory/use-multiple`. */
+export interface InventoryUsageMultipleInput {
+  visitId: number
+  patientId: number
+  items: Array<{
+    patientInventoryId: number
+    quantity: number
+    notes?: string | null
+  }>
 }

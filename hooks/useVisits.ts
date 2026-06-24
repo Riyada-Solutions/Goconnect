@@ -1,23 +1,32 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   checkoutVisit,
+  checkoutWithoutSapVisit,
+  closeVisit,
   endVisit,
   getVisitById,
   getVisitsPage,
   VISITS_PER_PAGE,
   saveProcedureTimes,
+  reopenVisit,
   startVisit,
+  submitAllergiesForm,
+  submitBloodSugarForm,
   submitDoctorProgressNote,
+  submitIncidentsForm,
   submitInventoryUsage,
+  submitInventoryUsageMultiple,
   submitMedicationAdministration,
   submitMorseFallsRiskAssessment,
   submitNursingProgressNote,
   submitReferral,
   submitRefusal,
   submitSariScreening,
+  submitSocialAssessmentForm,
   submitSocialWorkerProgressNote,
+  submitVisualTriageChecklist,
 } from '../data/visit_repository'
-import type { InventoryUsageInput, Visit } from '../data/models/visit'
+import type { InventoryUsageInput, InventoryUsageMultipleInput, Visit } from '../data/models/visit'
 import type { DoctorProgressNoteInput } from '../data/models/doctorProgressNote'
 import type { MorseFallsRiskAssessmentInput } from '../data/models/morseFallsRisk'
 import type { ReferralInput } from '../data/models/referral'
@@ -149,9 +158,17 @@ export function useSubmitSocialWorkerProgressNote(visitId: number) {
 
 export function useSubmitInventoryUsage(visitId: number) {
   const qc = useQueryClient()
-  return useMutation<Visit, Error, Omit<InventoryUsageInput, 'visitId'>>({
+  return useMutation<unknown, Error, Omit<InventoryUsageInput, 'visitId'>>({
     mutationFn: (input) => submitInventoryUsage({ visitId, ...input }),
-    onSuccess: (visit) => applyVisitUpdate(qc, visit),
+    onSuccess: (response) => applyVisitUpdate(qc, response, visitId),
+  })
+}
+
+export function useSubmitInventoryUsageMultiple(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<unknown, Error, Omit<InventoryUsageMultipleInput, 'visitId'>>({
+    mutationFn: (input) => submitInventoryUsageMultiple({ visitId, ...input }),
+    onSuccess: (response) => applyVisitUpdate(qc, response, visitId),
   })
 }
 
@@ -173,11 +190,57 @@ export const useEndVisit = (visitId: number) =>
   useVisitStatusMutation(endVisit, visitId)
 export const useCheckoutVisit = (visitId: number) =>
   useVisitStatusMutation(checkoutVisit, visitId)
+export const useCheckoutWithoutSapVisit = (visitId: number) =>
+  useVisitStatusMutation(checkoutWithoutSapVisit, visitId)
+export const useCloseVisit = (visitId: number) =>
+  useVisitStatusMutation(closeVisit, visitId)
+export const useReopenVisit = (visitId: number) =>
+  useVisitStatusMutation(reopenVisit, visitId)
 
 export function useSaveProcedureTimes(visitId: number) {
   const qc = useQueryClient()
   return useMutation<Visit, Error, { startTime?: string; endTime?: string }>({
     mutationFn: (body) => saveProcedureTimes(visitId, body),
     onSuccess: (visit) => applyVisitUpdate(qc, visit),
+  })
+}
+
+export function useSubmitAllergiesForm(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Parameters<typeof submitAllergiesForm>[1]>({
+    mutationFn: (body) => submitAllergiesForm(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+export function useSubmitBloodSugarForm(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Parameters<typeof submitBloodSugarForm>[1]>({
+    mutationFn: (body) => submitBloodSugarForm(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+export function useSubmitSocialAssessmentForm(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Parameters<typeof submitSocialAssessmentForm>[1]>({
+    mutationFn: (body) => submitSocialAssessmentForm(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+export function useSubmitIncidentsForm(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Parameters<typeof submitIncidentsForm>[1]>({
+    mutationFn: (body) => submitIncidentsForm(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+export function useSubmitVisualTriageChecklist(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, Parameters<typeof submitVisualTriageChecklist>[1]>({
+    mutationFn: (body) => submitVisualTriageChecklist(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
   })
 }

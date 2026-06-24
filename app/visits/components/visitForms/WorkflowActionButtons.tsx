@@ -7,16 +7,19 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Colors } from "@/theme/colors";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 
-export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
+export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
 
 interface Props {
   phase: VisitPhase;
   onStartProcedure: () => void;
   onEndProcedure: () => void;
   onCheckOut: () => void;
+  onCheckOutWithoutSap: () => void;
+  onClose: () => void;
+  onReopen: () => void;
 }
 
-export function WorkflowActionButtons({ phase, onStartProcedure, onEndProcedure, onCheckOut }: Props) {
+export function WorkflowActionButtons({ phase, onStartProcedure, onEndProcedure, onCheckOut, onCheckOutWithoutSap, onClose, onReopen }: Props) {
   return (
     <Animated.View entering={FadeInDown.delay(270).springify()} style={s.actionsRow}>
       {phase === "in_progress" && (
@@ -32,22 +35,52 @@ export function WorkflowActionButtons({ phase, onStartProcedure, onEndProcedure,
         </Pressable>
       )}
       {phase === "end_procedure" && (
-        <Pressable
-          style={[s.mainBtn, { backgroundColor: "#F59E0B" }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onCheckOut();
-          }}
-        >
-          <Feather name="log-out" size={18} color="#fff" />
-          <Text style={s.mainBtnText}>Check Out</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 8, flex: 1 }}>
+          <Pressable
+            style={[s.mainBtn, { backgroundColor: "#F59E0B", flex: 1 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onCheckOut();
+            }}
+          >
+            <Feather name="log-out" size={16} color="#fff" />
+            <Text style={s.mainBtnText}>Check Out</Text>
+          </Pressable>
+          <Pressable
+            style={[s.mainBtn, { backgroundColor: "#6B7280", flex: 1 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onCheckOutWithoutSap();
+            }}
+          >
+            <Feather name="log-out" size={16} color="#fff" />
+            <Text style={s.mainBtnText}>Without SAP</Text>
+          </Pressable>
+        </View>
       )}
       {phase === "completed" && (
-        <View style={[s.mainBtn, { backgroundColor: "#6B7280" }]}>
-          <Feather name="check-circle" size={18} color="#fff" />
-          <Text style={s.mainBtnText}>Visit Completed</Text>
-        </View>
+        <Pressable
+          style={[s.mainBtn, { backgroundColor: "#8B5CF6" }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onReopen();
+          }}
+        >
+          <Feather name="refresh-cw" size={18} color="#fff" />
+          <Text style={s.mainBtnText}>Reopen Visit</Text>
+        </Pressable>
+      )}
+      {phase === "reopened" && (
+        <Pressable
+          style={[s.mainBtn, { backgroundColor: "#EF4444" }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onClose();
+          }}
+        >
+          <Feather name="x-circle" size={18} color="#fff" />
+          <Text style={s.mainBtnText}>Close Visit</Text>
+        </Pressable>
       )}
     </Animated.View>
   );

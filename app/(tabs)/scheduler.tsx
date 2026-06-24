@@ -15,7 +15,6 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { Avatar } from "@/components/common/Avatar";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/EmptyState";
-import { ErrorState } from "@/components/common/ErrorState";
 import { ScreenBackground } from "@/components/common/ScreenBackground";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListSkeleton, SlotCardSkeleton } from "@/components/skeletons";
@@ -212,8 +211,6 @@ export default function SchedulerScreen() {
           renderItem={() => <SlotCardSkeleton />}
           style={{ paddingBottom: botPad }}
         />
-      ) : slotsError ? (
-        <ErrorState onRetry={() => refetchSlots()} />
       ) : (
       <ScrollView
         contentContainerStyle={{
@@ -236,6 +233,19 @@ export default function SchedulerScreen() {
           {CALENDAR_DAYS[selectedGlobal]?.date}{" "}
           {CALENDAR_DAYS[selectedGlobal]?.month} — {slots.length} {t("appointmentsCount")}
         </Text>
+
+        {slotsError && (
+          <Pressable
+            onPress={() => refetchSlots()}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", borderRadius: 10, padding: 12, marginBottom: 4 }}
+          >
+            <Feather name="alert-circle" size={16} color="#EF4444" />
+            <Text style={{ flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", color: "#B91C1C" }}>
+              {t("somethingWentWrong")} {t("retry")}
+            </Text>
+            <Feather name="refresh-cw" size={14} color="#EF4444" />
+          </Pressable>
+        )}
 
         {slots.map((slot, i) => {
           const typeColor = (slot.type && TYPE_COLORS[slot.type]) ?? Colors.primary;
