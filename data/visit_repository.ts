@@ -119,10 +119,25 @@ function mapVisitFromApi(raw: any): Visit {
       const items: any[] = raw.patientInventory ?? raw.inventory ?? []
       if (!Array.isArray(items)) return undefined
       return items.map((item: any) => ({
-        id:         item.id,
-        name:       item.item_description ?? item.name ?? '',
-        itemNumber: item.item_no          ?? item.itemNumber ?? '',
-        available:  item.available_quantity ?? item.available ?? 0,
+        id:           item.id,
+        name:         item.item_description ?? item.name ?? '',
+        itemNumber:   item.item_no          ?? item.itemNumber ?? '',
+        available:    item.available_quantity ?? item.available ?? 0,
+        allocated:    item.quantity_allocated ?? 0,
+        defaultQty:   item.usage_default_quantity ?? 0,
+        lowStockQty:  item.low_stock_quantity ?? 0,
+        usageCount:   item.usage_history_count ?? item.usageHistory?.length ?? 0,
+        usageHistory: Array.isArray(item.usage_history)
+          ? item.usage_history.map((h: any) => ({
+              id:           h.id,
+              quantityUsed: h.quantity_used,
+              oldTotal:     h.old_total_used,
+              newTotal:     h.new_total_used,
+              notes:        h.notes ?? '',
+              user:         { id: h.user?.id, name: h.user?.name ?? '' },
+              createdAt:    h.created_at ?? '',
+            }))
+          : [],
       }))
     })(),
     careTeam: (Array.isArray(raw.careTeam) && raw.careTeam.length > 0)

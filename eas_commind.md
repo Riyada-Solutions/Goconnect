@@ -6,9 +6,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Start Metro bundler (debug mode, clears cache)
-npx expo start --clear
-
-# Build for both iOS and Android (testing)
+npx expo start -━━━━━━━━# Build for both iOS and Android (testing)
 eas build --platform all --profile preview
 
 # Build for both iOS and Android (production)
@@ -24,23 +22,24 @@ npx expo run:android
 # Run on device (release)
 npx expo run:android --variant release
 
+
+# (EAS)-----------------------------------------
 # Build APK - direct install, no Play Store (EAS)
 eas build --platform android --profile preview
-
-# Build APK - locally, no EAS needed (No EAS)
-npx expo run:android --variant release
-# APK output: android/app/build/outputs/apk/release/app-release.apk
 
 # Build AAB - for Google Play Store (EAS)
 eas build --platform android --profile production
 
-# Build AAB - for Google Play Store (No EAS)
-# From the project root, first generate the bundle
-npx expo export --platform android
-
-# Then build the AAB via Gradle
+# (NO EAS)----------------------------------------------------------------
+# ── Build (APK) — direct install on device, no Play Store ──
+# Output: android/app/build/outputs/apk/release/app-release.apk
 cd android
-./gradlew bundleRelease
+.\gradlew assembleRelease
+
+# ── Build (AAB) — upload to Google Play Store ───────────────
+# Output: android/app/build/outputs/bundle/release/app-release.aab
+cd android
+.\gradlew bundleRelease
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## iOS

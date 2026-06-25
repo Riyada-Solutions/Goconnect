@@ -507,6 +507,8 @@ export const translations = {
     visitFilterInProgress: "In Progress",
     visitFilterStartProcedure: "Start Procedure",
     visitFilterEndProcedure: "End Procedure",
+    visitFilterReopened: "Reopened",
+    visitFilterClose: "Closed",
 
     // Scheduler day names
     dayMon: "Mon",
@@ -1116,6 +1118,8 @@ export const translations = {
     visitFilterInProgress: "قيد التنفيذ",
     visitFilterStartProcedure: "بدء الإجراء",
     visitFilterEndProcedure: "إنهاء الإجراء",
+    visitFilterReopened: "معاد فتحها",
+    visitFilterClose: "مغلقة",
 
     // Scheduler day names
     dayMon: "إثن",

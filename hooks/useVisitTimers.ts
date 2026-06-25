@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { DateTimeConverter } from "@/utils/datetime";
 
-export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
+export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
 
 // Stored timestamps are KSA wall-clock labelled UTC; `instant()` returns the
 // true epoch so `now − start` matches the web view (off-by-3h otherwise).

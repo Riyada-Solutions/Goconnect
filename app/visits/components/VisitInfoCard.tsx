@@ -13,7 +13,7 @@ import { clock12hTo24h, clock24hTo12h, formatElapsed } from "@/utils/time";
 
 import { visitDetailStyles as s } from "../visit-detail.styles";
 
-export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed";
+export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
 
 interface Props {
   visitId?: number | string;
@@ -43,6 +43,7 @@ interface Props {
 
 function statusLabel(phase: VisitPhase): string {
   if (phase === "completed") return "completed";
+  if (phase === "reopened") return "reopened";
   if (phase === "end_procedure") return "end procedure";
   if (phase === "start_procedure") return "start procedure";
   return "in progress";

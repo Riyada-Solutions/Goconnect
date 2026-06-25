@@ -33,7 +33,7 @@ import { AllergiesForm } from "./components/visitForms/AllergiesForm";
 import { BloodSugarForm } from "./components/visitForms/BloodSugarForm";
 import { SocialAssessmentForm } from "./components/visitForms/SocialAssessmentForm";
 import { IncidentsForm } from "./components/visitForms/IncidentsForm";
-import { VisualTriageChecklistForm } from "./components/visitForms/VisualTriageChecklistForm";
+import { VisualTriageChecklistForm, type VisualTriageHistoryEntry } from "./components/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
 import { NurseSignatureSheet } from "./components/NurseSignatureSheet";
 import { ReadOnlyBanner } from "./components/visitForms/ReadOnlyBanner";
@@ -104,7 +104,8 @@ function VisitDetailScreenInner() {
   // Pre-fill AllergiesForm from patient alerts when no visit form is saved yet.
   const allergiesInitial = useMemo(() => {
     const rec = record as any;
-    const saved = rec?.forms?.["allergies"]?.[0]?.value;
+    // API returns saved allergies as a top-level object at rec["allergies"]
+    const saved = rec?.["allergies"] ?? rec?.forms?.["allergies"]?.[0]?.value;
     if (saved) return saved;
     const allg: any[] = rec?.patient?.patientAlerts?.allergies ?? [];
     const contam: string[] = rec?.patient?.patientAlerts?.contamination ?? [];
@@ -115,12 +116,13 @@ function VisitDetailScreenInner() {
       general_allergies: allg.filter((a: any) => a.type === 'general').map((a: any) => a.value).join(', '),
       contamination:     contam.join(', '),
     };
-  }, [(record as any)?.forms?.["allergies"]?.[0]?.value, (record as any)?.patient?.patientAlerts]);
+  }, [(record as any)?.["allergies"], (record as any)?.patient?.patientAlerts]);
 
   // Pre-fill IncidentsForm from patient + visit data when no saved form exists.
   const incidentsInitial = useMemo(() => {
     const rec = record as any;
-    const saved = rec?.forms?.["incidents"]?.[0]?.value;
+    // API returns incidents as a top-level array at rec["incidents"]
+    const saved = rec?.["incidents"]?.[0] ?? rec?.forms?.["incidents"]?.[0]?.value;
     if (saved) return saved;
     if (!rec?.patient) return null;
     return {
@@ -129,12 +131,15 @@ function VisitDetailScreenInner() {
       patient_dob:           rec.patient.dob ?? '',
       dialysis_session_time: rec.date ?? '',
     };
-  }, [(record as any)?.forms?.["incidents"]?.[0]?.value, (record as any)?.patient?.id]);
+  }, [(record as any)?.["incidents"]?.[0], (record as any)?.patient?.id]);
 
   // Pre-fill VisualTriageChecklistForm from patient + visit data when no saved form exists.
   const visualTriageInitial = useMemo(() => {
     const rec = record as any;
-    const saved = rec?.forms?.["visual-triage-checklist"]?.[0]?.value;
+    // API returns visual triage as a top-level array; use the last (most recent) entry
+    const arr = rec?.["visual-triage-checklist"];
+    const saved = (Array.isArray(arr) && arr.length > 0 ? arr[arr.length - 1] : null)
+      ?? rec?.forms?.["visual-triage-checklist"]?.[0]?.value;
     if (saved) return saved;
     if (!rec?.patient) return null;
     return {
@@ -143,7 +148,18 @@ function VisitDetailScreenInner() {
       hospital:     rec.patient.hospital ?? '',
       date:         rec.date ?? '',
     };
-  }, [(record as any)?.forms?.["visual-triage-checklist"]?.[0]?.value, (record as any)?.patient?.id]);
+  }, [(record as any)?.["visual-triage-checklist"]?.length, (record as any)?.patient?.id]);
+
+  const visualTriageHistory = useMemo((): VisualTriageHistoryEntry[] => {
+    const arr = (record as any)?.["visual-triage-checklist"];
+    if (!Array.isArray(arr) || arr.length === 0) return [];
+    return [...arr].reverse().map((entry: any) => ({
+      ...entry,
+      id: entry.id,
+      createdAt: entry.created_at ?? entry.createdAt,
+      authorName: entry.author?.name ?? entry.authorName,
+    }));
+  }, [(record as any)?.["visual-triage-checklist"]?.length]);
 
   const isLoading = activeQuery.isLoading || activeQuery.isFetching;
   const isError = activeQuery.isError;
@@ -154,7 +170,7 @@ function VisitDetailScreenInner() {
   type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
   const recordStatus = record?.status as string | undefined;
   const initialPhase: VisitPhase =
-    recordStatus === "completed"
+    recordStatus === "completed" || recordStatus === "close" || recordStatus === "closed"
       ? "completed"
       : recordStatus === "reopened"
         ? "reopened"
@@ -740,7 +756,7 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             initialExpanded={false}
-            initial={(record as any)?.forms?.["blood-sugar"]?.[0]?.value ?? null}
+            initial={(record as any)?.["blood-sugar"]?.[0] ?? (record as any)?.forms?.["blood-sugar"]?.[0]?.value ?? null}
             isSaving={submitBloodSugar.isPending}
             onSave={(data) => {
               submitBloodSugar.mutate(data, {
@@ -758,7 +774,7 @@ function VisitDetailScreenInner() {
             colors={colors}
             isReadOnly={isReadOnly}
             initialExpanded={false}
-            initial={(record as any)?.forms?.["social-assessment"]?.[0]?.value ?? null}
+            initial={(record as any)?.["social-assessment"] ?? (record as any)?.forms?.["social-assessment"]?.[0]?.value ?? null}
             isSaving={submitSocialAssessment.isPending}
             onSave={(data) => {
               submitSocialAssessment.mutate(data, {
@@ -795,6 +811,7 @@ function VisitDetailScreenInner() {
             isReadOnly={isReadOnly}
             initialExpanded={false}
             initial={visualTriageInitial}
+            history={visualTriageHistory}
             isSaving={submitVisualTriage.isPending}
             onSave={(data) => {
               submitVisualTriage.mutate(data, {

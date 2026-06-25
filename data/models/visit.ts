@@ -52,6 +52,8 @@ export interface Visit {
   type: string
   status:
     | 'completed'
+    | 'close'
+    | 'closed'
     | 'pending'
     | 'confirmed'
     | 'cancelled'
@@ -119,11 +121,26 @@ export interface DialysisMedication {
   instructions: string
 }
 
+export interface InventoryUsageRecord {
+  id: number
+  quantityUsed: number
+  oldTotal: number
+  newTotal: number
+  notes: string
+  user: { id: number; name: string }
+  createdAt: string
+}
+
 export interface InventoryItem {
   id: number
   name: string
   itemNumber: string
   available: number
+  allocated?: number
+  defaultQty?: number
+  lowStockQty?: number
+  usageCount?: number
+  usageHistory?: InventoryUsageRecord[]
 }
 
 /** Body for `POST /patient-inventory/use`. */

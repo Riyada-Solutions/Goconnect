@@ -1,5 +1,5 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
@@ -20,6 +20,12 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
   const [qty, setQty] = useState("1");
   const [notes, setNotes] = useState("");
   const { dialogProps: modalDialogProps, show: showDialog } = useFeedbackDialog();
+
+  useEffect(() => {
+    if (!item) return;
+    setQty(item.defaultQty && item.defaultQty > 0 ? String(item.defaultQty) : "1");
+    setNotes("");
+  }, [item?.id]);
 
   if (!item) return null;
 

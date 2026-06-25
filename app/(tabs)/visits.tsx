@@ -32,7 +32,8 @@ type VisitFilter =
   | "in_progress"
   | "start_procedure"
   | "end_procedure"
-  | "completed";
+  | "completed"
+  | "reopened";
 
 const FILTERS: VisitFilter[] = [
   "all",
@@ -40,6 +41,7 @@ const FILTERS: VisitFilter[] = [
   "start_procedure",
   "end_procedure",
   "completed",
+  "reopened",
 ];
 
 
@@ -60,6 +62,7 @@ export default function VisitsScreen() {
     start_procedure: t("visitFilterStartProcedure"),
     end_procedure: t("visitFilterEndProcedure"),
     completed: t("completed"),
+    reopened: t("visitFilterReopened"),
   };
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [activeFilter, setActiveFilter] = useState<VisitFilter>("all");
@@ -228,13 +231,15 @@ export default function VisitsScreen() {
                             backgroundColor:
                               item.status === "completed"
                                 ? "#EEF2FF"
-                                : item.status === "in_progress"
-                                  ? "#E0F2FE"
-                                  : item.status === "start_procedure"
-                                    ? "#FFF7ED"
-                                    : item.status === "end_procedure"
-                                      ? "#FEF3C7"
-                                      : Colors.accentLight,
+                                : item.status === "reopened"
+                                  ? "#F3E8FF"
+                                  : item.status === "in_progress"
+                                    ? "#E0F2FE"
+                                    : item.status === "start_procedure"
+                                      ? "#FFF7ED"
+                                      : item.status === "end_procedure"
+                                        ? "#FEF3C7"
+                                        : Colors.accentLight,
                           },
                         ]}
                       >
@@ -244,13 +249,15 @@ export default function VisitsScreen() {
                           color={
                             item.status === "completed"
                               ? "#4F46E5"
-                              : item.status === "in_progress"
-                                ? "#0369A1"
-                                : item.status === "start_procedure"
-                                  ? "#C2410C"
-                                  : item.status === "end_procedure"
-                                    ? "#92400E"
-                                    : Colors.primary
+                              : item.status === "reopened"
+                                ? "#7C3AED"
+                                : item.status === "in_progress"
+                                  ? "#0369A1"
+                                  : item.status === "start_procedure"
+                                    ? "#C2410C"
+                                    : item.status === "end_procedure"
+                                      ? "#92400E"
+                                      : Colors.primary
                           }
                         />
                       </View>
