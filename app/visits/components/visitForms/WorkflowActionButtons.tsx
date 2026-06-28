@@ -11,6 +11,7 @@ export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "
 
 interface Props {
   phase: VisitPhase;
+  canReopen: boolean;
   onStartProcedure: () => void;
   onEndProcedure: () => void;
   onCheckOut: () => void;
@@ -19,7 +20,7 @@ interface Props {
   onReopen: () => void;
 }
 
-export function WorkflowActionButtons({ phase, onStartProcedure, onEndProcedure, onCheckOut, onCheckOutWithoutSap, onClose, onReopen }: Props) {
+export function WorkflowActionButtons({ phase, canReopen, onStartProcedure, onEndProcedure, onCheckOut, onCheckOutWithoutSap, onClose, onReopen }: Props) {
   return (
     <Animated.View entering={FadeInDown.delay(270).springify()} style={s.actionsRow}>
       {phase === "in_progress" && (
@@ -58,7 +59,7 @@ export function WorkflowActionButtons({ phase, onStartProcedure, onEndProcedure,
           </Pressable>
         </View>
       )}
-      {phase === "completed" && (
+      {phase === "completed" && canReopen && (
         <Pressable
           style={[s.mainBtn, { backgroundColor: "#8B5CF6" }]}
           onPress={() => {
@@ -71,16 +72,28 @@ export function WorkflowActionButtons({ phase, onStartProcedure, onEndProcedure,
         </Pressable>
       )}
       {phase === "reopened" && (
-        <Pressable
-          style={[s.mainBtn, { backgroundColor: "#EF4444" }]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onClose();
-          }}
-        >
-          <Feather name="x-circle" size={18} color="#fff" />
-          <Text style={s.mainBtnText}>Close Visit</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 8, flex: 1 }}>
+          <Pressable
+            style={[s.mainBtn, { backgroundColor: "#EF4444", flex: 1 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onClose();
+            }}
+          >
+            <Feather name="x-circle" size={16} color="#fff" />
+            <Text style={s.mainBtnText}>Close Visit</Text>
+          </Pressable>
+          <Pressable
+            style={[s.mainBtn, { backgroundColor: "#6B7280", flex: 1 }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onCheckOutWithoutSap();
+            }}
+          >
+            <Feather name="log-out" size={16} color="#fff" />
+            <Text style={s.mainBtnText}>Without SAP</Text>
+          </Pressable>
+        </View>
       )}
     </Animated.View>
   );

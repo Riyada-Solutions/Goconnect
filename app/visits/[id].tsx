@@ -835,6 +835,7 @@ function VisitDetailScreenInner() {
         {/* {patientName && ( */}
           <WorkflowActionButtons
             phase={visitPhase}
+            canReopen={can("visits.ReopenMyVisit") || can("visits.ReopenAllVisit")}
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}
             onCheckOut={() => setShowCheckoutModal(true)}
