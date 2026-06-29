@@ -4,7 +4,8 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## COMMON
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
+# Start Metro bundler (debug mode, clears cache)
+npx expo start --clear
 # Start Metro bundler (debug mode, clears cache)
 npx expo start -━━━━━━━━# Build for both iOS and Android (testing)
 eas build --platform all --profile preview

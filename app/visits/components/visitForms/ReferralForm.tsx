@@ -9,9 +9,9 @@ import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateTimeField } from "@/components/ui/DateTimeField";
 import { SelectField } from "@/components/ui/SelectField";
 import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
+import { useHospitals } from "@/hooks/useHospitals";
 import { Colors } from "@/theme/colors";
 import {
-  REFERRAL_HOSPITALS,
   REFERRAL_TYPES,
   type Referral,
   type ReferralPrintOptions,
@@ -77,6 +77,8 @@ export function ReferralForm({
   onSave,
   t,
 }: Props) {
+  const { data: hospitals = [] } = useHospitals();
+
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [referralDate, setReferralDate] = useState(todayIso());
   const [referralType, setReferralType] = useState<string | null>(null);
@@ -106,10 +108,10 @@ export function ReferralForm({
     // Use the hospital name from the API response; fall back to our static list if needed.
     const hospitalName = latest.referralHospitalName ?? null;
     setReferralHospitalName(hospitalName);
-    // Resolve the numeric id: prefer the value from the API, then look it up in the static list.
+    // Resolve the numeric id: prefer the value from the API, then look it up in the fetched list.
     const hospitalId =
       latest.referralHospitalId ??
-      (hospitalName ? (REFERRAL_HOSPITALS.find(h => h.name === hospitalName)?.id ?? null) : null);
+      (hospitalName ? (hospitals.find(h => h.name === hospitalName)?.id ?? null) : null);
     setReferralHospitalId(hospitalId);
     setPrintOptions(latest.printOptions ?? EMPTY_PRINT);
     setReferralReason(latest.referralReason ?? "");
@@ -119,14 +121,14 @@ export function ReferralForm({
     if (latest.attachmentUrl) setExistingAttachmentUrl(latest.attachmentUrl);
   }, [previousReferrals]);
 
-  // Hospital options = static list + any hospital name from the API not already in the list.
+  // Hospital options from API + any name already saved on the referral not in the list.
   const hospitalOptions = useMemo(() => {
-    const names = REFERRAL_HOSPITALS.map(h => h.name);
+    const names = hospitals.map(h => h.name);
     if (referralHospitalName && !names.includes(referralHospitalName)) {
       names.push(referralHospitalName);
     }
     return names;
-  }, [referralHospitalName]);
+  }, [hospitals, referralHospitalName]);
 
   const setPrintOpt = (key: keyof ReferralPrintOptions, v: boolean) =>
     setPrintOptions((p) => ({ ...p, [key]: v }));
@@ -240,7 +242,7 @@ export function ReferralForm({
             placeholder={t("selectHospital")}
             onChange={(name) => {
               setReferralHospitalName(name);
-              setReferralHospitalId(REFERRAL_HOSPITALS.find(h => h.name === name)?.id ?? null);
+              setReferralHospitalId(hospitals.find(h => h.name === name)?.id ?? null);
             }}
           />
 

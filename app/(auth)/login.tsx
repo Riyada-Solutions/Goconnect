@@ -103,7 +103,8 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { accessToken, user } = await authLogin({ username, password });
+      const firebase_token = await AsyncStorage.getItem("@goconnect/fcm_token");
+      const { accessToken, user } = await authLogin({ username, password, firebase_token });
       await login(user, accessToken);
       const biometricEnabled =
         (await AsyncStorage.getItem("@goconnect/biometric")) === "true";

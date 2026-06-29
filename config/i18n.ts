@@ -170,7 +170,7 @@ export const translations = {
     patient: "Patient",
     slotProvider: "Provider",
     slotStatus: "Status",
-    confirmed: "Confirmed",
+    confirmed: "Confirm",
     pending: "Pending",
     cancelled: "Cancelled",
     canceled: "Canceled",
@@ -610,9 +610,24 @@ export const translations = {
     // New forms
     allergiesForm: "Allergies",
     bloodSugarForm: "Blood Sugar Monitor",
-    socialAssessmentForm: "Social Assessment",
+    socialAssessmentForm: "Social Worker Assessment",
     incidentsForm: "Incidents",
     visualTriageChecklist: "Visual Triage Checklist",
+
+    // Blood sugar form
+    relevantMedications: "Relevant Medications",
+    insulin: "Insulin",
+    oralHypoglycemicAgents: "Oral Hypoglycemic Agents",
+    none: "None",
+    other: "Other",
+    resultsMgDl: "Results (mg/dL)",
+    fasting: "Fasting",
+    random: "Random",
+    actionTaken: "Action Taken",
+    signature: "Signature",
+    addReading: "Add Reading",
+    signed: "Signed",
+    name: "Name",
   },
   ar: {
     // Common
@@ -1221,9 +1236,24 @@ export const translations = {
     // New forms
     allergiesForm: "الحساسية",
     bloodSugarForm: "مراقبة سكر الدم",
-    socialAssessmentForm: "التقييم الاجتماعي",
+    socialAssessmentForm: "تقييم الأخصائي الاجتماعي",
     incidentsForm: "الحوادث",
     visualTriageChecklist: "قائمة التصنيف البصري",
+
+    // Blood sugar form
+    relevantMedications: "الأدوية ذات الصلة",
+    insulin: "الأنسولين",
+    oralHypoglycemicAgents: "مخفضات السكر الفموية",
+    none: "لا شيء",
+    other: "أخرى",
+    resultsMgDl: "النتائج (ملغ/ديسيلتر)",
+    fasting: "صائم",
+    random: "عشوائي",
+    actionTaken: "الإجراء المتخذ",
+    signature: "التوقيع",
+    addReading: "إضافة قراءة",
+    signed: "موقّع",
+    name: "الاسم",
   },
 } as const;
 

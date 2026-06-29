@@ -237,9 +237,9 @@ export function SocialAssessmentForm({
           onChange={(v) => update("physical_status", v)}
         />
 
-        {/* Social Assessment notes */}
+        {/* Social Worker Assessment notes */}
         <View>
-          <Text style={[s.formLabel, { color: colors.text }]}>Social Assessment Notes</Text>
+          <Text style={[s.formLabel, { color: colors.text }]}>Social Worker Assessment Notes</Text>
           <TextInput
             style={[
               s.formInput,

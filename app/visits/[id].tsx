@@ -528,9 +528,13 @@ function VisitDetailScreenInner() {
           .join(", ")
       : ((record as any).provider as string | undefined);
 
-  // Primary physician = the care-team member flagged isPrimary (by name).
-  const primaryPhysician =
-    (careTeam as CareTeamMember[]).find((m) => m.isPrimary)?.name ?? "Physician";
+  // Primary physician: exact role === "Physician" match in the care team,
+  // fallback to the first care team member if none found.
+  const primaryPhysician = (() => {
+    const team = careTeam as CareTeamMember[];
+    const physician = team.find((m) => m.role?.toLowerCase() === "physician");
+    return physician?.name ?? team[0]?.name ?? "";
+  })();
 
   const alertCount =
     (alerts?.allergies?.length ?? 0) +

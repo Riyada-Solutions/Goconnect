@@ -51,7 +51,7 @@ function MemberAction({
   member,
   onConfirmMember,
   confirmingMemberId,
-  confirmedLabel = "Confirmed",
+  confirmedLabel = "Confirm",
 }: {
   member: CareTeamMember;
   onConfirmMember?: (m: CareTeamMember) => void;
@@ -93,7 +93,7 @@ export function CareTeamView({
   showHeader = true,
   onConfirmMember,
   confirmingMemberId,
-  confirmedLabel = "Confirmed",
+  confirmedLabel = "Confirm",
 }: CareTeamViewProps) {
   const { colors } = useTheme();
   const list = members.filter((m) => m && m.name);

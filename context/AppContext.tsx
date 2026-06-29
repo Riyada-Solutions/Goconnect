@@ -41,10 +41,10 @@ const FCM_TOKEN_KEY = "@goconnect/fcm_token";
 
 async function syncDeviceWithProfile(): Promise<void> {
   try {
-    const fcm_token = await AsyncStorage.getItem(FCM_TOKEN_KEY);
-    const device_type: "ios" | "android" =
+    const firebase_token = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+    const platform: "ios" | "android" =
       Platform.OS === "ios" ? "ios" : "android";
-    await registerDevice({ fcm_token, device_type });
+    await registerDevice({ firebase_token, platform });
   } catch {
     // non-fatal; the call will be retried on next app open
   }

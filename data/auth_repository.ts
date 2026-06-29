@@ -114,13 +114,13 @@ export async function updateMe(body: { name: string; phone: string }): Promise<U
 }
 
 export interface RegisterDeviceRequest {
-  fcm_token: string | null
-  device_type: 'ios' | 'android'
+  firebase_token: string | null
+  platform: 'ios' | 'android'
 }
 
 export async function registerDevice(body: RegisterDeviceRequest): Promise<void> {
   if (ENV.USE_MOCK_DATA) return
-  if (!body.fcm_token) return
+  if (!body.firebase_token) return
   await apiClient.post('/me/device-token', body)
 }
 

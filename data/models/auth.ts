@@ -29,6 +29,7 @@ export interface User {
 export interface LoginRequest {
   username: string
   password: string
+  firebase_token?: string | null
 }
 
 export interface LoginResponse {

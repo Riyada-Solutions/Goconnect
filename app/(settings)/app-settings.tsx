@@ -229,60 +229,7 @@ export default function AppSettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* ── Language ── */}
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            {t("languageRegion")}
-          </Text>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <Pressable
-              onPress={() => toggleLang("en")}
-              style={({ pressed }) => [
-                styles.row,
-                { borderBottomWidth: 1, borderBottomColor: bd },
-                pressed && { opacity: 0.65 },
-              ]}
-            >
-              <View style={[styles.iconBox, { backgroundColor: Colors.pastel.teal }]}>
-                <Text style={styles.flagEmoji}>🇬🇧</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowLabel, { color: colors.text }]}>{t("english")}</Text>
-                <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
-                  {t("englishRegion")}
-                </Text>
-              </View>
-              {language === "en" ? (
-                <View style={[styles.activeChip, { backgroundColor: Colors.pastel.teal }]}>
-                  <Text style={[styles.activeChipText, { color: Colors.primary }]}>{t("activeLabel")}</Text>
-                </View>
-              ) : (
-                <Feather name="circle" size={18} color={bd} />
-              )}
-            </Pressable>
-            <Pressable
-              onPress={() => toggleLang("ar")}
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.65 }]}
-            >
-              <View style={[styles.iconBox, { backgroundColor: Colors.pastel.orange }]}>
-                <Text style={styles.flagEmoji}>🇸🇦</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowLabel, { color: colors.text }]}>{t("arabic")}</Text>
-                <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
-                  {t("arabicRegion")}
-                </Text>
-              </View>
-              {language === "ar" ? (
-                <View style={[styles.activeChip, { backgroundColor: Colors.pastel.teal }]}>
-                  <Text style={[styles.activeChipText, { color: Colors.primary }]}>{t("activeLabel")}</Text>
-                </View>
-              ) : (
-                <Feather name="circle" size={18} color={bd} />
-              )}
-            </Pressable>
-          </View>
-        </Animated.View>
+        {/* ── Language (hidden) ── */}
 
         {/* ── Notifications ── */}
         <Animated.View entering={FadeInDown.delay(140).springify()}>
