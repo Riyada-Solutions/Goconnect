@@ -1,5 +1,6 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { requestAndSavePushToken, FCM_TOKEN_STORAGE_KEY } from "@/utils/pushNotifications";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -103,7 +104,9 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const firebase_token = await AsyncStorage.getItem("@goconnect/fcm_token");
+      // Request permission + get FCM token; fall back to any cached token
+      const fresh = await requestAndSavePushToken();
+      const firebase_token = fresh ?? await AsyncStorage.getItem(FCM_TOKEN_STORAGE_KEY);
       const { accessToken, user } = await authLogin({ username, password, firebase_token });
       await login(user, accessToken);
       const biometricEnabled =

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Goconnect",
     "slug": "CareConnectNurse",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "goconnect",
@@ -25,7 +25,8 @@
         "NSPhotoLibraryUsageDescription": "Goconnect needs photo library access to upload patient documents.",
         "NSLocationWhenInUseUsageDescription": "Goconnect needs your location to verify visit check-in.",
         "NSFaceIDUsageDescription": "Goconnect uses Face ID to sign you in securely.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["fetch", "remote-notification"]
       }
     },
     "android": {
@@ -37,7 +38,9 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -58,7 +61,34 @@
         {
           "faceIDPermission": "Goconnect uses Face ID to sign you in securely."
         }
-      ]
+      ],
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Goconnect needs photo library access to upload patient documents.",
+          "cameraPermission": "Goconnect needs camera access to capture patient documents.",
+          "microphonePermission": "Goconnect needs microphone access to record patient videos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Goconnect needs your location to verify visit check-in."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#2DAAAE",
+          "sounds": [],
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      "expo-background-fetch",
+      "expo-task-manager"
     ],
     "experiments": {
       "typedRoutes": true,

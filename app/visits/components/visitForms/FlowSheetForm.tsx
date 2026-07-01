@@ -31,6 +31,7 @@ import {
   submitFlowSheetPostTreatment,
   submitFlowSheetVitals,
 } from "@/data/visit_repository";
+import { OfflineQueuedError } from "@/data/offline_api";
 import { Colors } from "@/theme/colors";
 
 /** Convert the form-side SignatureValue to the API-side SavedSignature shape.
@@ -188,8 +189,13 @@ function SectionSaveBar({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showDialog({ variant: "success", title: "Saved", message: `${sectionName} saved successfully.` });
     } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showDialog({ variant: "error", title: "Save Failed", message: err?.message ?? "Failed to save. Please try again." });
+      if (err instanceof OfflineQueuedError) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showDialog({ variant: "success", title: "Saved Offline", message: "Your changes will sync automatically when you reconnect." });
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        showDialog({ variant: "error", title: "Save Failed", message: err?.message ?? "Failed to save. Please try again." });
+      }
     } finally {
       setBusy(false);
     }

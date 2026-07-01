@@ -6,6 +6,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { PasswordRequirements, isPasswordValid } from "@/components/common/PasswordRequirements";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { register } from "@/data/auth_repository";
@@ -57,8 +58,8 @@ export default function RegisterScreen() {
     if (!name.trim())         e.name         = t("nameRequired");
     if (!email.trim())        e.email        = t("emailRequired");
     else if (!EMAIL_REGEX.test(email.trim())) e.email = t("emailInvalid");
-    if (!password.trim())     e.password     = t("passwordRequired");
-    else if (password.length < 8) e.password = t("passwordMinLength");
+    if (!password.trim())         e.password = t("passwordRequired");
+    else if (!isPasswordValid(password)) e.password = t("passwordInvalid");
     if (!passwordConfirmation.trim()) e.passwordConfirmation = t("passwordRequired");
     else if (password !== passwordConfirmation) e.passwordConfirmation = t("passwordMismatch");
     if (Object.keys(e).length > 0) {
@@ -252,6 +253,7 @@ export default function RegisterScreen() {
               </Pressable>
             </View>
             {errors.password && <Text style={s.errorText}>{errors.password}</Text>}
+            <PasswordRequirements password={password} />
           </View>
 
           {/* Confirm Password */}

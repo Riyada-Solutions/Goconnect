@@ -1,12 +1,23 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Font from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import Constants from "expo-constants";
+import React, { useCallback, useEffect, useState } from "react";
 import { LogBox, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { initDb } from "@/data/db";
+import { configureNotificationHandler } from "@/utils/pushNotifications";
+import { NetworkProvider } from "@/context/NetworkContext";
+import { flushQueue, registerVisitInvalidator } from "@/services/SyncService";
+import { registerBackgroundSync } from "@/services/BackgroundSyncTask";
+import { OfflineBanner } from "@/components/common/OfflineBanner";
 
 LogBox.ignoreLogs([
   "ms timeout exceeded",
@@ -60,7 +71,25 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const queryClient = new QueryClient();
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0'
+
+const persister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: '@goconnect/rq-cache',
+  throttleTime: 1000,
+})
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      networkMode: 'offlineFirst',
+      gcTime: 24 * 60 * 60 * 1000,
+    },
+    mutations: {
+      networkMode: 'offlineFirst',
+    },
+  },
+});
 
 // Asset references — Metro gives a URL string on web, an asset number on native
 const FONT_ASSETS = {
@@ -106,9 +135,19 @@ async function loadFonts(): Promise<void> {
 
 function RootLayoutNav() {
   const [showSplash, setShowSplash] = useState(true);
+  const qc = useQueryClient();
+
+  const handleReconnect = useCallback(async () => {
+    registerVisitInvalidator((visitId) => {
+      qc.invalidateQueries({ queryKey: ['visits', Number(visitId)] });
+      qc.invalidateQueries({ queryKey: ['visits'] });
+    });
+    await flushQueue();
+  }, [qc]);
 
   return (
-    <>
+    <NetworkProvider onReconnect={handleReconnect}>
+      <OfflineBanner />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index"              options={{ headerShown: false }} />
         <Stack.Screen name="biometric-unlock"  options={{ headerShown: false, gestureEnabled: false }} />
@@ -124,7 +163,7 @@ function RootLayoutNav() {
         <Stack.Screen name="lab-results/[patientId]" options={{ headerShown: false }} />
       </Stack>
       {showSplash && <SplashView onFinish={() => setShowSplash(false)} />}
-    </>
+    </NetworkProvider>
   );
 }
 
@@ -141,6 +180,10 @@ export default function RootLayout() {
         SplashScreen.hideAsync();
       }
     }, 3000);
+
+    configureNotificationHandler();
+    initDb();
+    void registerBackgroundSync();
 
     loadFonts().finally(() => {
       clearTimeout(timer);
@@ -161,7 +204,14 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{
+            persister,
+            maxAge: 24 * 60 * 60 * 1000,
+            buster: APP_VERSION,
+          }}
+        >
           <AppProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
@@ -169,7 +219,7 @@ export default function RootLayout() {
               </KeyboardProvider>
             </GestureHandlerRootView>
           </AppProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

@@ -22,7 +22,7 @@ export async function getHospitals(): Promise<Hospital[]> {
   if (ENV.USE_MOCK_DATA) return []
 
   const res = await apiClient.get('/settings/hospitals', {
-    params: { per_page: 200, page: 1 },
+    // params: { per_page: 100, page: 1 },
   })
   const body = res.data
   const items: any[] = Array.isArray(body?.data) ? body.data

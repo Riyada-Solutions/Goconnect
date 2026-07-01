@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { resetPassword } from "@/data/auth_repository";
+import { PasswordRequirements, isPasswordValid } from "@/components/common/PasswordRequirements";
 
 export default function NewPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -42,7 +43,7 @@ export default function NewPasswordScreen() {
   const confirmRef = useRef<TextInput>(null);
 
   function validate(): boolean {
-    if (newPassword.length < 8) { setError(t("passwordMinLength")); return false; }
+    if (!isPasswordValid(newPassword)) { setError(t("passwordInvalid")); return false; }
     if (newPassword !== confirmPassword) { setError(t("passwordMismatch")); return false; }
     return true;
   }
@@ -126,6 +127,8 @@ export default function NewPasswordScreen() {
             </View>
           </View>
 
+          <PasswordRequirements password={newPassword} />
+
           <View style={s.fieldGroup}>
             <Text style={s.fieldLabel}>{t("confirmNewPassword")}</Text>
             <View style={[s.inputWrap, error === t("passwordMismatch") && s.inputError]}>
@@ -147,34 +150,6 @@ export default function NewPasswordScreen() {
               </Pressable>
             </View>
           </View>
-
-          {newPassword.length > 0 && (
-            <View style={s.strengthRow}>
-              {[...Array(4)].map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    s.strengthBar,
-                    {
-                      backgroundColor:
-                        newPassword.length >= 12 ? "#22c55e" :
-                        newPassword.length >= 8 ? "#f59e0b" :
-                        newPassword.length >= 4 ? "#f97316" : "#ef4444",
-                      opacity: i < Math.ceil(newPassword.length / 3) ? 1 : 0.2,
-                    },
-                  ]}
-                />
-              ))}
-              <Text style={[s.strengthLabel, {
-                color:
-                  newPassword.length >= 12 ? "#22c55e" :
-                  newPassword.length >= 8 ? "#f59e0b" :
-                  newPassword.length >= 4 ? "#f97316" : "#ef4444",
-              }]}>
-                {newPassword.length >= 12 ? t("passwordStrong") : newPassword.length >= 8 ? t("passwordGood") : newPassword.length >= 4 ? t("passwordWeak") : t("passwordTooShort")}
-              </Text>
-            </View>
-          )}
 
           {error && (
             <View style={s.errorRow}>
@@ -219,9 +194,6 @@ function makeStyles(colors: typeof Colors.light | typeof Colors.dark) {
     inputIcon: { marginRight: 10 },
     input: { flex: 1, paddingVertical: 14, fontFamily: "Inter_400Regular", fontSize: 15, color: colors.text },
     eyeBtn: { padding: 4 },
-    strengthRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-    strengthBar: { flex: 1, height: 4, borderRadius: 2 },
-    strengthLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, minWidth: 60 },
     errorRow: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#FFF5F5", borderRadius: 10, padding: 10 },
     errorText: { fontFamily: "Inter_400Regular", fontSize: 13, color: colors.error, flex: 1 },
     saveBtn: { backgroundColor: Colors.primary, borderRadius: 16, paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center" },

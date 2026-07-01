@@ -87,6 +87,12 @@ export const translations = {
     passwordGood: "Good",
     passwordWeak: "Weak",
     passwordTooShort: "Too short",
+    passwordInvalid: "Password does not meet all requirements",
+    reqMinLength: "At least 8 characters",
+    reqUppercase: "One uppercase letter (A-Z)",
+    reqLowercase: "One lowercase letter (a-z)",
+    reqNumber: "One number (0-9)",
+    reqSpecial: "One special character (!@#$%^&*)",
 
     // Navigation
     home: "Home",
@@ -715,6 +721,12 @@ export const translations = {
     passwordGood: "جيدة",
     passwordWeak: "ضعيفة",
     passwordTooShort: "قصيرة جداً",
+    passwordInvalid: "كلمة المرور لا تستوفي جميع المتطلبات",
+    reqMinLength: "8 أحرف على الأقل",
+    reqUppercase: "حرف كبير واحد (A-Z)",
+    reqLowercase: "حرف صغير واحد (a-z)",
+    reqNumber: "رقم واحد (0-9)",
+    reqSpecial: "رمز خاص واحد (!@#$%^&*)",
 
     // Navigation
     home: "الرئيسية",

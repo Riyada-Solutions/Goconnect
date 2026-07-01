@@ -34,13 +34,17 @@ import type { RefusalInput } from '../data/models/refusal'
 import type { SariScreeningInput } from '../data/models/sariScreening'
 import type { SocialWorkerLocation } from '../data/models/socialWorkerProgressNote'
 
+const CACHE_24H = 24 * 60 * 60 * 1000
+
 export function useVisits(date?: string) {
   return useInfiniteQuery({
     queryKey: ['visits', date ?? null],
     queryFn: ({ pageParam = 1 }) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date),
     initialPageParam: 1,
     getNextPageParam: (last) => last.hasMore ? last.meta.current_page + 1 : undefined,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: CACHE_24H,
+    networkMode: 'offlineFirst',
   })
 }
 
@@ -48,9 +52,9 @@ export function useVisit(id: number) {
   return useQuery({
     queryKey: ['visits', id],
     queryFn: () => getVisitById(id),
-    staleTime: 0,
-    // Always refetch when the visit detail screen mounts so closing and
-    // reopening it shows the loading state and pulls fresh data from the API.
+    staleTime: 2 * 60 * 1000,
+    gcTime: CACHE_24H,
+    networkMode: 'offlineFirst',
     refetchOnMount: 'always',
     enabled: !!id,
   })
@@ -180,7 +184,7 @@ function useVisitStatusMutation(
   const qc = useQueryClient()
   return useMutation<Visit, Error, void>({
     mutationFn: () => fn(visitId),
-    onSuccess: (visit) => applyVisitUpdate(qc, visit),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
   })
 }
 

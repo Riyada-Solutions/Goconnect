@@ -1,5 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
+import { OfflineQueuedError } from "@/data/offline_api";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -66,6 +67,14 @@ function VisitDetailScreenInner() {
   const { colors } = useTheme();
   const { topPad, botPad } = useScreenPadding({ hasActionBar: true });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
+
+  const handleMutationError = useCallback((err: unknown) => {
+    if (err instanceof OfflineQueuedError) {
+      showDialog({ variant: "success", title: "Saved Offline", message: "Your changes will sync automatically when you reconnect." });
+      return;
+    }
+    showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") });
+  }, [showDialog, t]);
 
   const isSlot = mode === "slot";
   const numId = Number(id);
@@ -258,13 +267,8 @@ function VisitDetailScreenInner() {
     setVisitPhase("completed");
     checkoutVisitMutation.mutate(undefined, {
       onError: (err) => {
-        // Roll back to the pre-checkout phase so the nurse can retry.
         setVisitPhase("end_procedure");
-        showDialog({
-          variant: "error",
-          title: t("error"),
-          message: err instanceof Error ? err.message : t("error"),
-        });
+        handleMutationError(err);
       },
     });
   }, [checkoutVisitMutation, showDialog, t]);
@@ -275,24 +279,30 @@ function VisitDetailScreenInner() {
     checkoutWithoutSapMutation.mutate(undefined, {
       onError: (err) => {
         setVisitPhase("end_procedure");
-        showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") });
+        handleMutationError(err);
       },
     });
   }, [checkoutWithoutSapMutation, showDialog, t]);
 
   const handleCloseVisit = useCallback(() => {
+    setVisitPhase("completed");
     closeVisitMutation.mutate(undefined, {
-      onSuccess: () => setVisitPhase("completed"),
-      onError: (err) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+      onError: (err) => {
+        setVisitPhase("reopened");
+        handleMutationError(err);
+      },
     });
-  }, [closeVisitMutation, showDialog, t]);
+  }, [closeVisitMutation, handleMutationError]);
 
   const handleReopenVisit = useCallback(() => {
+    setVisitPhase("reopened");
     reopenVisitMutation.mutate(undefined, {
-      onSuccess: () => setVisitPhase("reopened"),
-      onError: (err) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+      onError: (err) => {
+        setVisitPhase("completed");
+        handleMutationError(err);
+      },
     });
-  }, [reopenVisitMutation, showDialog, t]);
+  }, [reopenVisitMutation, handleMutationError]);
 
   // Collapsible states
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -403,12 +413,7 @@ function VisitDetailScreenInner() {
         onSettled: () => {
           setMedBusyIds((prev) => { const next = new Set(prev); next.delete(medId); return next; });
         },
-        onError: (err) =>
-          showDialog({
-            variant: "error",
-            title: t("error"),
-            message: err instanceof Error ? err.message : t("error"),
-          }),
+        onError: handleMutationError,
       },
     );
   }, [submitMedAdministration, showDialog, t]);
@@ -528,10 +533,14 @@ function VisitDetailScreenInner() {
           .join(", ")
       : ((record as any).provider as string | undefined);
 
-  // Primary physician: exact role === "Physician" match in the care team,
-  // fallback to the first care team member if none found.
+  // Primary physician: check careTeam (top-level extracted by mapVisitFromApi),
+  // fall back to patient.careTeam directly if top-level is empty.
+  // Within the team, prefer role === "Physician"; otherwise use the first member.
   const primaryPhysician = (() => {
-    const team = careTeam as CareTeamMember[];
+    const topTeam = careTeam as CareTeamMember[];
+    const team: CareTeamMember[] = topTeam.length > 0
+      ? topTeam
+      : ((patientRecord?.careTeam ?? []) as CareTeamMember[]);
     const physician = team.find((m) => m.role?.toLowerCase() === "physician");
     return physician?.name ?? team[0]?.name ?? "";
   })();
@@ -652,21 +661,21 @@ function VisitDetailScreenInner() {
             onSaveDoctor={(input) => {
               submitDoctorProgressNote.mutate(input, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("doctorProgressNote") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             nursingNotes={nursingProgressNotes}
             onSaveNursing={(note) => {
               submitNursingProgressNote.mutate(note, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("nursingProgressNote") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             socialWorkerNotes={socialWorkerProgressNotes}
             onSaveSocialWorker={(input) => {
               submitSocialWorkerProgressNote.mutate(input, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialWorkerProgressNote") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -686,7 +695,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitReferral.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("referral") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -709,7 +718,7 @@ function VisitDetailScreenInner() {
               }
               submitRefusal.mutate({ ...data, currentUserId }, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("refusalTitle") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -729,7 +738,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitSariScreening.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("sariScreeningTool") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -747,7 +756,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitAllergies.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("allergiesForm") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -765,7 +774,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitBloodSugar.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("bloodSugarForm") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -783,7 +792,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitSocialAssessment.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialAssessmentForm") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -801,7 +810,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitIncidents.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("incidentsForm") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -820,7 +829,7 @@ function VisitDetailScreenInner() {
             onSave={(data) => {
               submitVisualTriage.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("visualTriageChecklist") }),
-                onError: (err: unknown) => showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") }),
+                onError: handleMutationError,
               });
             }}
             t={t}
@@ -927,8 +936,7 @@ function VisitDetailScreenInner() {
             {
               onSuccess: () =>
                 showDialog({ variant: "success", title: "Success", message: `Used ${qty} × ${selectedItem.name}. Inventory updated.` }),
-              onError: (err) =>
-                showDialog({ variant: "error", title: t("error"), message: err.message }),
+              onError: handleMutationError,
             },
           );
         }}
@@ -957,8 +965,7 @@ function VisitDetailScreenInner() {
             {
               onSuccess: () =>
                 showDialog({ variant: "success", title: "Success", message: `${rows.length} item(s) usage recorded. Inventory updated.` }),
-              onError: (err) =>
-                showDialog({ variant: "error", title: t("error"), message: err.message }),
+              onError: handleMutationError,
             },
           );
         }}

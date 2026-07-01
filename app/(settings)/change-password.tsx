@@ -20,6 +20,7 @@ import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
 import { changePassword } from "@/data/auth_repository";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
+import { PasswordRequirements, isPasswordValid } from "@/components/common/PasswordRequirements";
 
 function PasswordField({
   label,
@@ -90,7 +91,7 @@ export default function ChangePasswordScreen() {
   const handleSave = async () => {
     const e: Record<string, string> = {};
     if (!current) e.current = t("currentPasswordRequired");
-    if (!newPass || newPass.length < 8) e.newPass = t("passwordMinLength");
+    if (!newPass || !isPasswordValid(newPass)) e.newPass = t("passwordInvalid");
     if (newPass !== confirm) e.confirm = t("passwordMismatch");
     if (Object.keys(e).length > 0) {
       setErrors(e);
@@ -177,6 +178,11 @@ export default function ChangePasswordScreen() {
             error={errors.newPass}
             colors={colors}
           />
+          {newPass.length > 0 && (
+            <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
+              <PasswordRequirements password={newPass} />
+            </View>
+          )}
           <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
           <PasswordField
             label={t("confirmNewPassword")}

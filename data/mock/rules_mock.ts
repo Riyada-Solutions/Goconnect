@@ -1,13 +1,14 @@
-import { ALL_RULE_ACTIONS, RuleAction } from '../models/rules'
+import { ALL_BACKEND_RULES, BackendRuleKey } from '../models/rules'
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * Mock rules — by default every action is enabled so the app behaves as if
- * the user is fully privileged. Trim entries from this list locally to test
- * disabled flows.
+ * Mock rules — returns every known backend rule key so that both FE semantic
+ * checks (can("view_visits")) and direct backend-key checks
+ * (can("visits.ReopenMyVisit")) resolve to true in mock mode.
+ * Trim entries locally to test disabled flows.
  */
-export async function mockGetRules(): Promise<RuleAction[]> {
+export async function mockGetRules(): Promise<BackendRuleKey[]> {
   await delay(300)
-  return [...ALL_RULE_ACTIONS]
+  return [...ALL_BACKEND_RULES]
 }

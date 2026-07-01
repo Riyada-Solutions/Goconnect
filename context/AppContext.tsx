@@ -19,6 +19,8 @@ import {
   updateMe,
 } from "@/data/auth_repository";
 import { clearFaceToken, getFaceToken } from "@/data/secure_storage";
+import { clearQueue } from "@/data/offline_queue";
+import { requestAndSavePushToken } from "@/utils/pushNotifications";
 import {
   fetchAppSettings,
   DEFAULT_APP_SETTINGS,
@@ -41,7 +43,9 @@ const FCM_TOKEN_KEY = "@goconnect/fcm_token";
 
 async function syncDeviceWithProfile(): Promise<void> {
   try {
-    const firebase_token = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+    // Request permission + get native FCM/APNs token, then register with server
+    const fresh = await requestAndSavePushToken();
+    const firebase_token = fresh ?? await AsyncStorage.getItem(FCM_TOKEN_KEY);
     const platform: "ios" | "android" =
       Platform.OS === "ios" ? "ios" : "android";
     await registerDevice({ firebase_token, platform });
@@ -194,6 +198,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    clearQueue();
     await logoutApi();
     await clearFaceToken();
     setUser(null);

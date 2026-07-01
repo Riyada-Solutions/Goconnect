@@ -1,5 +1,6 @@
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
+import { offlinePost } from './offline_api'
 import {
   mockGetVisits,
   mockGetVisitById,
@@ -646,7 +647,7 @@ async function patchMockVisit(
 /** Start the dialysis procedure → moves the visit into `start_procedure`. */
 export async function startVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'start_procedure')
-  const res = await apiClient.post(`/visits/${visitId}/start-procedure`)
+  const res = await offlinePost(`/visits/${visitId}/start-procedure`, {}, String(visitId))
   return unwrapVisit(res.data)
 }
 
@@ -664,42 +665,42 @@ export async function saveProcedureTimes(
   const payload: Record<string, string> = {}
   if (body.startTime) payload.start_procedure_time = clock12hToApiTime(body.startTime)
   if (body.endTime) payload.end_procedure_time = clock12hToApiTime(body.endTime)
-  const res = await apiClient.post(`/visits/${visitId}/edit-time`, payload)
+  const res = await offlinePost(`/visits/${visitId}/edit-time`, payload as Record<string, unknown>, String(visitId))
   return unwrapVisit(res.data)
 }
 
 /** End the dialysis procedure → moves the visit into `end_procedure`. */
 export async function endVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'end_procedure')
-  const res = await apiClient.post(`/visits/${visitId}/end-procedure`)
+  const res = await offlinePost(`/visits/${visitId}/end-procedure`, {}, String(visitId))
   return unwrapVisit(res.data)
 }
 
 /** Check out → completes the visit. */
 export async function checkoutVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
-  const res = await apiClient.post(`/visits/${visitId}/checkout`)
+  const res = await offlinePost(`/visits/${visitId}/checkout`, {}, String(visitId))
   return unwrapVisit(res.data)
 }
 
 /** Check out without SAP sync → completes the visit, skips SAP posting. */
 export async function checkoutWithoutSapVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
-  const res = await apiClient.post(`/visits/${visitId}/checkout-without-sap`)
+  const res = await offlinePost(`/visits/${visitId}/checkout-without-sap`, {}, String(visitId))
   return unwrapVisit(res.data)
 }
 
 /** Close a reopened visit → moves back to `completed`. */
 export async function closeVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'completed')
-  const res = await apiClient.post(`/visits/${visitId}/close`)
+  const res = await offlinePost(`/visits/${visitId}/close`, {}, String(visitId))
   return unwrapVisit(res.data)
 }
 
 /** Reopen a completed visit → moves to `reopened`. */
 export async function reopenVisit(visitId: number | string): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'reopened')
-  const res = await apiClient.post(`/visits/${visitId}/reopen`)
+  const res = await offlinePost(`/visits/${visitId}/reopen`, {}, String(visitId))
   return unwrapVisit(res.data)
 }
 
@@ -755,9 +756,10 @@ export async function submitFlowSheetSection(
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
   const key = FLOWSHEET_SECTION_KEY[section]
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${visitId}/forms/flowsheet`,
-    { [key]: body },
+    { [key]: body } as Record<string, unknown>,
+    String(visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1065,9 +1067,10 @@ export async function submitFlowSheetPostTreatment(
   }
 
   if (!needsMultipart) {
-    const res = await apiClient.post(
+    const res = await offlinePost(
       `/visits/${visitId}/forms/flowsheet`,
-      postPayload,
+      postPayload as Record<string, unknown>,
+      String(visitId),
     )
     return unwrapVisit(res.data)
   }
@@ -1099,9 +1102,10 @@ export async function submitNursingProgressNote(
     await mockSubmitNursingProgressNote(payload)
     return patchMockVisit(payload.visitId, 'in_progress')
   }
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${payload.visitId}/forms/nursing-progress-note`,
     { notes: payload.note },
+    String(payload.visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1125,9 +1129,10 @@ export async function submitDoctorProgressNote(
   if (payload.isAddendum && payload.parentNoteId != null) {
     body.parentNoteId = payload.parentNoteId
   }
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${payload.visitId}/forms/progress-notes`,
-    body,
+    body as Record<string, unknown>,
+    String(payload.visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1144,9 +1149,10 @@ export async function submitMorseFallsRiskAssessment(
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(Number(payload.visitId), 'in_progress')
   const body = buildMorseFallsRiskBody(payload)
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${payload.visitId}/forms/morse-falls-risk-assessment`,
-    body,
+    body as Record<string, unknown>,
+    String(payload.visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1186,9 +1192,10 @@ export async function submitMedicationAdministration(input: {
       visit_id: Number(input.visitId),
     },
   }
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/actions/patient-medications/${input.medicationId}`,
-    body,
+    body as Record<string, unknown>,
+    String(input.visitId),
   )
   return res.data?.data ?? res.data
 }
@@ -1255,9 +1262,10 @@ export async function submitSariScreening(
     step4:     actions.consultInfectiousDiseaseSpecialist,
     step5:     actions.test,
   }
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${visitId}/forms/respiratory-illness-screening`,
-    body,
+    body as Record<string, unknown>,
+    String(visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1282,9 +1290,10 @@ export async function submitRefusal(payload: RefusalInput): Promise<Visit> {
   const body = serializeDisOfHemodialysis(payload.en, payload.ar, {
     currentUserId: payload.currentUserId,
   })
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${payload.visitId}/forms/dis-of-hemodialysis`,
-    body,
+    body as Record<string, unknown>,
+    String(payload.visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1327,9 +1336,10 @@ export async function submitReferral(payload: ReferralInput): Promise<Visit> {
   if (payload.attachmentSignatureUrl) {
     data.attachment_signature_url = payload.attachmentSignatureUrl
     if (payload.attachmentName) data.attachment_name = payload.attachmentName
-    const res = await apiClient.post(
+    const res = await offlinePost(
       `/visits/${payload.visitId}/forms/referrals`,
-      data,
+      data as Record<string, unknown>,
+      String(payload.visitId),
     )
     return unwrapVisit(res.data)
   }
@@ -1371,13 +1381,14 @@ export async function submitSocialWorkerProgressNote(
   // Dedicated endpoint for social-worker notes (NOT the same /forms/progress-notes
   // used by the doctor). Body: { notes, on_call, in_center } — the visit
   // context is expressed as two booleans rather than a single field.
-  const res = await apiClient.post(
+  const res = await offlinePost(
     `/visits/${payload.visitId}/forms/social-worker-progress-note`,
     {
       notes:     payload.note,
       on_call:   payload.location === 'on_call',
       in_center: payload.location === 'in_center',
     },
+    String(payload.visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1393,13 +1404,13 @@ export async function submitInventoryUsage(
     await new Promise((r) => setTimeout(r, 200))
     return undefined
   }
-  const res = await apiClient.post('/patient-inventory/use', {
+  const res = await offlinePost('/patient-inventory/use', {
     patient_id:           payload.patientId,
     visit_id:             payload.visitId,
     patient_inventory_id: payload.patientInventoryId,
     use_quantity:         payload.quantity,
     notes:                payload.notes ?? null,
-  })
+  }, String(payload.visitId))
   return res.data?.data ?? res.data
 }
 
@@ -1411,7 +1422,7 @@ export async function submitInventoryUsageMultiple(
     await new Promise((r) => setTimeout(r, 200))
     return undefined
   }
-  const res = await apiClient.post('/patient-inventory/use-multiple', {
+  const res = await offlinePost('/patient-inventory/use-multiple', {
     patient_id: payload.patientId,
     visit_id:   payload.visitId,
     items: payload.items.map(i => ({
@@ -1419,7 +1430,7 @@ export async function submitInventoryUsageMultiple(
       use_quantity:         i.quantity,
       notes:                i.notes ?? null,
     })),
-  })
+  } as Record<string, unknown>, String(payload.visitId))
   return res.data?.data ?? res.data
 }
 
@@ -1433,7 +1444,7 @@ export async function submitAllergiesForm(
   },
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/forms/allergies`, body)
+  const res = await offlinePost(`/visits/${visitId}/forms/allergies`, body as Record<string, unknown>, String(visitId))
   return unwrapVisit(res.data)
 }
 
@@ -1454,7 +1465,7 @@ export async function submitBloodSugarForm(
   },
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/forms/blood-sugar`, body)
+  const res = await offlinePost(`/visits/${visitId}/forms/blood-sugar`, body as Record<string, unknown>, String(visitId))
   return unwrapVisit(res.data)
 }
 
@@ -1475,7 +1486,7 @@ export async function submitSocialAssessmentForm(
   },
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/forms/social-assessment`, body)
+  const res = await offlinePost(`/visits/${visitId}/forms/social-assessment`, body as Record<string, unknown>, String(visitId))
   return unwrapVisit(res.data)
 }
 
@@ -1498,7 +1509,7 @@ export async function submitIncidentsForm(
   },
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/forms/incidents`, body)
+  const res = await offlinePost(`/visits/${visitId}/forms/incidents`, body as Record<string, unknown>, String(visitId))
   return unwrapVisit(res.data)
 }
 
@@ -1528,6 +1539,6 @@ export async function submitVisualTriageChecklist(
   },
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
-  const res = await apiClient.post(`/visits/${visitId}/forms/visual-triage-checklist`, body)
+  const res = await offlinePost(`/visits/${visitId}/forms/visual-triage-checklist`, body as Record<string, unknown>, String(visitId))
   return unwrapVisit(res.data)
 }
