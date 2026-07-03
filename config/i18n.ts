@@ -619,6 +619,11 @@ export const translations = {
     socialAssessmentForm: "Social Worker Assessment",
     incidentsForm: "Incidents",
     visualTriageChecklist: "Visual Triage Checklist",
+    consentFormTitle: "Consent Form",
+    patientResponsibilityTitle: "Patient Responsibility",
+    consentForHemodialysisTitle: "Consent for Hemodialysis",
+    patientAssessmentTitle: "Patient Assessment",
+    enrollmentsChecklistTitle: "Enrollments Checklist",
 
     // Blood sugar form
     relevantMedications: "Relevant Medications",
@@ -1251,6 +1256,11 @@ export const translations = {
     socialAssessmentForm: "تقييم الأخصائي الاجتماعي",
     incidentsForm: "الحوادث",
     visualTriageChecklist: "قائمة التصنيف البصري",
+    consentFormTitle: "نموذج الموافقة",
+    patientResponsibilityTitle: "مسؤولية المريض",
+    consentForHemodialysisTitle: "الموافقة على غسيل الكلى",
+    patientAssessmentTitle: "تقييم المريض",
+    enrollmentsChecklistTitle: "قائمة التسجيل",
 
     // Blood sugar form
     relevantMedications: "الأدوية ذات الصلة",

@@ -7,6 +7,7 @@ import {
   confirmAppointmentForNurse,
   getSlotById,
   getSlots,
+  primeVisitCacheFromSlot,
   type SlotsQuery,
 } from '../data/scheduler_repository'
 import type { Slot } from '../data/models/scheduler'
@@ -20,9 +21,14 @@ export function useSlots(query?: SlotsQuery) {
 }
 
 export function useSlot(id: number) {
+  const qc = useQueryClient()
   return useQuery({
     queryKey: ['slots', id],
-    queryFn: () => getSlotById(id),
+    queryFn: async () => {
+      const slot = await getSlotById(id)
+      primeVisitCacheFromSlot(qc, slot)
+      return slot
+    },
     staleTime: 0,
     // Always refetch on mount so reopening the appointment detail screen
     // shows the skeleton and pulls fresh data from the API.
@@ -40,6 +46,7 @@ function useSlotStatusMutation(
     onSuccess: (slot) => {
       qc.setQueryData(['slots', slot.id], slot)
       qc.invalidateQueries({ queryKey: ['slots'] })
+      primeVisitCacheFromSlot(qc, slot)
     },
   })
 }

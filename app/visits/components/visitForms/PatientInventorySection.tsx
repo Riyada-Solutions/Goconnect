@@ -18,13 +18,11 @@ interface Props {
   expanded: boolean;
   onToggle: () => void;
   onSelectItem: (item: InventoryItem) => void;
-  onUseMultiple: () => void;
   isReadOnly: boolean;
   colors: any;
 }
 
-export function PatientInventorySection({ items, expanded, onToggle, onSelectItem, onUseMultiple, isReadOnly, colors }: Props) {
-  const hasAvailable = items.some((it) => it.available > 0);
+export function PatientInventorySection({ items, expanded, onToggle, onSelectItem, isReadOnly, colors }: Props) {
   const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
 
   return (
@@ -45,19 +43,6 @@ export function PatientInventorySection({ items, expanded, onToggle, onSelectIte
             </Text>
           ) : (
             <>
-              {!isReadOnly && hasAvailable && (
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onUseMultiple();
-                  }}
-                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: Colors.primary, borderRadius: 10, paddingVertical: 9, marginBottom: 4 }}
-                >
-                  <Feather name="layers" size={14} color="#fff" />
-                  <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Use Multiple Items</Text>
-                </Pressable>
-              )}
-
               {items.map((item) => {
                 const isLowStock = (item.lowStockQty ?? 0) > 0 && item.available <= (item.lowStockQty ?? 0) && item.available > 0;
                 const hasHistory = (item.usageHistory?.length ?? 0) > 0;

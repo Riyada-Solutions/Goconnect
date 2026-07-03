@@ -36,12 +36,12 @@ type VisitFilter =
   | "reopened";
 
 const FILTERS: VisitFilter[] = [
-  "all",
   "in_progress",
+  "reopened",
   "start_procedure",
   "end_procedure",
   "completed",
-  "reopened",
+  "all",
 ];
 
 
@@ -65,7 +65,7 @@ export default function VisitsScreen() {
     reopened: t("visitFilterReopened"),
   };
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
-  const [activeFilter, setActiveFilter] = useState<VisitFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<VisitFilter>("in_progress");
   const {
     data: pagesData,
     isLoading,
@@ -74,8 +74,8 @@ export default function VisitsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useVisits();
-  const visits = useMemo(() => {
+  } = useVisits(undefined, activeFilter);
+  const filtered = useMemo(() => {
     const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
     const seen = new Set<string>();
     return all.filter((v) => {
@@ -87,11 +87,6 @@ export default function VisitsScreen() {
   }, [pagesData]);
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
-
-  const filtered = useMemo(() => {
-    if (activeFilter === "all") return visits;
-    return visits.filter((v) => v.status === activeFilter);
-  }, [visits, activeFilter]);
 
 
   return (

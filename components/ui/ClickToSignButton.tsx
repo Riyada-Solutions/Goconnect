@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
 import { useTheme } from "@/hooks/useTheme";
+import { DateTimeConverter } from "@/utils/datetime";
 
 interface Props {
   signed: boolean;
@@ -51,7 +52,7 @@ export function ClickToSignButton({
         </Text>
         {signed && signedAt ? (
           <Text style={{ color: "rgba(255,255,255,0.85)", fontFamily: "Inter_400Regular", fontSize: 10 }}>
-            {new Date(signedAt).toLocaleString()}
+            {DateTimeConverter.dateTime(signedAt)}
           </Text>
         ) : null}
       </View>

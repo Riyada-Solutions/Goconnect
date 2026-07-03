@@ -34,6 +34,18 @@ export class DateTimeConverter {
       /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/,
     )
     if (plain) return `${plain[1]}T${plain[2]}Z`
+    // `*_signed_at` fields round-trip through the backend as `YYYY/MM/DD
+    // hh:mm AM/PM` (e.g. `2026/07/01 01:54 PM`) — a format `Date` can't
+    // parse natively (and Hermes silently returns Invalid Date for it).
+    const slash = s.match(
+      /^(\d{4})\/(\d{2})\/(\d{2})[ T](\d{1,2}):(\d{2})\s*(AM|PM)$/i,
+    )
+    if (slash) {
+      const [, y, mo, d, hRaw, mi, ampm] = slash
+      let h = Number(hRaw) % 12
+      if (ampm.toUpperCase() === 'PM') h += 12
+      return `${y}-${mo}-${d}T${pad(h)}:${mi}:00Z`
+    }
     return s
   }
 

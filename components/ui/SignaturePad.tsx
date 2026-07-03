@@ -91,6 +91,11 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
         descriptionText={placeholderLabel}
         penColor={penColor}
         backgroundColor="#FFFFFF"
+        // The WebView's default "hardware" layer can fail to deliver touch
+        // events to the canvas on some Android devices (pad renders but never
+        // registers a stroke). "software" is the documented workaround.
+        androidLayerType="software"
+        androidHardwareAccelerationDisabled={true}
         onBegin={() => {
           if (!hasContent) {
             setHasContent(true);

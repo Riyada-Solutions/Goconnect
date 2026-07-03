@@ -75,6 +75,11 @@ export type RuleAction =
   | 'submit_refusal'
   | 'submit_sari_screening'
   | 'submit_inventory_usage'
+  | 'submit_consent_for_hemodialysis'
+  | 'submit_patient_responsibility'
+  | 'submit_patient_assessment'
+  | 'submit_enrollments_checklist'
+  | 'submit_consent_form'
   // ── Help & support ────────────────────────────────────────────────
   | 'view_help_support'
   | 'submit_support_message'
@@ -145,6 +150,11 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
   'submit_refusal',
   'submit_sari_screening',
   'submit_inventory_usage',
+  'submit_consent_for_hemodialysis',
+  'submit_patient_responsibility',
+  'submit_patient_assessment',
+  'submit_enrollments_checklist',
+  'submit_consent_form',
 
   'view_help_support',
   'submit_support_message',
@@ -654,6 +664,11 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   submit_refusal:                     BackendRule.Patient.DisOfHemodialysisEdit,
   submit_sari_screening:              BackendRule.Patient.RespiratoryIllnessScreeningEdit,
   submit_inventory_usage:             [BackendRule.InventoryAction.UseItem, BackendRule.InventoryAction.CreateUsage],
+  submit_consent_for_hemodialysis:    BackendRule.Patient.ConsentForHemodialysisEdit,
+  submit_patient_responsibility:      BackendRule.Patient.PatientResponsibilityEdit,
+  submit_patient_assessment:          BackendRule.Patient.PatientAssessmentEdit,
+  submit_enrollments_checklist:       BackendRule.Patient.EnrollmentsChecklistEdit,
+  submit_consent_form:                BackendRule.Patient.ConsentFormEdit,
 
   // ── Support ───────────────────────────────────────────────────────
   submit_support_message: BackendRule.TicketingAction.CreateTickets,

@@ -1,3 +1,5 @@
+import type { QueryClient } from '@tanstack/react-query'
+
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
 import { mockGetSlots, mockGetSlotById } from './mock/scheduler_mock'
@@ -30,6 +32,18 @@ export async function getSlotById(
   if (ENV.USE_MOCK_DATA) return mockGetSlotById(Number(id))
   const res = await apiClient.get(`/scheduler/slots/${id}`)
   return unwrapSlot(res.data)
+}
+
+/**
+ * When a slot response carries an embedded `visit` (set once the slot has
+ * been checked in), prime the same React Query cache entry `useVisit(id)`
+ * reads from. This lets "View Visit" open the visit-details screen from
+ * cache — offline included — instead of requiring a fresh `/visits/{id}`
+ * fetch that would fail without connectivity.
+ */
+export function primeVisitCacheFromSlot(qc: QueryClient, slot: Slot | undefined): void {
+  if (!slot?.visit) return
+  qc.setQueryData(['visits', Number(slot.visit.id)], slot.visit)
 }
 
 // ─── Status transitions ─────────────────────────────────────────────────────

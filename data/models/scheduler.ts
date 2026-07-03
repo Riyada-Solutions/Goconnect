@@ -1,5 +1,6 @@
 import type { CareTeamMember } from './careTeam'
 import type { Patient } from './patient'
+import type { Visit } from './visit'
 
 /**
  * Canonical appointment status values returned by the scheduler API.
@@ -123,4 +124,9 @@ export interface Slot {
    *  patient hero card without a second `/patients/{id}` request. `null` for
    *  slots without a patient (e.g. provider breaks). */
   patient?: Patient | null
+
+  /** Embedded visit record, set once `visit_id` is populated. Lets the app
+   *  prime the offline visit cache from the slot response so "View Visit"
+   *  can open the visit detail screen without a live `/visits/{id}` call. */
+  visit?: Visit | null
 }

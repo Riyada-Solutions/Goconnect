@@ -57,12 +57,13 @@ import type { SariScreening, SariScreeningInput } from './models/sariScreening'
 import { clock12hToApiTime } from '@/utils/time'
 import { DateTimeConverter } from '@/utils/datetime'
 
-export const VISITS_PER_PAGE = 20
+export const VISITS_PER_PAGE = 15
 
 export async function getVisitsPage(
   perPage = VISITS_PER_PAGE,
   page = 1,
   date?: string,
+  status?: string,
 ): Promise<Page<Visit>> {
   if (ENV.USE_MOCK_DATA) {
     const items = await mockGetVisits()
@@ -70,6 +71,7 @@ export async function getVisitsPage(
   }
   const params: Record<string, unknown> = { per_page: perPage, page }
   if (date) params.date = date
+  if (status && status !== 'all') params.status = status
   const res = await apiClient.get('/visits', { params })
   return parsePage<Visit>(res.data, page, perPage)
 }
@@ -1540,5 +1542,52 @@ export async function submitVisualTriageChecklist(
 ): Promise<Visit> {
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
   const res = await offlinePost(`/visits/${visitId}/forms/visual-triage-checklist`, body as Record<string, unknown>, String(visitId))
+  return unwrapVisit(res.data)
+}
+
+// ─── Class C forms (update-in-place, one row per visit) ────────────────────
+
+export async function submitConsentForm(
+  visitId: number | string,
+  body: Record<string, unknown>,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await offlinePost(`/visits/${visitId}/forms/consent-form`, body, String(visitId))
+  return unwrapVisit(res.data)
+}
+
+export async function submitPatientResponsibility(
+  visitId: number | string,
+  body: Record<string, unknown>,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await offlinePost(`/visits/${visitId}/forms/patient-responsibility`, body, String(visitId))
+  return unwrapVisit(res.data)
+}
+
+export async function submitConsentForHemodialysis(
+  visitId: number | string,
+  body: Record<string, unknown>,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await offlinePost(`/visits/${visitId}/forms/consent-for-hemodialysis`, body, String(visitId))
+  return unwrapVisit(res.data)
+}
+
+export async function submitEnrollmentsChecklist(
+  visitId: number | string,
+  body: Record<string, unknown>,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await offlinePost(`/visits/${visitId}/forms/enrollments-checklist`, body, String(visitId))
+  return unwrapVisit(res.data)
+}
+
+export async function submitPatientAssessment(
+  visitId: number | string,
+  body: Record<string, unknown>,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await offlinePost(`/visits/${visitId}/forms/patient-assessment`, body, String(visitId))
   return unwrapVisit(res.data)
 }

@@ -12,7 +12,7 @@ import { useApp } from "@/context/AppContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useCheckoutVisit, useCheckoutWithoutSapVisit, useCloseVisit, useEndVisit, useReopenVisit, useSaveProcedureTimes, useStartVisit, useSubmitAllergiesForm, useSubmitBloodSugarForm, useSubmitDoctorProgressNote, useSubmitIncidentsForm, useSubmitInventoryUsage, useSubmitInventoryUsageMultiple, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialAssessmentForm, useSubmitSocialWorkerProgressNote, useSubmitVisualTriageChecklist, useVisit } from "@/hooks/useVisits";
+import { useCheckoutVisit, useCheckoutWithoutSapVisit, useCloseVisit, useEndVisit, useReopenVisit, useSaveProcedureTimes, useStartVisit, useSubmitAllergiesForm, useSubmitBloodSugarForm, useSubmitConsentForHemodialysis, useSubmitConsentForm, useSubmitDoctorProgressNote, useSubmitEnrollmentsChecklist, useSubmitIncidentsForm, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitPatientAssessment, useSubmitPatientResponsibility, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialAssessmentForm, useSubmitSocialWorkerProgressNote, useSubmitVisualTriageChecklist, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import type { InventoryItem } from "@/data/models/visit";
@@ -34,6 +34,11 @@ import { AllergiesForm } from "./components/visitForms/AllergiesForm";
 import { BloodSugarForm } from "./components/visitForms/BloodSugarForm";
 import { SocialAssessmentForm } from "./components/visitForms/SocialAssessmentForm";
 import { IncidentsForm } from "./components/visitForms/IncidentsForm";
+import { ConsentFormForm } from "./components/visitForms/ConsentFormForm";
+import { PatientResponsibilityForm } from "./components/visitForms/PatientResponsibilityForm";
+import { ConsentForHemodialysisForm } from "./components/visitForms/ConsentForHemodialysisForm";
+import { EnrollmentsChecklistForm } from "./components/visitForms/EnrollmentsChecklistForm";
+import { PatientAssessmentForm } from "./components/visitForms/PatientAssessmentForm";
 import { VisualTriageChecklistForm, type VisualTriageHistoryEntry } from "./components/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
 import { NurseSignatureSheet } from "./components/NurseSignatureSheet";
@@ -43,14 +48,14 @@ import { PatientInventorySection } from "./components/visitForms/PatientInventor
 import { PatientSignatureSheet } from "./components/visitForms/PatientSignatureSheet";
 import { PhysicianCallModal } from "./components/visitForms/PhysicianCallModal";
 import { UseItemsModal } from "./components/visitForms/UseItemsModal";
-import { UseMultipleItemsModal } from "./components/visitForms/UseMultipleItemsModal";
 import { VisitDetailEmpty, VisitDetailError } from "./components/VisitDetailStates";
 import { VisitDetailSkeleton } from "./components/VisitDetailSkeleton";
 import { VisitInfoCard } from "./components/VisitInfoCard";
 import { WorkflowActionButtons } from "./components/visitForms/WorkflowActionButtons";
 import { visitDetailStyles as s } from "./visit-detail.styles";
 
-
+// Temporarily hidden per product request — flip back to true to restore.
+const SHOW_SOCIAL_INCIDENTS_TRIAGE_FORMS = false;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function VisitDetailScreen() {
@@ -126,6 +131,93 @@ function VisitDetailScreenInner() {
       contamination:     contam.join(', '),
     };
   }, [(record as any)?.["allergies"], (record as any)?.patient?.patientAlerts]);
+
+  // Class C forms (one row per visit, updated in place) — read the saved
+  // value straight off the visit response, same lookup convention as the
+  // other forms above (`rec[form]` or `rec.forms[form][0].value`).
+  const consentFormInitial = useMemo(() => {
+    const rec = record as any;
+    return rec?.["consent-form"] ?? rec?.forms?.["consent-form"]?.[0]?.value ?? null;
+  }, [(record as any)?.["consent-form"], (record as any)?.forms?.["consent-form"]?.[0]?.value]);
+
+  const patientResponsibilityInitial = useMemo(() => {
+    const rec = record as any;
+    return rec?.["patient-responsibility"] ?? rec?.forms?.["patient-responsibility"]?.[0]?.value ?? null;
+  }, [(record as any)?.["patient-responsibility"], (record as any)?.forms?.["patient-responsibility"]?.[0]?.value]);
+
+  const consentForHemodialysisInitial = useMemo(() => {
+    const rec = record as any;
+    const raw = rec?.["consent-for-hemodialysis"] ?? rec?.forms?.["consent-for-hemodialysis"]?.[0]?.value;
+    if (!raw) return null;
+    return {
+      en: {
+        hospital: raw.hospital_en ?? "",
+        doctorName: raw.doctor_name_en ?? "",
+        patientAge: raw.patient_age_en ?? "",
+        consentDate: raw.consent_date_en ?? "",
+        personGivingConsent: raw.person_giving_consent_en ?? "",
+        personConsentSignature: {
+          signed: !!raw.person_consent_signature_signature_url,
+          dataUrl: raw.person_consent_signature_signature_url ?? undefined,
+          signedAt: raw.person_consent_signature_signed_at ?? undefined,
+          signatureUrl: raw.person_consent_signature_signature_url ?? undefined,
+        },
+      },
+      ar: {
+        hospital: raw.hospital_ar ?? "",
+        doctorName: raw.doctor_name_ar ?? "",
+        patientAge: raw.patient_age_ar ?? "",
+        consentDate: raw.consent_date_ar ?? "",
+        personGivingConsent: raw.person_giving_consent_ar ?? "",
+        personConsentSignature: {
+          signed: !!raw.person_consent_signature_ar_signature_url,
+          dataUrl: raw.person_consent_signature_ar_signature_url ?? undefined,
+          signedAt: raw.person_consent_signature_ar_signed_at ?? undefined,
+          signatureUrl: raw.person_consent_signature_ar_signature_url ?? undefined,
+        },
+      },
+      witness_signature_signed_at: raw.witness_signature_signed_at ?? null,
+      witness_signature_signed_by: raw.witness_signature_signed_by ?? null,
+    };
+  }, [(record as any)?.["consent-for-hemodialysis"], (record as any)?.forms?.["consent-for-hemodialysis"]?.[0]?.value]);
+
+  const enrollmentsChecklistInitial = useMemo(() => {
+    const rec = record as any;
+    const raw = rec?.["enrollments-checklist"] ?? rec?.forms?.["enrollments-checklist"]?.[0]?.value;
+    if (!raw) return null;
+    return {
+      appendixB: raw.appendixB ?? {},
+      appendixC: raw.appendixC ?? {},
+      demographics: raw.demographics ?? {},
+      overAllFeedback: raw.overAllFeedback ?? {},
+    };
+  }, [(record as any)?.["enrollments-checklist"], (record as any)?.forms?.["enrollments-checklist"]?.[0]?.value]);
+
+  const patientAssessmentInitial = useMemo(() => {
+    const rec = record as any;
+    const raw = rec?.["patient-assessment"] ?? rec?.forms?.["patient-assessment"]?.[0]?.value;
+    if (!raw) return null;
+    const {
+      assessment, referral, social_hostory, patient_information, medical_surgical_history,
+      surgical_history, assessment_signature_signed_at, assessment_signature_signed_by,
+      ...flat
+    } = raw;
+    // mental_status (and the flat checkbox-array fields like cardio/eyes/etc.)
+    // are arrays on the wire — the form renders them as checkbox groups, so
+    // keep them as arrays rather than joining to a display string.
+    const assessmentValue = assessment ?? {};
+    return {
+      flat,
+      assessment: assessmentValue,
+      referral: referral ?? { social_worker: false, disaster_planning: false, allied_health_professionals: false },
+      social_hostory: social_hostory ?? {},
+      patient_information: patient_information ?? {},
+      medical_surgical_history: medical_surgical_history ?? {},
+      surgical_history: surgical_history ?? [],
+      assessment_signature_signed_at: assessment_signature_signed_at ?? null,
+      assessment_signature_signed_by: assessment_signature_signed_by ?? null,
+    };
+  }, [(record as any)?.["patient-assessment"], (record as any)?.forms?.["patient-assessment"]?.[0]?.value]);
 
   // Pre-fill IncidentsForm from patient + visit data when no saved form exists.
   const incidentsInitial = useMemo(() => {
@@ -214,8 +306,10 @@ function VisitDetailScreenInner() {
 
   // The Flow Sheet records the dialysis treatment itself, so it locks as soon
   // as the nurse ends the procedure — earlier than the rest of the screen,
-  // which stays editable until checkout (`completed`).
-  const isFlowSheetLocked = PHASE_RANK[visitPhase] >= PHASE_RANK.end_procedure;
+  // which stays editable until checkout (`completed`). A reopened visit is
+  // editable again, same as the rest of the screen.
+  const isFlowSheetLocked =
+    visitPhase !== "reopened" && PHASE_RANK[visitPhase] >= PHASE_RANK.end_procedure;
 
   const { visitElapsed, procedureElapsed } = useVisitTimers(visitPhase, {
     visitStart: (record as any)?.startTime,
@@ -232,7 +326,6 @@ function VisitDetailScreenInner() {
   const reopenVisitMutation = useReopenVisit(numId);
   const saveProcedureTimesMutation = useSaveProcedureTimes(numId);
   const submitInventoryUsageMutation = useSubmitInventoryUsage(numId);
-  const submitInventoryUsageMultipleMutation = useSubmitInventoryUsageMultiple(numId);
 
   const handleStartProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -424,7 +517,6 @@ function VisitDetailScreenInner() {
   const inventoryData: InventoryItem[] = (record as any)?.inventory ?? [];
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [useMultipleVisible, setUseMultipleVisible] = useState(false);
 
   // Progress Notes — `Visit.progressNotes` ships three buckets but the backend
   // sometimes dumps every kind into `doctor` regardless of `type`. We also see
@@ -457,6 +549,11 @@ function VisitDetailScreenInner() {
   const submitSocialAssessment = useSubmitSocialAssessmentForm(numId);
   const submitIncidents = useSubmitIncidentsForm(numId);
   const submitVisualTriage = useSubmitVisualTriageChecklist(numId);
+  const submitConsentForm = useSubmitConsentForm(numId);
+  const submitPatientResponsibility = useSubmitPatientResponsibility(numId);
+  const submitConsentForHemodialysis = useSubmitConsentForHemodialysis(numId);
+  const submitEnrollmentsChecklist = useSubmitEnrollmentsChecklist(numId);
+  const submitPatientAssessment = useSubmitPatientAssessment(numId);
   // preTreatmentVitals now lives inside flowSheet (single source of truth).
   const preTreatmentVitals = (record as any)?.flowSheet?.preTreatmentVitals;
 
@@ -781,67 +878,182 @@ function VisitDetailScreenInner() {
           />
         </Animated.View>
 
-        {/* ─── Social Assessment ───────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(247).springify()} style={s.section}>
-          <SocialAssessmentForm
-            colors={colors}
-            isReadOnly={isReadOnly}
-            initialExpanded={false}
-            initial={(record as any)?.["social-assessment"] ?? (record as any)?.forms?.["social-assessment"]?.[0]?.value ?? null}
-            isSaving={submitSocialAssessment.isPending}
-            onSave={(data) => {
-              submitSocialAssessment.mutate(data, {
-                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialAssessmentForm") }),
-                onError: handleMutationError,
-              });
-            }}
-            t={t}
-          />
-        </Animated.View>
+        {/* ─── Consent Form ────────────────────────────────────────────── */}
+        {can("submit_consent_form") && (
+          <Animated.View entering={FadeInDown.delay(256).springify()} style={s.section}>
+            <ConsentFormForm
+              colors={colors}
+              isReadOnly={isReadOnly}
+              initialExpanded={false}
+              initial={consentFormInitial}
+              isSaving={submitConsentForm.isPending}
+              currentUserId={user?.employeeId ?? ""}
+              currentUserName={user?.name}
+              patientName={patientName}
+              patientId={patientRecord?.id}
+              onSave={(data) => {
+                submitConsentForm.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("consentFormTitle") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
 
-        {/* ─── Incidents ───────────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(250).springify()} style={s.section}>
-          <IncidentsForm
-            colors={colors}
-            isReadOnly={isReadOnly}
-            initialExpanded={false}
-            initial={incidentsInitial}
-            isSaving={submitIncidents.isPending}
-            onSave={(data) => {
-              submitIncidents.mutate(data, {
-                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("incidentsForm") }),
-                onError: handleMutationError,
-              });
-            }}
-            t={t}
-          />
-        </Animated.View>
+        {/* ─── Patient Responsibility ──────────────────────────────────── */}
+        {can("submit_patient_responsibility") && (
+          <Animated.View entering={FadeInDown.delay(259).springify()} style={s.section}>
+            <PatientResponsibilityForm
+              colors={colors}
+              isReadOnly={isReadOnly}
+              initialExpanded={false}
+              initial={patientResponsibilityInitial}
+              isSaving={submitPatientResponsibility.isPending}
+              currentUserId={user?.employeeId ?? ""}
+              currentUserName={user?.name}
+              onSave={(data) => {
+                submitPatientResponsibility.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("patientResponsibilityTitle") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
 
-        {/* ─── Visual Triage Checklist ─────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(253).springify()} style={s.section}>
-          <VisualTriageChecklistForm
-            colors={colors}
-            isReadOnly={isReadOnly}
-            initialExpanded={false}
-            initial={visualTriageInitial}
-            history={visualTriageHistory}
-            isSaving={submitVisualTriage.isPending}
-            onSave={(data) => {
-              submitVisualTriage.mutate(data, {
-                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("visualTriageChecklist") }),
-                onError: handleMutationError,
-              });
-            }}
-            t={t}
-          />
-        </Animated.View>
+        {/* ─── Consent for Hemodialysis ────────────────────────────────── */}
+        {can("submit_consent_for_hemodialysis") && (
+          <Animated.View entering={FadeInDown.delay(262).springify()} style={s.section}>
+            <ConsentForHemodialysisForm
+              colors={colors}
+              isReadOnly={isReadOnly}
+              initialExpanded={false}
+              initial={consentForHemodialysisInitial}
+              isSaving={submitConsentForHemodialysis.isPending}
+              currentUserId={user?.employeeId ?? ""}
+              currentUserName={user?.name}
+              onSave={(data) => {
+                submitConsentForHemodialysis.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("consentForHemodialysisTitle") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
+
+        {/* ─── Patient Assessment ──────────────────────────────────────── */}
+        {can("submit_patient_assessment") && (
+          <Animated.View entering={FadeInDown.delay(265).springify()} style={s.section}>
+            <PatientAssessmentForm
+              colors={colors}
+              isReadOnly={isReadOnly}
+              initialExpanded={false}
+              initial={patientAssessmentInitial}
+              isSaving={submitPatientAssessment.isPending}
+              currentUserId={user?.employeeId ?? ""}
+              currentUserName={user?.name}
+              onSave={(data) => {
+                submitPatientAssessment.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("patientAssessmentTitle") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
+
+        {/* ─── Enrollments Checklist ───────────────────────────────────── */}
+        {can("submit_enrollments_checklist") && (
+          <Animated.View entering={FadeInDown.delay(268).springify()} style={s.section}>
+            <EnrollmentsChecklistForm
+              colors={colors}
+              isReadOnly={isReadOnly}
+              initialExpanded={false}
+              initial={enrollmentsChecklistInitial}
+              isSaving={submitEnrollmentsChecklist.isPending}
+              currentUserId={user?.employeeId ?? ""}
+              currentUserName={user?.name}
+              onSave={(data) => {
+                submitEnrollmentsChecklist.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("enrollmentsChecklistTitle") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
+
+        {SHOW_SOCIAL_INCIDENTS_TRIAGE_FORMS && (
+          <>
+            {/* ─── Social Assessment ───────────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(247).springify()} style={s.section}>
+              <SocialAssessmentForm
+                colors={colors}
+                isReadOnly={isReadOnly}
+                initialExpanded={false}
+                initial={(record as any)?.["social-assessment"] ?? (record as any)?.forms?.["social-assessment"]?.[0]?.value ?? null}
+                isSaving={submitSocialAssessment.isPending}
+                onSave={(data) => {
+                  submitSocialAssessment.mutate(data, {
+                    onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("socialAssessmentForm") }),
+                    onError: handleMutationError,
+                  });
+                }}
+                t={t}
+              />
+            </Animated.View>
+
+            {/* ─── Incidents ───────────────────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(250).springify()} style={s.section}>
+              <IncidentsForm
+                colors={colors}
+                isReadOnly={isReadOnly}
+                initialExpanded={false}
+                initial={incidentsInitial}
+                isSaving={submitIncidents.isPending}
+                onSave={(data) => {
+                  submitIncidents.mutate(data, {
+                    onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("incidentsForm") }),
+                    onError: handleMutationError,
+                  });
+                }}
+                t={t}
+              />
+            </Animated.View>
+
+            {/* ─── Visual Triage Checklist ─────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(253).springify()} style={s.section}>
+              <VisualTriageChecklistForm
+                colors={colors}
+                isReadOnly={isReadOnly}
+                initialExpanded={false}
+                initial={visualTriageInitial}
+                history={visualTriageHistory}
+                isSaving={submitVisualTriage.isPending}
+                onSave={(data) => {
+                  submitVisualTriage.mutate(data, {
+                    onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("visualTriageChecklist") }),
+                    onError: handleMutationError,
+                  });
+                }}
+                t={t}
+              />
+            </Animated.View>
+          </>
+        )}
 
         <PatientInventorySection
           items={inventoryItems}
           expanded={inventoryOpen}
           onToggle={() => setInventoryOpen(!inventoryOpen)}
           onSelectItem={(item) => { setSelectedItem(item); setUseModalVisible(true); }}
-          onUseMultiple={() => setUseMultipleVisible(true)}
           isReadOnly={isReadOnly}
           colors={colors}
         />
@@ -936,35 +1148,6 @@ function VisitDetailScreenInner() {
             {
               onSuccess: () =>
                 showDialog({ variant: "success", title: "Success", message: `Used ${qty} × ${selectedItem.name}. Inventory updated.` }),
-              onError: handleMutationError,
-            },
-          );
-        }}
-        colors={colors}
-      />
-      {/* Use Multiple Items Modal */}
-      <UseMultipleItemsModal
-        visible={useMultipleVisible}
-        items={inventoryItems}
-        onClose={() => setUseMultipleVisible(false)}
-        isLoading={submitInventoryUsageMultipleMutation.isPending}
-        onConfirm={(rows) => {
-          // Optimistic local deductions
-          setInventoryItems((prev) =>
-            prev.map((it) => {
-              const row = rows.find((r) => r.patientInventoryId === it.id);
-              return row ? { ...it, available: Math.max(0, it.available - row.quantity) } : it;
-            }),
-          );
-          setUseMultipleVisible(false);
-          submitInventoryUsageMultipleMutation.mutate(
-            {
-              patientId: patientRecord?.id ?? 0,
-              items: rows,
-            },
-            {
-              onSuccess: () =>
-                showDialog({ variant: "success", title: "Success", message: `${rows.length} item(s) usage recorded. Inventory updated.` }),
               onError: handleMutationError,
             },
           );

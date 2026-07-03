@@ -2,20 +2,21 @@
 
 ## Overview
 
-GoConnect is currently a fully online-dependent app — every screen requires an active API connection. This plan describes a phased offline-first upgrade that lets nurses view their visit list, open visit detail, and submit forms even when the clinic network is unavailable. Pending submissions are queued locally and automatically synced when connectivity is restored.
+GoConnect started as a fully online-dependent app. **Phases 1 and 2 below are now implemented** — nurses can view their visit list, open visit detail, and submit forms while offline; pending submissions are queued locally (SQLite) and automatically synced when connectivity is restored. Phase 4 extends offline read access to visits reached via the scheduler/appointments flow.
 
 ---
 
-## Current Architecture (Baseline)
+## Current Architecture (Implemented)
 
 | Area | Current State |
 |------|--------------|
-| Data fetching | React Query 5 — 30 s staleTime, no persistence |
-| HTTP | Axios, 15 s timeout, no retry |
-| Storage | AsyncStorage (token + prefs only) |
-| Database | None — everything is in-memory |
-| Network detection | None |
-| Offline support | None — API failure = blank screen / error |
+| Data fetching | React Query 5, `PersistQueryClientProvider` + `AsyncStoragePersister` (`app/_layout.tsx`) |
+| HTTP | Axios, offline mutations routed through `offlinePost` (`data/offline_api.ts`) |
+| Storage | AsyncStorage (token + prefs) + persisted React Query cache |
+| Database | SQLite (`data/db.ts`) — `offline_queue` table for queued mutations |
+| Network detection | `context/NetworkContext.tsx` via `@react-native-community/netinfo`, triggers `flushQueue()` on reconnect |
+| Offline support | Visits list + visit detail read from persisted cache (`networkMode: 'offlineFirst'`); all visit mutations queue via `offlinePost` and replay via `services/SyncService.ts` + `services/BackgroundSyncTask.ts` |
+| Scheduler / appointments | **Not yet offline** — `data/scheduler_repository.ts` calls `apiClient` directly, no queue, no `offlineFirst`. See Phase 4 for the one read-path exception being added. |
 
 ---
 
@@ -42,7 +43,7 @@ GoConnect is currently a fully online-dependent app — every screen requires an
 ### Out of scope (deferred)
 - Lab results (read-only, can be cached but low priority)
 - Notifications (real-time, skip)
-- Scheduler / appointments (low write frequency, skip Phase 1)
+- Scheduler / appointments **writes** (confirm, check-in, cancel — low write frequency, still online-only). Phase 4 adds one narrow **read** exception: priming the visit cache from an already-fetched slot response, see below.
 - File / image uploads while offline (complex — defer to Phase 3)
 - Signature uploads while offline (defer to Phase 3)
 
@@ -108,7 +109,7 @@ npx expo install expo-background-fetch expo-task-manager
 
 ---
 
-## Phase 1 — Read Offline (Cache Persistence)
+## Phase 1 — Read Offline (Cache Persistence) — Implemented
 
 **Goal:** Visits list and visit detail pages load from cache when offline.
 
@@ -228,7 +229,7 @@ Add `<OfflineBanner />` to the top of `app/(tabs)/_layout.tsx` and `app/visits/[
 
 ---
 
-## Phase 2 — Write Offline (Mutation Queue)
+## Phase 2 — Write Offline (Mutation Queue) — Implemented
 
 **Goal:** Form saves and visit transitions made offline are queued locally and replayed when connectivity returns, with no data loss across app restarts.
 
@@ -569,6 +570,39 @@ This ensures the cache is warm before the nurse goes on a home visit.
 
 ---
 
+## Phase 4 — Scheduler Slot → Visit Offline Bridge
+
+**Goal:** the backend embeds a full `visit` object in the slot response (`GET /scheduler/slots/{id}`) once a slot has been checked in. The app previously ignored it and only read `visit_id`, so the "View Visit" button (`app/appointments/[id].tsx`) forced a live `GET /visits/{id}` that fails offline — even though the visit data had already arrived in the slot response. Phase 4 primes the existing offline-first visit cache from that embedded data, with **no auto-navigation** — the nurse still taps "View Visit" manually; the tap now succeeds offline instead of erroring.
+
+### 4.1 Embedded visit on `Slot`
+
+**File: `data/models/scheduler.ts`**
+
+Added `visit?: Visit | null` to the `Slot` interface, alongside the existing `visit_id`/`visitId` fields. `unwrapSlot` in `data/scheduler_repository.ts` passes the API payload through as-is, so no separate mapping code was needed — the `visit` key round-trips automatically once typed.
+
+### 4.2 `primeVisitCacheFromSlot` helper
+
+**File: `data/scheduler_repository.ts`**
+
+```ts
+export function primeVisitCacheFromSlot(qc: QueryClient, slot: Slot | undefined): void {
+  if (!slot?.visit) return
+  qc.setQueryData(['visits', Number(slot.visit.id)], slot.visit)
+}
+```
+
+This writes into the exact query key `useVisit(id)` already reads (`hooks/useVisits.ts` — `queryKey: ['visits', id]`, `networkMode: 'offlineFirst'`), so no changes were needed to the visit-details screen or `useVisit` itself.
+
+### 4.3 Wiring
+
+**File: `hooks/useScheduler.ts`**
+- `useSlot(id)` calls `primeVisitCacheFromSlot` after every successful `getSlotById` fetch.
+- `useSlotStatusMutation` (backing `useConfirmAppointment` and `useCheckInAppointment`) calls it in `onSuccess` with the returned slot — this is what primes the cache right after check-in.
+
+**File: `app/appointments/[id].tsx`** — unchanged. The "View Visit" button already renders when `visit_id` is present and already routes to `/visits/[id]`; it now succeeds offline because the target cache entry is already warm.
+
+---
+
 ## File Map — New and Modified Files
 
 ### New files
@@ -594,6 +628,9 @@ This ensures the cache is warm before the nurse goes on a home visit.
 | `app/visits/[id].tsx` | Handle `OfflineQueuedError` in all mutation `onError` callbacks |
 | `app/(tabs)/_layout.tsx` | Add `<OfflineBanner />` |
 | `context/AppContext.tsx` | Call `clearQueue()` in `logout()` |
+| `data/models/scheduler.ts` | Add `visit?: Visit \| null` to `Slot` (Phase 4) |
+| `data/scheduler_repository.ts` | Add `primeVisitCacheFromSlot()` helper (Phase 4) |
+| `hooks/useScheduler.ts` | Call `primeVisitCacheFromSlot()` from `useSlot` and the check-in/confirm mutation (Phase 4) |
 
 ---
 
@@ -675,4 +712,4 @@ All packages above are available in Expo Go and the managed workflow — no cust
 
 ---
 
-*Last updated: 2026-06-28*
+*Last updated: 2026-07-02*

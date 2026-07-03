@@ -32,7 +32,7 @@ export async function flushQueue(): Promise<{ synced: number; failed: number }> 
   for (const item of pending) {
     if (item.retries >= MAX_RETRIES) {
       failed++
-      continue
+      break // preserve ordering — don't replay later items ahead of a stuck one
     }
     try {
       await apiClient({ method: item.method as any, url: item.url, data: item.body })

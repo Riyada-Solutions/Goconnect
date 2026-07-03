@@ -1,6 +1,6 @@
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { queueCount } from '@/data/offline_queue'
+import { queueCount, subscribeToQueueChanges } from '@/data/offline_queue'
 
 interface NetworkContextValue {
   isOnline: boolean
@@ -33,8 +33,13 @@ export function NetworkProvider({ children, onReconnect }: {
       setIsOnline(online)
       wasOnlineRef.current = online
     })
+    refreshPendingCount()
 
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+    // Keep pendingCount live as items are queued/synced/failed/cleared,
+    // not just after a reconnect flush.
+    const unsubscribeQueue = subscribeToQueueChanges(refreshPendingCount)
+
+    const unsubscribeNetwork = NetInfo.addEventListener((state: NetInfoState) => {
       const online = !!(state.isConnected && state.isInternetReachable)
       setIsOnline(online)
 
@@ -45,7 +50,10 @@ export function NetworkProvider({ children, onReconnect }: {
       wasOnlineRef.current = online
     })
 
-    return unsubscribe
+    return () => {
+      unsubscribeQueue()
+      unsubscribeNetwork()
+    }
   }, [onReconnect, refreshPendingCount])
 
   return (

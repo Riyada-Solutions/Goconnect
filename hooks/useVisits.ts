@@ -12,13 +12,18 @@ import {
   startVisit,
   submitAllergiesForm,
   submitBloodSugarForm,
+  submitConsentForHemodialysis,
+  submitConsentForm,
   submitDoctorProgressNote,
+  submitEnrollmentsChecklist,
   submitIncidentsForm,
   submitInventoryUsage,
   submitInventoryUsageMultiple,
   submitMedicationAdministration,
   submitMorseFallsRiskAssessment,
   submitNursingProgressNote,
+  submitPatientAssessment,
+  submitPatientResponsibility,
   submitReferral,
   submitRefusal,
   submitSariScreening,
@@ -26,6 +31,11 @@ import {
   submitSocialWorkerProgressNote,
   submitVisualTriageChecklist,
 } from '../data/visit_repository'
+import type { ConsentFormData } from '@/app/visits/components/visitForms/ConsentFormForm'
+import type { PatientResponsibilityData } from '@/app/visits/components/visitForms/PatientResponsibilityForm'
+import type { ConsentForHemodialysisData } from '@/app/visits/components/visitForms/ConsentForHemodialysisForm'
+import type { EnrollmentsChecklistData } from '@/app/visits/components/visitForms/EnrollmentsChecklistForm'
+import type { PatientAssessmentData } from '@/app/visits/components/visitForms/PatientAssessmentForm'
 import type { InventoryUsageInput, InventoryUsageMultipleInput, Visit } from '../data/models/visit'
 import type { DoctorProgressNoteInput } from '../data/models/doctorProgressNote'
 import type { MorseFallsRiskAssessmentInput } from '../data/models/morseFallsRisk'
@@ -36,10 +46,10 @@ import type { SocialWorkerLocation } from '../data/models/socialWorkerProgressNo
 
 const CACHE_24H = 24 * 60 * 60 * 1000
 
-export function useVisits(date?: string) {
+export function useVisits(date?: string, status?: string) {
   return useInfiniteQuery({
-    queryKey: ['visits', date ?? null],
-    queryFn: ({ pageParam = 1 }) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date),
+    queryKey: ['visits', date ?? null, status ?? null],
+    queryFn: ({ pageParam = 1 }) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date, status),
     initialPageParam: 1,
     getNextPageParam: (last) => last.hasMore ? last.meta.current_page + 1 : undefined,
     staleTime: 5 * 60 * 1000,
@@ -245,6 +255,96 @@ export function useSubmitVisualTriageChecklist(visitId: number) {
   const qc = useQueryClient()
   return useMutation<Visit, Error, Parameters<typeof submitVisualTriageChecklist>[1]>({
     mutationFn: (body) => submitVisualTriageChecklist(visitId, body),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+// ─── Class C forms ───────────────────────────────────────────────────────
+
+export function useSubmitConsentForm(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, ConsentFormData>({
+    mutationFn: (data) => submitConsentForm(visitId, data as unknown as Record<string, unknown>),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+export function useSubmitPatientResponsibility(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, PatientResponsibilityData>({
+    mutationFn: (data) => submitPatientResponsibility(visitId, data as unknown as Record<string, unknown>),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+function serializeConsentForHemodialysis(data: ConsentForHemodialysisData): Record<string, unknown> {
+  return {
+    hospital_en: data.en.hospital,
+    hospital_ar: data.ar.hospital,
+    doctor_name_en: data.en.doctorName,
+    doctor_name_ar: data.ar.doctorName,
+    patient_age_en: data.en.patientAge,
+    patient_age_ar: data.ar.patientAge,
+    consent_date_en: data.en.consentDate,
+    consent_date_ar: data.ar.consentDate,
+    person_giving_consent_en: data.en.personGivingConsent,
+    person_giving_consent_ar: data.ar.personGivingConsent,
+    witness_signature_signed_at: data.witness_signature_signed_at,
+    witness_signature_signed_by: data.witness_signature_signed_by,
+    person_consent_signature_signed_at: data.en.personConsentSignature.signedAt ?? null,
+    person_consent_signature_signature_url: data.en.personConsentSignature.signatureUrl ?? data.en.personConsentSignature.dataUrl ?? null,
+    person_consent_signature_ar_signed_at: data.ar.personConsentSignature.signedAt ?? null,
+    person_consent_signature_ar_signature_url: data.ar.personConsentSignature.signatureUrl ?? data.ar.personConsentSignature.dataUrl ?? null,
+  }
+}
+
+export function useSubmitConsentForHemodialysis(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, ConsentForHemodialysisData>({
+    mutationFn: (data) => submitConsentForHemodialysis(visitId, serializeConsentForHemodialysis(data)),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+function serializeEnrollmentsChecklist(data: EnrollmentsChecklistData): Record<string, unknown> {
+  return {
+    appendixB: data.appendixB,
+    appendixC: data.appendixC,
+    demographics: data.demographics,
+    overAllFeedback: data.overAllFeedback,
+  }
+}
+
+export function useSubmitEnrollmentsChecklist(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, EnrollmentsChecklistData>({
+    mutationFn: (data) => submitEnrollmentsChecklist(visitId, serializeEnrollmentsChecklist(data)),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+function serializePatientAssessment(data: PatientAssessmentData): Record<string, unknown> {
+  const rawMentalStatus = (data.assessment as Record<string, unknown>).mental_status
+  const mentalStatus = typeof rawMentalStatus === 'string'
+    ? rawMentalStatus.split(',').map((v) => v.trim()).filter(Boolean)
+    : rawMentalStatus
+  return {
+    ...data.flat,
+    assessment: { ...data.assessment, mental_status: mentalStatus },
+    referral: data.referral,
+    social_hostory: data.social_hostory,
+    patient_information: data.patient_information,
+    medical_surgical_history: data.medical_surgical_history,
+    surgical_history: data.surgical_history,
+    assessment_signature_signed_at: data.assessment_signature_signed_at,
+    assessment_signature_signed_by: data.assessment_signature_signed_by,
+  }
+}
+
+export function useSubmitPatientAssessment(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, PatientAssessmentData>({
+    mutationFn: (data) => submitPatientAssessment(visitId, serializePatientAssessment(data)),
     onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
   })
 }
