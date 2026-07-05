@@ -96,7 +96,7 @@ function getValidationErrors(data: PatientResponsibilityData): string[] {
   const relation = data.companion_relation === "other" ? data.custom_relation : data.companion_relation;
   if (!relation?.trim()) errors.push("Companion relation is required.");
 
-  const nationalId = data.companion_national_id.trim();
+  const nationalId = (data.companion_national_id ?? "").trim();
   if (!nationalId) errors.push("Companion National ID is required.");
   else if (!NATIONAL_ID_RE.test(nationalId)) errors.push("Companion National ID must be 10 digits, starting with 1 or 2.");
 
@@ -290,7 +290,7 @@ export function PatientResponsibilityForm({
                 {
                   color: colors.text,
                   backgroundColor: colors.surface,
-                  borderColor: showErrors && !NATIONAL_ID_RE.test(data.companion_national_id.trim()) ? "#EF4444" : colors.border,
+                  borderColor: showErrors && !NATIONAL_ID_RE.test((data.companion_national_id ?? "").trim()) ? "#EF4444" : colors.border,
                 },
               ]}
               value={data.companion_national_id}
