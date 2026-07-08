@@ -317,6 +317,7 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, initial, isSa
         title={t("refusalTitle")}
         icon="alert-octagon"
         iconColor="#DC2626"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         fontSize={14}
         onToggle={() => setOpen(!open)}
@@ -329,31 +330,33 @@ export function RefusalForm({ colors, isReadOnly, initialExpanded, initial, isSa
 
           <RefusalFormSide lang="ar" data={arData} setData={setArData} colors={colors} />
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              style={[
-                s.saveFlowBtn,
-                {
-                  backgroundColor: canSave && !isSaving ? Colors.primary : colors.border,
-                  flex: 1,
-                  opacity: isSaving ? 0.7 : 1,
-                },
-              ]}
-              onPress={handleSave}
-              disabled={!canSave || isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Feather name="save" size={16} color="#fff" />
-              )}
-              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
-              <Feather name="trash-2" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("clear")}</Text>
-            </Pressable>
-          </View>
+          {!isReadOnly && (
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                style={[
+                  s.saveFlowBtn,
+                  {
+                    backgroundColor: canSave && !isSaving ? Colors.primary : colors.border,
+                    flex: 1,
+                    opacity: isSaving ? 0.7 : 1,
+                  },
+                ]}
+                onPress={handleSave}
+                disabled={!canSave || isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="save" size={16} color="#fff" />
+                )}
+                <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+              </Pressable>
+              <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+                <Feather name="trash-2" size={16} color="#fff" />
+                <Text style={s.mainBtnText}>{t("clear")}</Text>
+              </Pressable>
+            </View>
+          )}
 
           {!canSave && !isReadOnly && (
             <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#DC2626", lineHeight: 18 }}>

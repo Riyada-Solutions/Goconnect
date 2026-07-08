@@ -29,7 +29,10 @@ export function NetworkProvider({ children, onReconnect }: {
   useEffect(() => {
     // Seed initial state
     NetInfo.fetch().then((state: NetInfoState) => {
-      const online = !!(state.isConnected && state.isInternetReachable)
+      // See data/offline_api.ts: isInternetReachable can be a stale/false
+      // negative `null`/`false` probe result even while genuinely online,
+      // so only an explicit `false` counts as offline.
+      const online = !!state.isConnected && state.isInternetReachable !== false
       setIsOnline(online)
       wasOnlineRef.current = online
     })
@@ -40,7 +43,10 @@ export function NetworkProvider({ children, onReconnect }: {
     const unsubscribeQueue = subscribeToQueueChanges(refreshPendingCount)
 
     const unsubscribeNetwork = NetInfo.addEventListener((state: NetInfoState) => {
-      const online = !!(state.isConnected && state.isInternetReachable)
+      // See data/offline_api.ts: isInternetReachable can be a stale/false
+      // negative `null`/`false` probe result even while genuinely online,
+      // so only an explicit `false` counts as offline.
+      const online = !!state.isConnected && state.isInternetReachable !== false
       setIsOnline(online)
 
       // Flush queue only on offline → online transition

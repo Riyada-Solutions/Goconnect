@@ -317,12 +317,14 @@ export default function SchedulerScreen() {
                               size={32}
                               color={typeColor}
                             />
-                            <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1, minWidth: 0 }}>
                               <Text
                                 style={[
                                   styles.slotPatient,
                                   { color: colors.text },
                                 ]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
                               >
                                 {slot.patientName}
                               </Text>
@@ -566,6 +568,8 @@ const styles = StyleSheet.create({
   slotRight: {
     alignItems: "flex-end",
     gap: 6,
+    maxWidth: "45%",
+    flexShrink: 0,
   },
   typeBadge: {
     paddingHorizontal: 8,

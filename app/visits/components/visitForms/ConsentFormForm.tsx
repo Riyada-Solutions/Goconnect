@@ -240,6 +240,7 @@ export function ConsentFormForm({
         title={t("consentFormTitle")}
         icon="file-text"
         iconColor="#8B5CF6"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -268,24 +269,26 @@ export function ConsentFormForm({
         <FieldGroup title="Primary HHD Team Contact Information" fields={PR_FIELDS} data={data} update={update} colors={colors} />
         <FieldGroup title="Traveling HHD Team Information" fields={TR_FIELDS} data={data} update={update} colors={colors} />
 
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
-          <Pressable
-            style={[s.saveFlowBtn, { backgroundColor: emailsValid && !isSaving ? Colors.primary : colors.border, flex: 1, opacity: isSaving ? 0.7 : 1 }]}
-            onPress={handleSave}
-            disabled={isSaving || !emailsValid}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Feather name="save" size={16} color="#fff" />
-            )}
-            <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
-          </Pressable>
-          <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
-            <Feather name="trash-2" size={16} color="#fff" />
-            <Text style={s.mainBtnText}>{t("clear")}</Text>
-          </Pressable>
-        </View>
+        {!isReadOnly && (
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: emailsValid && !isSaving ? Colors.primary : colors.border, flex: 1, opacity: isSaving ? 0.7 : 1 }]}
+              onPress={handleSave}
+              disabled={isSaving || !emailsValid}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="save" size={16} color="#fff" />
+              )}
+              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+            </Pressable>
+            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+              <Feather name="trash-2" size={16} color="#fff" />
+              <Text style={s.mainBtnText}>{t("clear")}</Text>
+            </Pressable>
+          </View>
+        )}
       </CollapsibleBody>
     </Card>
   );

@@ -12,6 +12,7 @@ import { Colors } from "@/theme/colors";
 import { clock12hTo24h, clock24hTo12h, formatElapsed } from "@/utils/time";
 
 import { visitDetailStyles as s } from "../visit-detail.styles";
+import { ReadOnlyField } from "./ReadOnlyField";
 
 export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
 
@@ -26,6 +27,7 @@ interface Props {
   provider?: string;
   doctorTime?: string;
   visitPhase: VisitPhase;
+  rawStatus?: string;
   visitElapsed: number;
   procedureElapsed: number;
   procedureStartTimeStr: string;
@@ -51,24 +53,34 @@ function statusLabel(phase: VisitPhase): string {
 
 export function VisitInfoCard(p: Props) {
   const { t } = useApp();
-  const { colors, visitPhase } = p;
+  const { colors, visitPhase, rawStatus } = p;
   const procedureEditable = visitPhase === "start_procedure" || visitPhase === "end_procedure";
 
   return (
     <Animated.View entering={FadeInDown.delay(70).springify()} style={s.section}>
       <Card style={s.sectionCard}>
-        <View style={s.visitInfoGrid}>
-          <InfoCell label={t("visitId")} value={p.visitId != null && p.visitId !== "" ? `#${p.visitId}` : "—"} colors={colors} />
-          <InfoCell label={t("visitDate")} value={p.visitDate || "—"} colors={colors} />
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+          <ReadOnlyField label={t("visitId")} value={p.visitId != null && p.visitId !== "" ? `#${p.visitId}` : "—"} colors={colors} style={s.visitInfoCell} />
+          <ReadOnlyField label={t("visitDate")} value={p.visitDate || "—"} colors={colors} style={s.visitInfoCell} />
           <View style={s.visitInfoCell}>
-            <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{t("procedureTime")}</Text>
+            <Text style={[s.formLabel, { color: colors.text }]}>{t("procedureTime")}</Text>
             <Pressable
-              style={{ flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" }}
+              style={[
+                s.formInput,
+                {
+                  backgroundColor: colors.borderLight,
+                  borderColor: colors.border,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  flexWrap: "wrap",
+                },
+              ]}
               onPress={() => {
                 if (procedureEditable) p.onToggleProcedureEdit();
               }}
             >
-              <Text style={[s.visitInfoValue, { color: colors.text }]}>
+              <Text style={{ color: colors.text }}>
                 {p.procedureStartTimeStr !== "--:-- --" ? p.procedureStartTimeStr : (p.procedureTime || "—")}
                 {p.procedureEndTimeStr !== "--:-- --" ? ` – ${p.procedureEndTimeStr}` : ""}
               </Text>
@@ -81,9 +93,14 @@ export function VisitInfoCard(p: Props) {
             </Pressable>
           </View>
           <View style={s.visitInfoCell}>
-            <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{t("visitTimeLabel")}</Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Text style={[s.visitInfoValue, { color: colors.text }]}>{p.visitTime || "—"}</Text>
+            <Text style={[s.formLabel, { color: colors.text }]}>{t("visitTimeLabel")}</Text>
+            <View
+              style={[
+                s.formInput,
+                { backgroundColor: colors.borderLight, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 4 },
+              ]}
+            >
+              <Text style={{ color: colors.text }}>{p.visitTime || "—"}</Text>
               {p.visitElapsed > 0 && (
                 <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#DC2626" }}>
                   {formatElapsed(p.visitElapsed)}
@@ -92,18 +109,22 @@ export function VisitInfoCard(p: Props) {
             </View>
           </View>
           <View style={s.visitInfoCell}>
-            <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{t("status")}</Text>
-            <StatusBadge status={statusLabel(visitPhase)} />
+            <Text style={[s.formLabel, { color: colors.text }]}>{t("status")}</Text>
+            <View style={[s.formInput, { backgroundColor: colors.borderLight, borderColor: colors.border, justifyContent: "center" }]}>
+              <StatusBadge status={rawStatus === "in_active" ? rawStatus : statusLabel(visitPhase)} />
+            </View>
           </View>
-          <InfoCell label={t("patient")} value={p.patientName || "—"} colors={colors} />
-          <InfoCell label={t("hospital")} value={p.hospital || "—"} colors={colors} />
-          <InfoCell label={t("insuranceGrant")} value={p.insurance || "N/A"} colors={colors} />
-          <InfoCell label={t("providers")} value={p.provider || "—"} colors={colors} />
+          <ReadOnlyField label={t("patient")} value={p.patientName || "—"} colors={colors} style={s.visitInfoCell} numberOfLines={1} />
+          <ReadOnlyField label={t("hospital")} value={p.hospital || "—"} colors={colors} style={s.visitInfoCell} numberOfLines={1} />
+          <ReadOnlyField label={t("insuranceGrant")} value={p.insurance || "N/A"} colors={colors} style={s.visitInfoCell} numberOfLines={1} />
+          <ReadOnlyField label={t("providers")} value={p.provider || "—"} colors={colors} style={s.visitInfoCell} numberOfLines={1} />
           <View style={s.visitInfoCell}>
-            <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{t("doctorTime")}</Text>
-            <Text style={[s.visitInfoValue, { color: p.doctorTime === "Not started" ? "#F59E0B" : colors.text }]}>
-              {p.doctorTime || "—"}
-            </Text>
+            <Text style={[s.formLabel, { color: colors.text }]}>{t("doctorTime")}</Text>
+            <View style={[s.formInput, { backgroundColor: colors.borderLight, borderColor: colors.border, justifyContent: "center" }]}>
+              <Text style={{ color: p.doctorTime === "Not started" ? "#F59E0B" : colors.text }}>
+                {p.doctorTime || "—"}
+              </Text>
+            </View>
           </View>
         </View>
       </Card>
@@ -142,15 +163,6 @@ export function VisitInfoCard(p: Props) {
         </Card>
       )}
     </Animated.View>
-  );
-}
-
-function InfoCell({ label, value, colors }: { label: string; value: string; colors: any }) {
-  return (
-    <View style={s.visitInfoCell}>
-      <Text style={[s.visitInfoLabel, { color: colors.textTertiary }]}>{label}</Text>
-      <Text style={[s.visitInfoValue, { color: colors.text }]} numberOfLines={1}>{value}</Text>
-    </View>
   );
 }
 

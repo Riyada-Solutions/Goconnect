@@ -32,6 +32,13 @@ export interface Patient {
   diagnosis?: string
   avatarUrl?: string | null
   careTeam?: CareTeamMember[]
+  primaryPhysician?: string | null
+  primarySocialWorker?: string | null
+  referralDate?: string | null
+  homeAcceptanceDate?: string | null
+  medicalAcceptanceDate?: string | null
+  firstHHDTreatmentDate?: string | null
+  nurseManagerTime?: string | null
 }
 
 /**

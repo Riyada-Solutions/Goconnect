@@ -26,7 +26,7 @@ import { VisitDetailTopBar } from "./components/VisitDetailTopBar";
 import { CheckOutConfirmModal } from "./components/visitForms/CheckOutConfirmModal";
 import { FlowSheetForm } from "./components/visitForms/FlowSheetForm";
 import { ProgressNoteGroup } from "./components/visitForms/ProgressNoteGroup";
-import { ReferralForm } from "./components/visitForms/ReferralForm";
+import { ReferralForm, todayIso } from "./components/visitForms/ReferralForm";
 import { RefusalForm } from "./components/visitForms/RefusalForm";
 import { parseDisOfHemodialysis } from "@/data/transform/disOfHemodialysis";
 import { SariScreeningForm } from "./components/visitForms/SariScreeningForm";
@@ -178,6 +178,8 @@ function VisitDetailScreenInner() {
       },
       witness_signature_signed_at: raw.witness_signature_signed_at ?? null,
       witness_signature_signed_by: raw.witness_signature_signed_by ?? null,
+      witness_signature_ar_signed_at: raw.witness_signature_ar_signed_at ?? null,
+      witness_signature_ar_signed_by: raw.witness_signature_ar_signed_by ?? null,
     };
   }, [(record as any)?.["consent-for-hemodialysis"], (record as any)?.forms?.["consent-for-hemodialysis"]?.[0]?.value]);
 
@@ -511,12 +513,12 @@ function VisitDetailScreenInner() {
     );
   }, [submitMedAdministration, showDialog, t]);
 
-  // Inventory modal — medications + inventory now ride on Visit (single source of truth).
+  // Inventory modal — medications ride on Visit; inventory itself is now
+  // fetched by PatientInventorySection from the paginated /patient-inventory
+  // endpoint (patient/visit id only, no local copy needed).
   const [useModalVisible, setUseModalVisible] = useState(false);
   const medications = (record as any)?.flowSheet?.dialysisMedications ?? [];
-  const inventoryData: InventoryItem[] = (record as any)?.inventory ?? [];
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   // Progress Notes — `Visit.progressNotes` ships three buckets but the backend
   // sometimes dumps every kind into `doctor` regardless of `type`. We also see
@@ -564,11 +566,6 @@ function VisitDetailScreenInner() {
   const patientAlertsData =
     patientRecord?.patientAlerts ?? (record as any)?.patientAlerts ?? null;
 
-  useEffect(() => {
-    if (inventoryData.length > 0 && inventoryItems.length === 0) {
-      setInventoryItems(inventoryData.map((i) => ({ ...i })));
-    }
-  }, [inventoryData]);
 
   // App-bar always visible — body switches between skeleton/error/empty/content.
   if ((isLoading && !record) || refreshing) {
@@ -579,7 +576,7 @@ function VisitDetailScreenInner() {
       </View>
     );
   }
-  if (isError) {
+  if (isError && !record) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <VisitDetailTopBar topPad={topPad} colors={colors} />
@@ -630,17 +627,31 @@ function VisitDetailScreenInner() {
           .join(", ")
       : ((record as any).provider as string | undefined);
 
-  // Primary physician: check careTeam (top-level extracted by mapVisitFromApi),
-  // fall back to patient.careTeam directly if top-level is empty.
-  // Within the team, prefer role === "Physician"; otherwise use the first member.
-  const primaryPhysician = (() => {
-    const topTeam = careTeam as CareTeamMember[];
-    const team: CareTeamMember[] = topTeam.length > 0
-      ? topTeam
-      : ((patientRecord?.careTeam ?? []) as CareTeamMember[]);
-    const physician = team.find((m) => m.role?.toLowerCase() === "physician");
-    return physician?.name ?? team[0]?.name ?? "";
-  })();
+  // Primary physician / social worker now come straight off the patient
+  // record (no more careTeam role lookup).
+  const primaryPhysician = patientRecord?.primaryPhysician ?? "";
+  const primarySocialWorker = patientRecord?.primarySocialWorker ?? "";
+
+  // Demographics shown read-only on the Enrollments Checklist — sourced live
+  // from the patient/referral record, not user-editable.
+  const enrollmentDemographicsFromVisit = patientRecord
+    ? (() => {
+        const latestReferral = (record as any)?.referrals?.[0];
+        return {
+          patient_mrn: patientRecord.mrn ?? "",
+          patient_name: patientRecord.name ?? "",
+          referred_hospital: latestReferral?.referralHospitalName ?? hospital ?? "",
+          primary_physician_name: primaryPhysician,
+          primary_social_worker_name: primarySocialWorker,
+          // Matches ReferralForm's own default: today's date when no referral exists yet.
+          referral_date: latestReferral?.referralDate || patientRecord.referralDate || todayIso(),
+          home_acceptance_date: patientRecord.homeAcceptanceDate ?? "",
+          medical_acceptance_date: patientRecord.medicalAcceptanceDate ?? "",
+          first_hhd_treatment_date: patientRecord.firstHHDTreatmentDate ?? "",
+          nurse_manager_time: patientRecord.nurseManagerTime ?? "",
+        };
+      })()
+    : null;
 
   const alertCount =
     (alerts?.allergies?.length ?? 0) +
@@ -687,6 +698,7 @@ function VisitDetailScreenInner() {
           provider={provider}
           doctorTime={doctorTime}
           visitPhase={visitPhase}
+          rawStatus={recordStatus}
           visitElapsed={visitElapsed}
           procedureElapsed={procedureElapsed}
           procedureStartTimeStr={procedureStartTimeStr}
@@ -787,8 +799,10 @@ function VisitDetailScreenInner() {
             // initialExpanded={initialPhase === "completed"}
             visitId={numId}
             primaryPhysician={primaryPhysician}
+            primarySocialWorker={primarySocialWorker}
             referralBy={user?.name ?? ""}
             previousReferrals={(record as any)?.referrals ?? []}
+            isSaving={submitReferral.isPending}
             onSave={(data) => {
               submitReferral.mutate(data, {
                 onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("referral") }),
@@ -879,11 +893,11 @@ function VisitDetailScreenInner() {
         </Animated.View>
 
         {/* ─── Consent Form ────────────────────────────────────────────── */}
-        {can("submit_consent_form") && (
+        {can("view_consent_form") && (
           <Animated.View entering={FadeInDown.delay(256).springify()} style={s.section}>
             <ConsentFormForm
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={isReadOnly || !can("submit_consent_form")}
               initialExpanded={false}
               initial={consentFormInitial}
               isSaving={submitConsentForm.isPending}
@@ -903,11 +917,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Patient Responsibility ──────────────────────────────────── */}
-        {can("submit_patient_responsibility") && (
+        {can("view_patient_responsibility") && (
           <Animated.View entering={FadeInDown.delay(259).springify()} style={s.section}>
             <PatientResponsibilityForm
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={isReadOnly || !can("submit_patient_responsibility")}
               initialExpanded={false}
               initial={patientResponsibilityInitial}
               isSaving={submitPatientResponsibility.isPending}
@@ -925,11 +939,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Consent for Hemodialysis ────────────────────────────────── */}
-        {can("submit_consent_for_hemodialysis") && (
+        {can("view_consent_for_hemodialysis") && (
           <Animated.View entering={FadeInDown.delay(262).springify()} style={s.section}>
             <ConsentForHemodialysisForm
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={isReadOnly || !can("submit_consent_for_hemodialysis")}
               initialExpanded={false}
               initial={consentForHemodialysisInitial}
               isSaving={submitConsentForHemodialysis.isPending}
@@ -947,11 +961,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Patient Assessment ──────────────────────────────────────── */}
-        {can("submit_patient_assessment") && (
+        {can("view_patient_assessment") && (
           <Animated.View entering={FadeInDown.delay(265).springify()} style={s.section}>
             <PatientAssessmentForm
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={isReadOnly || !can("submit_patient_assessment")}
               initialExpanded={false}
               initial={patientAssessmentInitial}
               isSaving={submitPatientAssessment.isPending}
@@ -969,13 +983,14 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Enrollments Checklist ───────────────────────────────────── */}
-        {can("submit_enrollments_checklist") && (
+        {can("view_enrollments_checklist") && (
           <Animated.View entering={FadeInDown.delay(268).springify()} style={s.section}>
             <EnrollmentsChecklistForm
               colors={colors}
-              isReadOnly={isReadOnly}
+              isReadOnly={isReadOnly || !can("submit_enrollments_checklist")}
               initialExpanded={false}
               initial={enrollmentsChecklistInitial}
+              demographicsFromVisit={enrollmentDemographicsFromVisit}
               isSaving={submitEnrollmentsChecklist.isPending}
               currentUserId={user?.employeeId ?? ""}
               currentUserName={user?.name}
@@ -1050,7 +1065,8 @@ function VisitDetailScreenInner() {
         )}
 
         <PatientInventorySection
-          items={inventoryItems}
+          patientId={Number(patientRecord?.id) || 0}
+          visitId={numId}
           expanded={inventoryOpen}
           onToggle={() => setInventoryOpen(!inventoryOpen)}
           onSelectItem={(item) => { setSelectedItem(item); setUseModalVisible(true); }}
@@ -1129,14 +1145,6 @@ function VisitDetailScreenInner() {
         onClose={() => setUseModalVisible(false)}
         onUse={(qty, notes) => {
           if (!selectedItem) return;
-          // Optimistic local deduction so the UI feels instant.
-          setInventoryItems((prev) =>
-            prev.map((it) =>
-              it.id === selectedItem.id
-                ? { ...it, available: Math.max(0, it.available - qty) }
-                : it,
-            ),
-          );
           setUseModalVisible(false);
           submitInventoryUsageMutation.mutate(
             {

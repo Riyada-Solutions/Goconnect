@@ -174,7 +174,10 @@ export function useSubmitInventoryUsage(visitId: number) {
   const qc = useQueryClient()
   return useMutation<unknown, Error, Omit<InventoryUsageInput, 'visitId'>>({
     mutationFn: (input) => submitInventoryUsage({ visitId, ...input }),
-    onSuccess: (response) => applyVisitUpdate(qc, response, visitId),
+    onSuccess: (response) => {
+      applyVisitUpdate(qc, response, visitId)
+      qc.invalidateQueries({ queryKey: ['patient-inventory'] })
+    },
   })
 }
 
@@ -182,7 +185,10 @@ export function useSubmitInventoryUsageMultiple(visitId: number) {
   const qc = useQueryClient()
   return useMutation<unknown, Error, Omit<InventoryUsageMultipleInput, 'visitId'>>({
     mutationFn: (input) => submitInventoryUsageMultiple({ visitId, ...input }),
-    onSuccess: (response) => applyVisitUpdate(qc, response, visitId),
+    onSuccess: (response) => {
+      applyVisitUpdate(qc, response, visitId)
+      qc.invalidateQueries({ queryKey: ['patient-inventory'] })
+    },
   })
 }
 
@@ -291,6 +297,8 @@ function serializeConsentForHemodialysis(data: ConsentForHemodialysisData): Reco
     person_giving_consent_ar: data.ar.personGivingConsent,
     witness_signature_signed_at: data.witness_signature_signed_at,
     witness_signature_signed_by: data.witness_signature_signed_by,
+    witness_signature_ar_signed_at: data.witness_signature_ar_signed_at,
+    witness_signature_ar_signed_by: data.witness_signature_ar_signed_by,
     person_consent_signature_signed_at: data.en.personConsentSignature.signedAt ?? null,
     person_consent_signature_signature_url: data.en.personConsentSignature.signatureUrl ?? data.en.personConsentSignature.dataUrl ?? null,
     person_consent_signature_ar_signed_at: data.ar.personConsentSignature.signedAt ?? null,

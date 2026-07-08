@@ -106,6 +106,7 @@ export function IncidentsForm({
         title={t("incidentsForm")}
         icon="alert-triangle"
         iconColor="#EF4444"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -283,27 +284,29 @@ export function IncidentsForm({
           />
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
-          <Pressable
-            style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Feather name="save" size={16} color="#fff" />
-            )}
-            <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
-          </Pressable>
-          <Pressable
-            style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]}
-            onPress={handleClear}
-          >
-            <Feather name="trash-2" size={16} color="#fff" />
-            <Text style={s.mainBtnText}>{t("clear")}</Text>
-          </Pressable>
-        </View>
+        {!isReadOnly && (
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
+              onPress={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="save" size={16} color="#fff" />
+              )}
+              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+            </Pressable>
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]}
+              onPress={handleClear}
+            >
+              <Feather name="trash-2" size={16} color="#fff" />
+              <Text style={s.mainBtnText}>{t("clear")}</Text>
+            </Pressable>
+          </View>
+        )}
       </CollapsibleBody>
     </Card>
   );

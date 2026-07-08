@@ -75,10 +75,15 @@ export type RuleAction =
   | 'submit_refusal'
   | 'submit_sari_screening'
   | 'submit_inventory_usage'
+  | 'view_consent_for_hemodialysis'
   | 'submit_consent_for_hemodialysis'
+  | 'view_patient_responsibility'
   | 'submit_patient_responsibility'
+  | 'view_patient_assessment'
   | 'submit_patient_assessment'
+  | 'view_enrollments_checklist'
   | 'submit_enrollments_checklist'
+  | 'view_consent_form'
   | 'submit_consent_form'
   // ── Help & support ────────────────────────────────────────────────
   | 'view_help_support'
@@ -150,10 +155,15 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
   'submit_refusal',
   'submit_sari_screening',
   'submit_inventory_usage',
+  'view_consent_for_hemodialysis',
   'submit_consent_for_hemodialysis',
+  'view_patient_responsibility',
   'submit_patient_responsibility',
+  'view_patient_assessment',
   'submit_patient_assessment',
+  'view_enrollments_checklist',
   'submit_enrollments_checklist',
+  'view_consent_form',
   'submit_consent_form',
 
   'view_help_support',
@@ -664,10 +674,15 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   submit_refusal:                     BackendRule.Patient.DisOfHemodialysisEdit,
   submit_sari_screening:              BackendRule.Patient.RespiratoryIllnessScreeningEdit,
   submit_inventory_usage:             [BackendRule.InventoryAction.UseItem, BackendRule.InventoryAction.CreateUsage],
+  view_consent_for_hemodialysis:      [BackendRule.Patient.ConsentForHemodialysis, BackendRule.Patient.ConsentForHemodialysisEdit],
   submit_consent_for_hemodialysis:    BackendRule.Patient.ConsentForHemodialysisEdit,
+  view_patient_responsibility:        [BackendRule.Patient.PatientResponsibility, BackendRule.Patient.PatientResponsibilityEdit],
   submit_patient_responsibility:      BackendRule.Patient.PatientResponsibilityEdit,
+  view_patient_assessment:            [BackendRule.Patient.PatientAssessment, BackendRule.Patient.PatientAssessmentEdit],
   submit_patient_assessment:          BackendRule.Patient.PatientAssessmentEdit,
+  view_enrollments_checklist:         [BackendRule.Patient.EnrollmentsChecklist, BackendRule.Patient.EnrollmentsChecklistEdit],
   submit_enrollments_checklist:       BackendRule.Patient.EnrollmentsChecklistEdit,
+  view_consent_form:                  [BackendRule.Patient.ConsentForm, BackendRule.Patient.ConsentFormEdit],
   submit_consent_form:                BackendRule.Patient.ConsentFormEdit,
 
   // ── Support ───────────────────────────────────────────────────────

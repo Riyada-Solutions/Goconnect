@@ -116,7 +116,16 @@ export function NursingProgressNoteForm({
         title={t("nursingProgressNote")}
         icon="file-text"
         iconColor="#2563EB"
-        badges={done ? [{ text: String(previousNotes.length), bg: "#DBEAFE", fg: "#2563EB" }] : undefined}
+        badges={
+          isReadOnly
+            ? [
+                { text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary },
+                ...(done ? [{ text: String(previousNotes.length), bg: "#DBEAFE", fg: "#2563EB" }] : []),
+              ]
+            : done
+            ? [{ text: String(previousNotes.length), bg: "#DBEAFE", fg: "#2563EB" }]
+            : undefined
+        }
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}

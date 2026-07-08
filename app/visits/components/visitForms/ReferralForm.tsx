@@ -54,14 +54,16 @@ interface Props {
   /** Visit id — required to upload the attachment to /agent/attachments/upload. */
   visitId: number;
   primaryPhysician: string;
+  primarySocialWorker: string;
   referralBy: string;
   /** Previously-submitted referrals for this visit (newest first). */
   previousReferrals?: Referral[];
+  isSaving?: boolean;
   onSave: (data: ReferralFormData) => void;
   t: (key: any) => string;
 }
 
-function todayIso(): string {
+export function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -72,8 +74,10 @@ export function ReferralForm({
   initialExpanded,
   visitId,
   primaryPhysician,
+  primarySocialWorker,
   referralBy,
   previousReferrals,
+  isSaving = false,
   onSave,
   t,
 }: Props) {
@@ -155,7 +159,8 @@ export function ReferralForm({
     referralType !== null &&
     referralHospitalId !== null &&
     referralReason.trim() !== "" &&
-    !attachmentUpload.uploading;
+    !attachmentUpload.uploading &&
+    !isSaving;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -209,6 +214,7 @@ export function ReferralForm({
         title={t("referral")}
         icon="send"
         iconColor="#0891B2"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -220,6 +226,7 @@ export function ReferralForm({
 
           <ReferralHeaderFields
             primaryPhysician={primaryPhysician}
+            primarySocialWorker={primarySocialWorker}
             referralBy={referralBy}
             referralDate={referralDate}
             onReferralDateChange={setReferralDate}
@@ -303,20 +310,26 @@ export function ReferralForm({
             t={t}
           />
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: canSave ? Colors.primary : colors.border, flex: 1 }]}
-              onPress={handleSave}
-              disabled={!canSave}
-            >
-              <Feather name="save" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("save")}</Text>
-            </Pressable>
-            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
-              <Feather name="trash-2" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("clear")}</Text>
-            </Pressable>
-          </View>
+          {!isReadOnly && (
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                style={[s.saveFlowBtn, { backgroundColor: canSave ? Colors.primary : colors.border, flex: 1 }]}
+                onPress={handleSave}
+                disabled={!canSave}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="save" size={16} color="#fff" />
+                )}
+                <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+              </Pressable>
+              <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+                <Feather name="trash-2" size={16} color="#fff" />
+                <Text style={s.mainBtnText}>{t("clear")}</Text>
+              </Pressable>
+            </View>
+          )}
       </CollapsibleBody>
     </Card>
   );
@@ -324,6 +337,7 @@ export function ReferralForm({
 
 function ReferralHeaderFields({
   primaryPhysician,
+  primarySocialWorker,
   referralBy,
   referralDate,
   onReferralDateChange,
@@ -331,6 +345,7 @@ function ReferralHeaderFields({
   t,
 }: {
   primaryPhysician: string;
+  primarySocialWorker: string;
   referralBy: string;
   referralDate: string;
   onReferralDateChange: (v: string) => void;
@@ -352,7 +367,10 @@ function ReferralHeaderFields({
         <ReadOnlyField label={t("primaryPhysician")} value={primaryPhysician} colors={colors} />
         <ReadOnlyField label={t("referralBy")} value={referralBy} colors={colors} />
       </View>
-      <ReadOnlyField label={t("status")} value="Active" colors={colors} valueColor="#22C55E" />
+      <View style={s.formRow}>
+        <ReadOnlyField label={t("primarySocialWorker")} value={primarySocialWorker} colors={colors} />
+        <ReadOnlyField label={t("status")} value="Active" colors={colors} valueColor="#22C55E" />
+      </View>
     </>
   );
 }

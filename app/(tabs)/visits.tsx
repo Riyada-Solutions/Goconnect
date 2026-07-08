@@ -27,22 +27,9 @@ import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useVisits } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 
-type VisitFilter =
-  | "all"
-  | "in_progress"
-  | "start_procedure"
-  | "end_procedure"
-  | "completed"
-  | "reopened";
+type VisitFilter = "in_progress" | "completed" | "all";
 
-const FILTERS: VisitFilter[] = [
-  "in_progress",
-  "reopened",
-  "start_procedure",
-  "end_procedure",
-  "completed",
-  "all",
-];
+const FILTERS: VisitFilter[] = ["in_progress", "completed", "all"];
 
 
 const VISIT_TYPE_ICONS: Record<string, string> = {
@@ -59,13 +46,18 @@ export default function VisitsScreen() {
   const FILTER_LABELS: Record<VisitFilter, string> = {
     all: t("all"),
     in_progress: t("visitFilterInProgress"),
-    start_procedure: t("visitFilterStartProcedure"),
-    end_procedure: t("visitFilterEndProcedure"),
     completed: t("completed"),
-    reopened: t("visitFilterReopened"),
   };
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [activeFilter, setActiveFilter] = useState<VisitFilter>("in_progress");
+  // Backend filters by `status` directly now — "in progress" (with a space,
+  // matching the API's own status value) and "completed" map straight
+  // through; "all" omits the param entirely (see getVisitsPage).
+  const STATUS_PARAM: Record<VisitFilter, string | undefined> = {
+    in_progress: "in progress",
+    completed: "completed",
+    all: undefined,
+  };
   const {
     data: pagesData,
     isLoading,
@@ -74,7 +66,7 @@ export default function VisitsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useVisits(undefined, activeFilter);
+  } = useVisits(undefined, STATUS_PARAM[activeFilter]);
   const filtered = useMemo(() => {
     const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
     const seen = new Set<string>();
@@ -291,7 +283,7 @@ export default function VisitsScreen() {
                               {item.date}
                             </Text>
                           </View>
-                          {item.time && (
+                          {item.time ? (
                             <View style={styles.metaItem}>
                               <Feather
                                 name="clock"
@@ -307,8 +299,8 @@ export default function VisitsScreen() {
                                 {item.time}
                               </Text>
                             </View>
-                          )}
-                          {item.duration && (
+                          ) : null}
+                          {item.duration ? (
                             <View style={styles.metaItem}>
                               <Feather
                                 name="activity"
@@ -324,7 +316,7 @@ export default function VisitsScreen() {
                                 {item.duration}min
                               </Text>
                             </View>
-                          )}
+                          ) : null}
                         </View>
                       </View>
                     </View>

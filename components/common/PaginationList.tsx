@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -19,6 +19,7 @@ interface PaginationListProps<T>
     | "extraData"
     | "showsVerticalScrollIndicator"
     | "refreshControl"
+    | "onScrollBeginDrag"
   > {
   hasNextPage?: boolean
   isFetchingNextPage?: boolean
@@ -42,15 +43,21 @@ export function PaginationList<T>({
   ...rest
 }: PaginationListProps<T>) {
   const count = (data as T[] | undefined)?.length ?? 0;
+  // FlatList fires onEndReached as soon as the content is shorter than the
+  // viewport — with no scroll at all — which otherwise chain-loads every
+  // remaining page the instant a short/filtered list mounts. Only start
+  // paging once the user has actually touched the list.
+  const hasUserScrolled = useRef(false);
 
   return (
     <FlatList
       data={data}
       extraData={count}
       showsVerticalScrollIndicator={false}
+      onScrollBeginDrag={() => { hasUserScrolled.current = true; }}
       onEndReachedThreshold={threshold}
       onEndReached={() => {
-        if (hasNextPage && !isFetchingNextPage) fetchNextPage?.();
+        if (hasUserScrolled.current && hasNextPage && !isFetchingNextPage) fetchNextPage?.();
       }}
       ItemSeparatorComponent={() => <View style={{ height: itemGap }} />}
       ListFooterComponent={

@@ -21,6 +21,7 @@ const STATUS_CONFIG: Record<
   pending: { bg: "#FEF9C3", text: "#B45309", dot: "#F59E0B" },
   new: { bg: "#E0F2FE", text: "#0369A1", dot: "#0EA5E9", label: "New" },
   inactive: { bg: "#F1F5F9", text: "#64748B", dot: "#94A3B8" },
+  in_active: { bg: "#F1F5F9", text: "#64748B", dot: "#94A3B8", label: "In Active" },
   cancelled: { bg: "#FEE2E2", text: "#B91C1C", dot: "#EF4444" },
   canceled: { bg: "#FEE2E2", text: "#B91C1C", dot: "#EF4444", label: "Canceled" },
   checked_in: { bg: "#E0E7FF", text: "#4F46E5", dot: "#6366F1", label: "Checked In" },

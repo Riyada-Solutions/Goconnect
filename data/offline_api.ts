@@ -27,7 +27,11 @@ export async function offlinePost(
   visitId?: string,
 ): Promise<any> {
   const state = await NetInfo.fetch()
-  const online = !!(state.isConnected && state.isInternetReachable)
+  // isInternetReachable is a probe that often comes back `null` (not yet
+  // resolved) or a false negative on networks that block the probe target
+  // even though real API traffic goes through fine. Only treat it as
+  // offline when the probe explicitly reports `false`.
+  const online = !!state.isConnected && state.isInternetReachable !== false
 
   if (!online) {
     enqueue({ method: 'POST', url, body, visitId })

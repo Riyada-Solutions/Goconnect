@@ -29,7 +29,8 @@ interface Props {
 
 export function WorkspaceSheet({ visible, onClose }: Props) {
   const { colors } = useTheme();
-  const { user, t, updateWorkspaceSelection, refreshUser } = useApp();
+  const { user, t, updateWorkspaceSelection, refreshUser, clearWorkspaceCaches } =
+    useApp();
 
   const { data, isLoading, isError, refetch } = useWorkspace(visible);
   const systemMutation = useSetSelectedSystem();
@@ -45,6 +46,7 @@ export function WorkspaceSheet({ visible, onClose }: Props) {
     updateWorkspaceSelection({ selected_system: system });
     try {
       await systemMutation.mutateAsync(system);
+      clearWorkspaceCaches();
       void refreshUser();
     } catch {
       updateWorkspaceSelection({ selected_system: previous });
@@ -62,6 +64,7 @@ export function WorkspaceSheet({ visible, onClose }: Props) {
     });
     try {
       await branchMutation.mutateAsync(branch.id);
+      clearWorkspaceCaches();
       void refreshUser();
     } catch {
       updateWorkspaceSelection({

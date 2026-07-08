@@ -74,12 +74,18 @@ apiClient.interceptors.response.use(
 
     // Carry the structured details on the Error so callers can map per-field
     // validation errors onto the matching form inputs (see register.tsx).
+    // `response` is preserved (not just `status`) so callers like
+    // offlinePost() can distinguish "server responded with an error" (don't
+    // queue offline, surface it) from "no response at all" (timeout/DNS/
+    // dropped connection — safe to queue).
     const err = new Error(message) as Error & {
       status?: number
       fieldErrors?: Record<string, string[] | string>
+      response?: typeof error.response
     }
     if (error.response?.status) err.status = error.response.status
     if (fieldErrors) err.fieldErrors = fieldErrors
+    if (error.response) err.response = error.response
     throw err
   }
 )

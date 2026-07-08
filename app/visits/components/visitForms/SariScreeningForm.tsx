@@ -106,6 +106,7 @@ export function SariScreeningForm({
         title={t("sariScreeningTool")}
         icon="shield"
         iconColor="#DC2626"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -176,27 +177,29 @@ export function SariScreeningForm({
           <ActionRow label={t("sariAction4")} value={actions.consultInfectiousDiseaseSpecialist} onChange={(v) => setActions({ ...actions, consultInfectiousDiseaseSpecialist: v })} colors={colors} t={t} />
           <ActionRow label={t("sariAction5")} value={actions.test} onChange={(v) => setActions({ ...actions, test: v })} colors={colors} t={t} />
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: canSave && !isSaving ? Colors.primary : colors.border, flex: 1 }]}
-              onPress={handleSave}
-              disabled={!canSave || isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Feather name="save" size={16} color="#fff" />
-              )}
-              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
-            </Pressable>
-            <Pressable
-              style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]}
-              onPress={handleClear}
-            >
-              <Feather name="trash-2" size={16} color="#fff" />
-              <Text style={s.mainBtnText}>{t("clear")}</Text>
-            </Pressable>
-          </View>
+          {!isReadOnly && (
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                style={[s.saveFlowBtn, { backgroundColor: canSave && !isSaving ? Colors.primary : colors.border, flex: 1 }]}
+                onPress={handleSave}
+                disabled={!canSave || isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="save" size={16} color="#fff" />
+                )}
+                <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+              </Pressable>
+              <Pressable
+                style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]}
+                onPress={handleClear}
+              >
+                <Feather name="trash-2" size={16} color="#fff" />
+                <Text style={s.mainBtnText}>{t("clear")}</Text>
+              </Pressable>
+            </View>
+          )}
       </CollapsibleBody>
     </Card>
   );

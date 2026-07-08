@@ -13,6 +13,7 @@ import type {
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
+import { ReadOnlyField } from "../ReadOnlyField";
 import { ProgressNoteItem } from "./ProgressNoteItem";
 
 interface Props {
@@ -165,7 +166,16 @@ export function DoctorProgressNoteForm({
         title={t("doctorProgressNote")}
         icon="activity"
         iconColor="#DC2626"
-        badges={done ? [{ text: String(previousNotes.length), bg: "#FEE2E2", fg: "#DC2626" }] : undefined}
+        badges={
+          isReadOnly
+            ? [
+                { text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary },
+                ...(done ? [{ text: String(previousNotes.length), bg: "#FEE2E2", fg: "#DC2626" }] : []),
+              ]
+            : done
+            ? [{ text: String(previousNotes.length), bg: "#FEE2E2", fg: "#DC2626" }]
+            : undefined
+        }
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -202,33 +212,15 @@ function PreTreatmentVitalsSection({
       <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#DC2626", marginBottom: 10 }}>
         {t("preTreatmentVitals")}
       </Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {rows.map((row) => (
-          <View key={row.label} style={{ width: "33.33%", paddingVertical: 6, paddingRight: 6 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 8,
-                backgroundColor: colors.surface,
-              }}
-            >
-              <Text
-                style={{ fontFamily: "Inter_500Medium", fontSize: 11, color: colors.textSecondary, flex: 1 }}
-                numberOfLines={1}
-              >
-                {row.label}
-              </Text>
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: colors.text, marginLeft: 4 }}>
-                {row.value && row.value.trim() !== "" ? row.value : "—"}
-              </Text>
-            </View>
-          </View>
+          <ReadOnlyField
+            key={row.label}
+            label={row.label}
+            value={row.value}
+            colors={colors}
+            style={{ width: "47%" }}
+          />
         ))}
       </View>
     </View>

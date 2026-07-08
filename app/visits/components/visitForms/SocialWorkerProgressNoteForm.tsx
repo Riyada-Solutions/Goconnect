@@ -141,7 +141,16 @@ export function SocialWorkerProgressNoteForm({
         title={t("socialWorkerProgressNote")}
         icon="file-text"
         iconColor="#7C3AED"
-        badges={done ? [{ text: String(previousNotes.length), bg: "#EDE9FE", fg: "#7C3AED" }] : undefined}
+        badges={
+          isReadOnly
+            ? [
+                { text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary },
+                ...(done ? [{ text: String(previousNotes.length), bg: "#EDE9FE", fg: "#7C3AED" }] : []),
+              ]
+            : done
+            ? [{ text: String(previousNotes.length), bg: "#EDE9FE", fg: "#7C3AED" }]
+            : undefined
+        }
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}

@@ -13,6 +13,7 @@ import { DateTimeConverter } from "@/utils/datetime";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
+import { ReadOnlyField } from "../ReadOnlyField";
 
 export type AppendixBSection = Record<string, boolean | string | number | null>;
 export type AppendixCSection = Record<string, string | number | null>;
@@ -75,15 +76,17 @@ const APPENDIX_C_ITEMS: { key: string; label: string }[] = [
   { key: "obtained_concent_date", label: "HHD — Consent will be obtained from Patient/His Guardian" },
 ];
 
-const DEMOGRAPHICS_TEXT_FIELDS: { key: string; label: string }[] = [
+// Read-only — these come straight from the patient/referral record, never
+// typed by the nurse.
+const DEMOGRAPHICS_READONLY_TEXT_FIELDS: { key: string; label: string }[] = [
   { key: "patient_mrn", label: "Patient MRN" },
   { key: "patient_name", label: "Patient Name" },
   { key: "referred_hospital", label: "Referred Hospital" },
   { key: "primary_physician_name", label: "Primary Physician Name" },
   { key: "primary_social_worker_name", label: "Primary Social Worker Name" },
+  { key: "nurse_manager_time", label: "Nurse Manager Time" },
 ];
-
-const DEMOGRAPHICS_DATE_FIELDS: { key: string; label: string }[] = [
+const DEMOGRAPHICS_READONLY_DATE_FIELDS: { key: string; label: string }[] = [
   { key: "referral_date", label: "Date of Referral" },
   { key: "home_acceptance_date", label: "Date of Home Settings Acceptance" },
   { key: "medical_acceptance_date", label: "Date of Medical Acceptance" },
@@ -101,6 +104,10 @@ interface Props {
   isReadOnly: boolean;
   initialExpanded?: boolean;
   initial?: EnrollmentsChecklistData | null;
+  /** Demographics pulled live from the patient/referral record — rendered
+   *  read-only and merged into the saved payload regardless of what (if
+   *  anything) was previously stored on the checklist. */
+  demographicsFromVisit?: DemographicsSection | null;
   isSaving?: boolean;
   onSave: (data: EnrollmentsChecklistData) => void;
   currentUserId: string | number;
@@ -113,6 +120,7 @@ export function EnrollmentsChecklistForm({
   isReadOnly,
   initialExpanded,
   initial,
+  demographicsFromVisit,
   isSaving = false,
   onSave,
   currentUserId,
@@ -128,6 +136,13 @@ export function EnrollmentsChecklistForm({
     if (!initial) return;
     setData(initial);
   }, [initial]);
+
+  // Keep the read-only demographics in sync with the live visit record so
+  // the saved payload always reflects current patient/referral data.
+  useEffect(() => {
+    if (!demographicsFromVisit) return;
+    setData((prev) => ({ ...prev, demographics: { ...prev.demographics, ...demographicsFromVisit } }));
+  }, [demographicsFromVisit]);
 
   const updateSection = <S extends keyof EnrollmentsChecklistData>(
     section: S,
@@ -167,6 +182,7 @@ export function EnrollmentsChecklistForm({
         title={t("enrollmentsChecklistTitle")}
         icon="check-square"
         iconColor="#059669"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -179,27 +195,16 @@ export function EnrollmentsChecklistForm({
         {/* ─── Demographics ─────────────────────────────────────────── */}
         <View style={{ gap: 10 }}>
           <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Demographics</Text>
-          {DEMOGRAPHICS_TEXT_FIELDS.map(({ key, label }) => (
-            <View key={key}>
-              <Text style={[s.formLabel, { color: colors.text }]}>{label}</Text>
-              <TextInput
-                style={[s.formInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-                value={String(data.demographics[key] ?? "")}
-                onChangeText={(v) => updateSection("demographics", { [key]: v })}
-                placeholder={label}
-                placeholderTextColor={colors.textTertiary}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+            {[...DEMOGRAPHICS_READONLY_TEXT_FIELDS, ...DEMOGRAPHICS_READONLY_DATE_FIELDS].map(({ key, label }) => (
+              <ReadOnlyField
+                key={key}
+                label={label}
+                value={data.demographics[key]}
+                colors={colors}
+                style={{ width: "47%" }}
               />
-            </View>
-          ))}
-          {DEMOGRAPHICS_DATE_FIELDS.map(({ key, label }) => (
-            <View key={key}>
-              <Text style={[s.formLabel, { color: colors.text }]}>{label}</Text>
-              <DateTimeField mode="date" value={String(data.demographics[key] ?? "")} onChange={(v) => updateSection("demographics", { [key]: v })} colors={colors} />
-            </View>
-          ))}
-          <View>
-            <Text style={[s.formLabel, { color: colors.text }]}>Nurse Manager Time</Text>
-            <DateTimeField mode="time" value={String(data.demographics.nurse_manager_time ?? "")} onChange={(v) => updateSection("demographics", { nurse_manager_time: v })} colors={colors} />
+            ))}
           </View>
         </View>
 
@@ -345,24 +350,26 @@ export function EnrollmentsChecklistForm({
           />
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
-          <Pressable
-            style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Feather name="save" size={16} color="#fff" />
-            )}
-            <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
-          </Pressable>
-          <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
-            <Feather name="trash-2" size={16} color="#fff" />
-            <Text style={s.mainBtnText}>{t("clear")}</Text>
-          </Pressable>
-        </View>
+        {!isReadOnly && (
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
+              onPress={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="save" size={16} color="#fff" />
+              )}
+              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+            </Pressable>
+            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+              <Feather name="trash-2" size={16} color="#fff" />
+              <Text style={s.mainBtnText}>{t("clear")}</Text>
+            </Pressable>
+          </View>
+        )}
       </CollapsibleBody>
     </Card>
   );

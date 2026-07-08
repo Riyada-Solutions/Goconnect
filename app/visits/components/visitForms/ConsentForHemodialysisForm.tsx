@@ -17,9 +17,9 @@ import { CollapsibleHeader } from "../CollapsibleHeader";
  * fully independent language columns — separate text fields AND separate
  * drawn signatures for English vs Arabic (confirmed visually: the two
  * `person_consent_signature*` captures are genuinely different drawings on
- * the live form, not a mirrored value). `witness_signature` is the one
- * exception — it's a single shared key pair (no `_ar` variant exists on the
- * wire), so it's rendered once, shared across both sides.
+ * the live form, not a mirrored value). `witness_signature` also has an
+ * independent `_ar` sign-off (`witness_signature_ar_signed_at` /
+ * `witness_signature_ar_signed_by`), so it's captured once per language.
  */
 export interface ConsentForHemodialysisSideData {
   hospital: string;
@@ -35,6 +35,8 @@ export interface ConsentForHemodialysisData {
   ar: ConsentForHemodialysisSideData;
   witness_signature_signed_at: string | null;
   witness_signature_signed_by: string | number | null;
+  witness_signature_ar_signed_at: string | null;
+  witness_signature_ar_signed_by: string | number | null;
 }
 
 const emptySide = (): ConsentForHemodialysisSideData => ({
@@ -51,6 +53,8 @@ export const EMPTY_CONSENT_FOR_HEMODIALYSIS: ConsentForHemodialysisData = {
   ar: emptySide(),
   witness_signature_signed_at: null,
   witness_signature_signed_by: null,
+  witness_signature_ar_signed_at: null,
+  witness_signature_ar_signed_by: null,
 };
 
 interface Props {
@@ -160,6 +164,7 @@ export function ConsentForHemodialysisForm({
         title={t("consentForHemodialysisTitle")}
         icon="clipboard"
         iconColor="#DB2777"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
@@ -192,7 +197,7 @@ export function ConsentForHemodialysisForm({
         <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
 
         <AttestField
-          label="Witness Sign-off"
+          label="Witness Sign-off (English)"
           value={{ signedAt: data.witness_signature_signed_at, signedBy: data.witness_signature_signed_by }}
           onChange={(v) => setData((prev) => ({ ...prev, witness_signature_signed_at: v.signedAt ?? null, witness_signature_signed_by: v.signedBy ?? null }))}
           currentUserId={currentUserId}
@@ -201,24 +206,36 @@ export function ConsentForHemodialysisForm({
           disabled={isReadOnly}
         />
 
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
-          <Pressable
-            style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Feather name="save" size={16} color="#fff" />
-            )}
-            <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
-          </Pressable>
-          <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
-            <Feather name="trash-2" size={16} color="#fff" />
-            <Text style={s.mainBtnText}>{t("clear")}</Text>
-          </Pressable>
-        </View>
+        <AttestField
+          label="توقيع الشاهد (عربي)"
+          value={{ signedAt: data.witness_signature_ar_signed_at, signedBy: data.witness_signature_ar_signed_by }}
+          onChange={(v) => setData((prev) => ({ ...prev, witness_signature_ar_signed_at: v.signedAt ?? null, witness_signature_ar_signed_by: v.signedBy ?? null }))}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          colors={colors}
+          disabled={isReadOnly}
+        />
+
+        {!isReadOnly && (
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+            <Pressable
+              style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
+              onPress={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="save" size={16} color="#fff" />
+              )}
+              <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+            </Pressable>
+            <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+              <Feather name="trash-2" size={16} color="#fff" />
+              <Text style={s.mainBtnText}>{t("clear")}</Text>
+            </Pressable>
+          </View>
+        )}
       </CollapsibleBody>
     </Card>
   );

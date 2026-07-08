@@ -344,18 +344,23 @@ export default function HomeScreen() {
                     ]}
                   >
                     <Text
-                      style={[styles.visitTime, { color: Colors.primaryDark }]}
-                    >
-                      {visit.time}
-                    </Text>
-                    <Text
                       style={[
-                        styles.visitDuration,
+                        styles.visitTime,
                         { color: Colors.primaryDark },
                       ]}
                     >
-                      {visit.duration}m
+                      {visit.time}
                     </Text>
+                    {visit.endTime ? (
+                      <Text
+                        style={[
+                          styles.visitDuration,
+                          { color: Colors.primaryDark },
+                        ]}
+                      >
+                        {visit.duration}m
+                      </Text>
+                    ) : null}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.visitPatient, { color: colors.text }]}>
@@ -429,12 +434,19 @@ export default function HomeScreen() {
                       { backgroundColor: Colors.accentLight },
                     ]}
                   >
-                    <Text style={[styles.visitTime, { color: Colors.primaryDark }]}>
+                    <Text
+                      style={[
+                        styles.visitTime,
+                        { color: Colors.primaryDark },
+                      ]}
+                    >
                       {appt.time}
                     </Text>
-                    <Text style={[styles.visitDuration, { color: Colors.primaryDark }]}>
-                      {appt.endTime}
-                    </Text>
+                    {appt.endTime ? (
+                      <Text style={[styles.visitDuration, { color: Colors.primaryDark }]}>
+                        {appt.endTime}
+                      </Text>
+                    ) : null}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.visitPatient, { color: colors.text }]}>
@@ -621,12 +633,15 @@ const styles = StyleSheet.create({
   },
   visitTimeBox: {
     borderRadius: 10,
-    padding: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     alignItems: "center",
-    minWidth: 58,
+    justifyContent: "center",
+    minWidth: 50,
+    minHeight: 40,
   },
   visitTime: {
-    fontSize: 15,
+    fontSize: 12,
     fontFamily: "Inter_700Bold",
   },
   visitDuration: {

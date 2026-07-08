@@ -41,6 +41,19 @@ import { RULES_QUERY_KEY } from "@/hooks/useRules";
 
 const FCM_TOKEN_KEY = "@goconnect/fcm_token";
 
+// Query keys whose data is scoped to the currently selected system/branch.
+// These must be dropped whenever the user switches workspace so stale
+// data from the previous branch isn't shown while the new data loads.
+const WORKSPACE_SCOPED_QUERY_KEYS = [
+  ["visits"],
+  ["slots"],
+  ["home"],
+  ["patients"],
+  ["patient-inventory"],
+  ["lab-results"],
+  ["notifications"],
+] as const;
+
 async function syncDeviceWithProfile(): Promise<void> {
   try {
     // Request permission + get native FCM/APNs token, then register with server
@@ -79,6 +92,8 @@ interface AppContextValue {
   refreshUser: () => Promise<void>;
   /** Locally patch the user's selected system / branch (optimistic update). */
   updateWorkspaceSelection: (patch: Partial<User>) => void;
+  /** Drop all workspace-scoped list caches (visits, slots, home, patients, …) after a workspace/branch switch. */
+  clearWorkspaceCaches: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -262,6 +277,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [queryClient],
   );
 
+  const clearWorkspaceCaches = useCallback(() => {
+    for (const queryKey of WORKSPACE_SCOPED_QUERY_KEYS) {
+      queryClient.removeQueries({ queryKey });
+    }
+  }, [queryClient]);
+
   const value = useMemo(
     () => ({
       user,
@@ -281,8 +302,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateProfile,
       refreshUser,
       updateWorkspaceSelection,
+      clearWorkspaceCaches,
     }),
-    [user, token, isReady, language, theme, isDark, appSettings, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, updateWorkspaceSelection],
+    [user, token, isReady, language, theme, isDark, appSettings, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, updateWorkspaceSelection, clearWorkspaceCaches],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
