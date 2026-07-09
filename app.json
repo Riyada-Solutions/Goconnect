@@ -14,6 +14,7 @@
       "backgroundColor": "#2DAAAE"
     },
     "ios": {
+      "icon": "./assets/images/icon-ios.png",
       "supportsTablet": false,
       "requiresFullScreen": true,
       "displayName": "Goconnect",
@@ -48,6 +49,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/withOpaqueIosIcon",
       [
         "expo-router",
         {

@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query'
 import { getInventoryPage } from '../data/inventory_repository'
 
 const CACHE_24H = 24 * 60 * 60 * 1000
@@ -14,5 +14,6 @@ export function useInventory(patientId: number, visitId: number, search?: string
     gcTime: CACHE_24H,
     networkMode: 'offlineFirst',
     enabled: !!patientId && !!visitId,
+    placeholderData: keepPreviousData,
   })
 }

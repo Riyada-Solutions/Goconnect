@@ -41,10 +41,13 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
   const {
     data: pagesData,
     isLoading,
+    isFetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
   } = useInventory(expanded ? patientId : 0, expanded ? visitId : 0, debouncedSearch);
+
+  const isSearching = isFetching && !isLoading && !isFetchingNextPage;
 
   const items = useMemo(() => {
     const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
@@ -95,6 +98,9 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
                 fontSize: 13,
               }}
             />
+            {isSearching && (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            )}
             {search.length > 0 && (
               <Pressable onPress={() => setSearch("")} hitSlop={8}>
                 <Feather name="x-circle" size={14} color={colors.textTertiary} />
