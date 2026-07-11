@@ -1,6 +1,6 @@
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
-import { offlinePost } from './offline_api'
+import { offlinePost, offlinePostMultipart, type MultipartFileRef } from './offline_api'
 import {
   mockGetVisits,
   mockGetVisitById,
@@ -987,19 +987,6 @@ export const submitFlowSheetMedications = (
   body: FlowSheetMedicationsInput,
 ) => submitFlowSheetSection(visitId, 'medications', body)
 
-/**
- * Build a React-Native FormData "file" reference from a base64 data-URL
- * (e.g. `data:image/png;base64,...`). RN's FormData treats `{ uri, name, type }`
- * as a file part; the `uri` may be a data: URI on iOS/Android.
- */
-function dataUrlToFile(dataUrl: string, name: string) {
-  return {
-    uri: dataUrl,
-    name: `${name}.png`,
-    type: 'image/png',
-  } as unknown as Blob
-}
-
 function serializePostAssessment(pt: FlowSheetMobilePostTx) {
   return {
     bp_sitting_systolic:  pt.bpSystolic,
@@ -1087,22 +1074,22 @@ export async function submitFlowSheetPostTreatment(
     return unwrapVisit(res.data)
   }
 
-  const fd = new FormData()
-  fd.append('data', JSON.stringify(postPayload))
+  const fields: Record<string, string> = {}
+  const files: Record<string, MultipartFileRef> = {}
 
   if (patientInline) {
-    fd.append('patient_signature', dataUrlToFile(pSig!.dataUrl, 'patient_signature'))
-    fd.append('patient_signature_signed_at', DateTimeConverter.toApiDatetime(pSig!.signedAt))
+    files.patient_signature = { uri: pSig!.dataUrl!, name: 'patient_signature.png', type: 'image/png' }
+    fields.patient_signature_signed_at = DateTimeConverter.toApiDatetime(pSig!.signedAt)
   }
   if (nurseInline) {
-    fd.append('nurse_signature', dataUrlToFile(nSig!.dataUrl, 'nurse_signature'))
-    fd.append('nurse_signature_signed_at', DateTimeConverter.toApiDatetime(nSig!.signedAt))
+    files.nurse_signature = { uri: nSig!.dataUrl!, name: 'nurse_signature.png', type: 'image/png' }
+    fields.nurse_signature_signed_at = DateTimeConverter.toApiDatetime(nSig!.signedAt)
   }
 
-  const res = await apiClient.post(
+  const res = await offlinePostMultipart(
     `/visits/${visitId}/forms/flowsheet`,
-    fd,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
+    { jsonBody: postPayload, fields, files },
+    String(visitId),
   )
   return unwrapVisit(res.data)
 }
@@ -1357,9 +1344,7 @@ export async function submitReferral(payload: ReferralInput): Promise<Visit> {
   }
 
   // Legacy fallback: upload the file inline as multipart on save.
-  const fd = new FormData()
-  fd.append('data', JSON.stringify(data))
-
+  const files: Record<string, MultipartFileRef> = {}
   if (payload.attachmentUri) {
     const name = payload.attachmentName ?? 'attachment'
     const lower = name.toLowerCase()
@@ -1368,17 +1353,13 @@ export async function submitReferral(payload: ReferralInput): Promise<Visit> {
       lower.endsWith('.pdf')  ? 'application/pdf' :
       lower.endsWith('.heic') ? 'image/heic' :
       'image/jpeg'
-    fd.append('attachment', {
-      uri:  payload.attachmentUri,
-      name,
-      type,
-    } as unknown as Blob)
+    files.attachment = { uri: payload.attachmentUri, name, type }
   }
 
-  const res = await apiClient.post(
+  const res = await offlinePostMultipart(
     `/visits/${payload.visitId}/forms/referrals`,
-    fd,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
+    { jsonBody: data as Record<string, unknown>, files },
+    String(payload.visitId),
   )
   return unwrapVisit(res.data)
 }

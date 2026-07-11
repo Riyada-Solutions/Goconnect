@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
@@ -11,6 +11,7 @@ import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialo
 import { SelectField } from "@/components/ui/SelectField";
 import { Colors } from "@/theme/colors";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { Acc } from "../Acc";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 
@@ -172,8 +173,6 @@ const PHYSICAL_SELECT_FIELDS: { key: string; label: string; options: Opt[] }[] =
 ];
 
 const PHYSICAL_TEXT_FIELDS: { key: string; label: string; multiline?: boolean }[] = [
-  { key: "throat_dental_other", label: "Dentures (Specify)" },
-  { key: "swollen", label: "Swollen" },
   { key: "allergy", label: "Allergy", multiline: true },
 ];
 
@@ -227,8 +226,6 @@ const ASSESSMENT_SELECT_FIELDS: { key: string; label: string; options: Opt[] }[]
 const ASSESSMENT_TEXT_FIELDS: { key: string; label: string }[] = [
   { key: "height", label: "Height (Cm)" },
   { key: "weight", label: "Weight (Kg)" },
-  { key: "bp_sys", label: "BP Systolic" },
-  { key: "bp_dias", label: "BP Diastolic" },
   { key: "pulse_rate", label: "Pulse Rate (beats/min)" },
   { key: "respiratory_rate", label: "Respiratory Rate (cycles/min)" },
   { key: "temp", label: "Temperature (°C)" },
@@ -277,21 +274,23 @@ const PATIENT_INFO_FIELDS: { key: string; label: string }[] = [
 ];
 
 const MEDICAL_HISTORY_TEXT_FIELDS: { key: string; label: string; multiline?: boolean }[] = [
-  { key: "medical_history", label: "Medical History", multiline: true },
-  { key: "icd_code", label: "ICD Code" },
   { key: "mother_medical_history", label: "Mother's Medical History" },
   { key: "father_medical_history", label: "Father's Medical History" },
   { key: "medication_history", label: "Medication History", multiline: true },
 ];
 
-// Confirmed via the web PDF export ("CURRENT CONTRAPTIONS AND/OR EQUIPMENT USE").
-const CONTRAPTIONS_OPTIONS: Opt[] = [
-  { value: "iv", label: "IV" }, { value: "feeding_pump", label: "Feeding Pump" },
-  { value: "ventilator", label: "Ventilator" }, { value: "oxygen", label: "Oxygen" },
-  { value: "iv_pump", label: "IV Pump" }, { value: "assistive_device", label: "Assistive Device" },
-  { value: "catheter", label: "Catheter" }, { value: "feeding_tube", label: "Feeding Tube" },
-  { value: "nebulizer", label: "Nebulizer" }, { value: "bipap_cpap", label: "BiPAP/CPAP" },
-  { value: "drains", label: "Drains" }, { value: "other", label: "Others" },
+// Confirmed via the live API payload ("CURRENT CONTRAPTIONS AND/OR EQUIPMENT USE") —
+// two independent single-select radio rows, `contraptions_equipment_g1` / `_g2`.
+// Wire values are exact-cased strings the backend sends/expects verbatim.
+const CONTRAPTIONS_OPTIONS_G1: Opt[] = [
+  { value: "IV", label: "IV" }, { value: "Feeding", label: "Feeding" },
+  { value: "Ventilator", label: "Ventilator" }, { value: "Oxygen", label: "Oxygen" },
+  { value: "Pump", label: "Pump" }, { value: "Assistive", label: "Assistive" },
+];
+const CONTRAPTIONS_OPTIONS_G2: Opt[] = [
+  { value: "Drains", label: "Drains" }, { value: "BiPAP_CPAP", label: "BiPAP/CPAP" },
+  { value: "Feeding_tube", label: "Feeding Tube" }, { value: "Catheter", label: "Catheter" },
+  { value: "Nebulizer", label: "Nebulizer" }, { value: "Others", label: "Others" },
 ];
 
 const REFERRAL_FLAGS: { key: keyof PatientAssessmentData["referral"]; label: string }[] = [
@@ -310,35 +309,46 @@ interface Props {
   currentUserId: string | number;
   currentUserName?: string;
   t: (key: any) => string;
+  /** Pre-Treatment BP from the Flow Sheet's Post Treatment Assessment
+   *  (`bp_sitting_systolic` / `bp_sitting_diastolic`). BP Systolic/Diastolic
+   *  here are read-only and mirror that value instead of being editable. */
+  flowSheetBp?: { systolic?: string | null; diastolic?: string | null };
 }
 
 function TextField({
-  fkey, label, value, onChangeText, colors, multiline,
-}: { fkey: string; label: string; value: string; onChangeText: (v: string) => void; colors: any; multiline?: boolean }) {
+  fkey, label, value, onChangeText, colors, multiline, readOnly,
+}: { fkey: string; label: string; value: string; onChangeText: (v: string) => void; colors: any; multiline?: boolean; readOnly?: boolean }) {
   return (
     <View key={fkey} style={{ flex: 1, minWidth: "45%" }}>
       <Text style={[s.formLabel, { color: colors.text }]}>{label}</Text>
       <TextInput
         style={[
           s.formInput,
-          { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, minHeight: multiline ? 70 : undefined, textAlignVertical: multiline ? "top" : "center" },
+          {
+            color: readOnly ? colors.textSecondary : colors.text,
+            backgroundColor: readOnly ? colors.borderLight : colors.surface,
+            borderColor: colors.border,
+            minHeight: multiline ? 70 : undefined,
+            textAlignVertical: multiline ? "top" : "center",
+          },
         ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={label}
         placeholderTextColor={colors.textTertiary}
         multiline={multiline}
+        editable={!readOnly}
       />
     </View>
   );
 }
 
 function SelectRow({
-  fkey, label, value, options, onChange,
-}: { fkey: string; label: string; value: string; options: Opt[]; onChange: (v: string) => void }) {
+  fkey, label, value, options, onChange, error,
+}: { fkey: string; label: string; value: string; options: Opt[]; onChange: (v: string) => void; error?: string | boolean }) {
   return (
     <View key={fkey} style={{ flex: 1, minWidth: "45%" }}>
-      <SelectField label={label} value={value || null} options={options} placeholder="Select" onChange={onChange} />
+      <SelectField label={label} value={value || null} options={options} placeholder="Select" onChange={onChange} error={error} />
     </View>
   );
 }
@@ -373,6 +383,48 @@ function SelectGrid({
   );
 }
 
+function RadioOption({
+  label, selected, onPress, colors, disabled,
+}: { label: string; selected: boolean; onPress: () => void; colors: any; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={() => !disabled && onPress()}
+      style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4, opacity: disabled ? 0.6 : 1 }}
+    >
+      <View
+        style={{
+          width: 20, height: 20, borderRadius: 10, borderWidth: 2,
+          borderColor: selected ? Colors.primary : colors.border,
+          alignItems: "center", justifyContent: "center",
+        }}
+      >
+        {selected && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary }} />}
+      </View>
+      <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: colors.text }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function RadioRow({
+  options, value, onChange, colors, disabled, vertical,
+}: { options: Opt[]; value: string; onChange: (v: string) => void; colors: any; disabled?: boolean; vertical?: boolean }) {
+  return (
+    <View style={vertical ? { gap: 4 } : { flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+      {options.map((opt) => (
+        <View key={opt.value} style={vertical ? undefined : { minWidth: 120, flexGrow: 1, flexBasis: "16%" }}>
+          <RadioOption
+            label={opt.label}
+            selected={value === opt.value}
+            onPress={() => onChange(opt.value)}
+            colors={colors}
+            disabled={disabled}
+          />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function ClinicalExamSelect({
   group, value, otherValue, onChange, onOtherChange, colors,
 }: {
@@ -400,19 +452,55 @@ function ClinicalExamSelect({
 }
 
 export function PatientAssessmentForm({
-  colors, isReadOnly, initialExpanded, initial, isSaving = false, onSave, currentUserId, currentUserName, t,
+  colors, isReadOnly, initialExpanded, initial, isSaving = false, onSave, currentUserId, currentUserName, t, flowSheetBp,
 }: Props) {
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [data, setData] = useState<PatientAssessmentData>(() => initial ?? { ...EMPTY_PATIENT_ASSESSMENT });
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
   const { dialogProps, show: showDialog } = useFeedbackDialog();
 
+  // BP Systolic/Diastolic are read-only here — sourced from the Flow Sheet's
+  // Post Treatment Assessment rather than entered on this form. Keep them
+  // mirrored into `data.assessment` so the saved payload still carries them.
+  const flowBpSys = flowSheetBp?.systolic ?? "";
+  const flowBpDias = flowSheetBp?.diastolic ?? "";
   useEffect(() => {
-    if (!initial) return;
+    if (!flowSheetBp) return;
+    setData((prev) => {
+      if (prev.assessment.bp_sys === flowBpSys && prev.assessment.bp_dias === flowBpDias) return prev;
+      return { ...prev, assessment: { ...prev.assessment, bp_sys: flowBpSys, bp_dias: flowBpDias } };
+    });
+  }, [flowBpSys, flowBpDias, flowSheetBp]);
+  const [sections, setSections] = useState<Record<string, boolean>>(
+    initialExpanded ? {
+      assessment: true, physical: true, medicalHistory: true, surgicalHistory: true,
+      socialHistory: true, adl: true, environmental: true, referral: true,
+    } : {},
+  );
+  const toggleSection = (key: string) => setSections((p) => ({ ...p, [key]: !p[key] }));
+
+  // Seed `data` from the server-parsed `initial` once the first real payload
+  // arrives (it's `null` until the visit query resolves). Only ever do this
+  // once per mount — `initial` is a fresh object reference every time ANY
+  // section on the visit screen saves (the whole visit refetches), and
+  // re-running this on every such change would silently wipe out whatever
+  // the nurse is mid-typing here in favour of stale last-saved-from-server
+  // data, which is how in-progress edits (e.g. the contraptions "Assistive"/
+  // "Others" specify fields) were getting dropped before Save was pressed.
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initial || initializedRef.current) return;
     setData(initial);
+    initializedRef.current = true;
   }, [initial]);
 
-  const updateFlat = (key: string, value: string) =>
+  const clearError = (key: string) =>
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: false } : prev));
+
+  const updateFlat = (key: string, value: string) => {
+    clearError(key);
     setData((prev) => ({ ...prev, flat: { ...prev.flat, [key]: value } }));
+  };
   const updateAssessment = (key: string, value: string) =>
     setData((prev) => ({ ...prev, assessment: { ...prev.assessment, [key]: value } }));
   const toggleMentalStatus = (value: string, checked: boolean) =>
@@ -427,12 +515,6 @@ export function PatientAssessmentForm({
     setData((prev) => ({ ...prev, patient_information: { ...prev.patient_information, [key]: value } }));
   const updateMedicalHistory = (key: string, value: string) =>
     setData((prev) => ({ ...prev, medical_surgical_history: { ...prev.medical_surgical_history, [key]: value } }));
-  const toggleContraptions = (value: string, checked: boolean) =>
-    setData((prev) => {
-      const current: string[] = Array.isArray(prev.medical_surgical_history.contraptions_equipment_g1) ? prev.medical_surgical_history.contraptions_equipment_g1 : [];
-      const next = checked ? [...current, value] : current.filter((v) => v !== value);
-      return { ...prev, medical_surgical_history: { ...prev.medical_surgical_history, contraptions_equipment_g1: next } };
-    });
   const toggleReferral = (key: keyof PatientAssessmentData["referral"], value: boolean) =>
     setData((prev) => ({ ...prev, referral: { ...prev.referral, [key]: value } }));
 
@@ -445,24 +527,94 @@ export function PatientAssessmentForm({
 
   const handleSave = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const missing: string[] = [];
-    if (!data.flat.initial_assessment) missing.push("Assessment Type (Initial / Re-Assessment)");
-    if (!data.flat.date_performed) missing.push("Date Performed");
-    if (!data.assessment_signature_signed_at) missing.push("Assessment Performed By (signature)");
-    if (missing.length) {
+    const newErrors: Record<string, boolean> = {
+      initial_assessment: !data.flat.initial_assessment,
+      date_performed: !data.flat.date_performed,
+      assessment_signature: !data.assessment_signature_signed_at,
+    };
+    setErrors(newErrors);
+    if (Object.values(newErrors).some(Boolean)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // Expand any collapsed section that failed validation so its red
+      // header icon (and the field itself) is visible without extra taps.
+      if (newErrors.assessment_signature) setSections((prev) => ({ ...prev, referral: true }));
       showDialog({
         variant: "error",
         title: "Missing Required Fields",
-        message: `Please complete the following before saving:\n${missing.map((m) => `• ${m}`).join("\n")}`,
+        message: "Please fix the fields highlighted in red below before saving.",
       });
       return;
     }
     onSave(data);
   };
+
+  // ─── Per-section completion pills (same "filled/total" treatment as the
+  // Flow Sheet's Acc headers) ────────────────────────────────────────────
+  const countFilled = (values: any[]) =>
+    values.filter((v) => {
+      if (Array.isArray(v)) return v.length > 0;
+      return v !== "" && v !== undefined && v !== null && v !== false;
+    }).length;
+  const countRowsFilled = (rows: Record<string, any>[]) =>
+    rows.filter((r) => Object.values(r).some((v) => v !== "" && v !== undefined && v !== null)).length;
+
+  const assessmentFields = [
+    data.assessment.mental_status, data.assessment.mental_status_other,
+    ...ASSESSMENT_SELECT_FIELDS.map((f) => data.assessment[f.key]),
+    data.assessment.bp_sys, data.assessment.bp_dias,
+    ...ASSESSMENT_TEXT_FIELDS.map((f) => data.assessment[f.key]),
+  ];
+  const assessmentFilled = countFilled(assessmentFields);
+  const assessmentTotal = assessmentFields.length;
+
+  const physicalFields = [
+    ...CLINICAL_EXAM_GROUPS.map((g) => data.flat[g.key]),
+    ...PHYSICAL_SELECT_FIELDS.map((f) => data.flat[f.key]),
+    data.flat.throatOption, data.flat.swollen, data.flat.dentures,
+    ...PHYSICAL_TEXT_FIELDS.map((f) => data.flat[f.key]),
+  ];
+  const physicalFilled = countFilled(physicalFields);
+  const physicalTotal = physicalFields.length;
+
+  const medicalHistoryFields = [
+    data.medical_surgical_history.medical_history, data.medical_surgical_history.icd_code,
+    ...MEDICAL_HISTORY_TEXT_FIELDS.map((f) => data.medical_surgical_history[f.key]),
+    data.medical_surgical_history.contraptions_equipment_g1,
+    data.medical_surgical_history.contraptions_equipment_g2,
+  ];
+  const medicalHistoryFilled = countFilled(medicalHistoryFields);
+  const medicalHistoryTotal = medicalHistoryFields.length;
+
+  const surgicalHistoryFilled = countRowsFilled(data.surgical_history);
+  const surgicalHistoryTotal = Math.max(data.surgical_history.length, 1);
+
+  const socialHistoryFields = [
+    ...SOCIAL_HISTORY_SELECT_FIELDS.map((f) => data.social_hostory[f.key]),
+    ...SOCIAL_HISTORY_TEXT_FIELDS.map((f) => data.social_hostory[f.key]),
+    ...PATIENT_INFO_FIELDS.map((f) => data.patient_information[f.key]),
+  ];
+  const socialHistoryFilled = countFilled(socialHistoryFields);
+  const socialHistoryTotal = socialHistoryFields.length;
+
+  const adlFields = ADL_FIELDS.map((f) => data.flat[f.key]);
+  const adlFilled = countFilled(adlFields);
+  const adlTotal = adlFields.length;
+
+  const environmentalFields = [...ENVIRONMENTAL_FIELDS.map((f) => data.flat[f.key]), data.flat[ACTION_PLANNED_FIELD.key]];
+  const environmentalFilled = countFilled(environmentalFields);
+  const environmentalTotal = environmentalFields.length;
+
+  const referralFields = [
+    ...REFERRAL_FLAGS.map((f) => data.referral[f.key]),
+    ...MISC_FIELDS.map((f) => data.flat[f.key]),
+    data.assessment_signature_signed_at,
+  ];
+  const referralFilled = countFilled(referralFields);
+  const referralTotal = referralFields.length;
   const handleClear = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setData({ ...EMPTY_PATIENT_ASSESSMENT });
+    setErrors({});
   };
 
   return (
@@ -476,158 +628,266 @@ export function PatientAssessmentForm({
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
-      <CollapsibleBody open={open} style={{ padding: 14, gap: 18 }} pointerEvents={isReadOnly ? "none" : "auto"}>
-        <TextField fkey="allergy" label="Allergy" value={String(data.flat.allergy ?? "")} onChangeText={(v) => updateFlat("allergy", v)} colors={colors} multiline />
+      <CollapsibleBody open={open} style={{ padding: 14, gap: 10 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+        <View style={{ gap: 10 }}>
+          <TextField fkey="allergy" label="Allergy" value={String(data.flat.allergy ?? "")} onChangeText={(v) => updateFlat("allergy", v)} colors={colors} multiline />
 
-        <View style={s.formRow}>
-          <SelectRow
-            fkey="initial_assessment"
-            label="Assessment Type"
-            value={String(data.flat.initial_assessment ?? "")}
-            options={[{ value: "initial", label: "Initial Assessment" }, { value: "reassessment", label: "Re-Assessment" }]}
-            onChange={(v) => updateFlat("initial_assessment", v)}
-          />
-          <View style={{ flex: 1, minWidth: "45%" }}>
-            <Text style={[s.formLabel, { color: colors.text }]}>Date Performed</Text>
-            <DateTimeField mode="date" value={String(data.flat.date_performed ?? "")} onChange={(v) => updateFlat("date_performed", v)} colors={colors} />
+          <View style={s.formRow}>
+            <SelectRow
+              fkey="initial_assessment"
+              label="Assessment Type"
+              value={String(data.flat.initial_assessment ?? "")}
+              options={[{ value: "initial", label: "Initial Assessment" }, { value: "reassessment", label: "Re-Assessment" }]}
+              onChange={(v) => updateFlat("initial_assessment", v)}
+              error={errors.initial_assessment}
+            />
+            <View style={{ flex: 1, minWidth: "45%" }}>
+              <Text style={[s.formLabel, { color: colors.text }]}>Date Performed</Text>
+              <DateTimeField
+                mode="date"
+                value={String(data.flat.date_performed ?? "")}
+                onChange={(v) => updateFlat("date_performed", v)}
+                colors={colors}
+                style={errors.date_performed ? { borderColor: "#EF4444", borderWidth: 1.5 } : undefined}
+              />
+              {errors.date_performed ? (
+                <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: "#EF4444", marginTop: 3 }}>Required</Text>
+              ) : null}
+            </View>
           </View>
         </View>
 
         {/* ─── Assessment: mental status, vitals, pain, nutrition ─────── */}
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Mental Status</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-            {MENTAL_STATUS_OPTIONS.map((opt) => (
-              <View key={opt.value} style={{ width: "45%" }}>
-                <CheckboxField
-                  label={opt.label}
-                  value={(data.assessment.mental_status ?? []).includes(opt.value)}
-                  onChange={(v) => toggleMentalStatus(opt.value, v)}
-                  disabled={isReadOnly}
-                />
+        <Acc title="Assessment" color="#0891B2" done={false} isOpen={!!sections.assessment} onToggle={() => toggleSection("assessment")} colors={colors} isReadOnly={isReadOnly} filled={assessmentFilled} total={assessmentTotal} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 10 }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Mental Status</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                {MENTAL_STATUS_OPTIONS.map((opt) => (
+                  <View key={opt.value} style={{ width: "45%" }}>
+                    <CheckboxField
+                      label={opt.label}
+                      value={(data.assessment.mental_status ?? []).includes(opt.value)}
+                      onChange={(v) => toggleMentalStatus(opt.value, v)}
+                      disabled={isReadOnly}
+                    />
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-          <TextField
-            fkey="mental_status_other"
-            label="Mental Status — Other"
-            value={String(data.assessment.mental_status_other ?? "")}
-            onChangeText={(v) => updateAssessment("mental_status_other", v)}
-            colors={colors}
-          />
-        </View>
-
-        <SelectGrid fields={ASSESSMENT_SELECT_FIELDS} values={data.assessment} onChange={updateAssessment} />
-        <TextGrid title="Vitals & Nutrition" fields={ASSESSMENT_TEXT_FIELDS} values={data.assessment} onChange={updateAssessment} colors={colors} />
-
-        {/* ─── Physical Assessment ─────────────────────────────────────── */}
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Physical Assessment</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-            {CLINICAL_EXAM_GROUPS.map((group) => (
-              <ClinicalExamSelect
-                key={group.key}
-                group={group}
-                value={String(data.flat[group.key] ?? "")}
-                otherValue={group.otherKey ? String(data.flat[group.otherKey] ?? "") : ""}
-                onChange={(v) => updateFlat(group.key, v)}
-                onOtherChange={(v) => group.otherKey && updateFlat(group.otherKey, v)}
+              <TextField
+                fkey="mental_status_other"
+                label="Mental Status — Other"
+                value={String(data.assessment.mental_status_other ?? "")}
+                onChangeText={(v) => updateAssessment("mental_status_other", v)}
                 colors={colors}
               />
-            ))}
-          </View>
-        </View>
-        <SelectGrid fields={PHYSICAL_SELECT_FIELDS} values={data.flat} onChange={updateFlat} />
-        <CheckboxField
-          label="Throat/Dental — WNL"
-          value={!!data.flat.throatOption}
-          onChange={(v) => setData((prev) => ({ ...prev, flat: { ...prev.flat, throatOption: v } }))}
-          disabled={isReadOnly}
-        />
-        <TextGrid fields={PHYSICAL_TEXT_FIELDS} values={data.flat} onChange={updateFlat} colors={colors} />
+            </View>
 
-        {/* ─── Medical History ─────────────────────────────────────────── */}
-        <TextGrid title="Medical History" fields={MEDICAL_HISTORY_TEXT_FIELDS} values={data.medical_surgical_history} onChange={updateMedicalHistory} colors={colors} />
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Current Contraptions and/or Equipment Use</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-            {CONTRAPTIONS_OPTIONS.map((opt) => (
-              <View key={opt.value} style={{ width: "45%" }}>
+            <SelectGrid fields={ASSESSMENT_SELECT_FIELDS} values={data.assessment} onChange={updateAssessment} />
+            <View style={{ gap: 10 }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Vitals & Nutrition</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                <TextField fkey="bp_sys" label="BP Systolic" value={String(data.assessment.bp_sys ?? "")} onChangeText={() => {}} colors={colors} readOnly />
+                <TextField fkey="bp_dias" label="BP Diastolic" value={String(data.assessment.bp_dias ?? "")} onChangeText={() => {}} colors={colors} readOnly />
+                {ASSESSMENT_TEXT_FIELDS.map(({ key, label }) => (
+                  <TextField key={key} fkey={key} label={label} value={String(data.assessment[key] ?? "")} onChangeText={(v) => updateAssessment(key, v)} colors={colors} />
+                ))}
+              </View>
+            </View>
+          </View>
+        </Acc>
+
+        {/* ─── Physical Assessment ─────────────────────────────────────── */}
+        <Acc title="Physical Assessment" color="#7C3AED" done={false} isOpen={!!sections.physical} onToggle={() => toggleSection("physical")} colors={colors} isReadOnly={isReadOnly} filled={physicalFilled} total={physicalTotal} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 10 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                {CLINICAL_EXAM_GROUPS.map((group) => (
+                  <ClinicalExamSelect
+                    key={group.key}
+                    group={group}
+                    value={String(data.flat[group.key] ?? "")}
+                    otherValue={group.otherKey ? String(data.flat[group.otherKey] ?? "") : ""}
+                    onChange={(v) => updateFlat(group.key, v)}
+                    onOtherChange={(v) => group.otherKey && updateFlat(group.otherKey, v)}
+                    colors={colors}
+                  />
+                ))}
+              </View>
+            </View>
+            <SelectGrid fields={PHYSICAL_SELECT_FIELDS} values={data.flat} onChange={updateFlat} />
+            <View style={{ gap: 10 }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Throat/Dental</Text>
+              <View style={{ flexDirection: "column", gap: 8 }}>
                 <CheckboxField
-                  label={opt.label}
-                  value={(data.medical_surgical_history.contraptions_equipment_g1 ?? []).includes(opt.value)}
-                  onChange={(v) => toggleContraptions(opt.value, v)}
+                  label="WNL"
+                  value={!!data.flat.throatOption}
+                  onChange={(v) => setData((prev) => ({ ...prev, flat: { ...prev.flat, throatOption: v } }))}
+                  disabled={isReadOnly}
+                />
+                <CheckboxField
+                  label="Swollen LN / Lesions"
+                  value={!!data.flat.swollen}
+                  onChange={(v) => setData((prev) => ({ ...prev, flat: { ...prev.flat, swollen: v } }))}
                   disabled={isReadOnly}
                 />
               </View>
-            ))}
+              <TextField
+                fkey="dentures"
+                label="Dentures"
+                value={String(data.flat.dentures ?? "")}
+                onChangeText={(v) => updateFlat("dentures", v)}
+                colors={colors}
+              />
+            </View>
+            <View style={{ gap: 10 }}>
+              {PHYSICAL_TEXT_FIELDS.map(({ key, label, multiline }) => (
+                <TextField key={key} fkey={key} label={label} value={String(data.flat[key] ?? "")} onChangeText={(v) => updateFlat(key, v)} colors={colors} multiline={multiline} />
+              ))}
+            </View>
           </View>
-        </View>
+        </Acc>
+
+        {/* ─── Medical History ─────────────────────────────────────────── */}
+        <Acc title="Medical History" color="#0EA5E9" done={false} isOpen={!!sections.medicalHistory} onToggle={() => toggleSection("medicalHistory")} colors={colors} isReadOnly={isReadOnly} filled={medicalHistoryFilled} total={medicalHistoryTotal} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 10 }}>
+              <TextField fkey="medical_history" label="Medical History" value={String(data.medical_surgical_history.medical_history ?? "")} onChangeText={(v) => updateMedicalHistory("medical_history", v)} colors={colors} multiline />
+              <TextField fkey="icd_code" label="ICD Code" value={String(data.medical_surgical_history.icd_code ?? "")} onChangeText={(v) => updateMedicalHistory("icd_code", v)} colors={colors} />
+            </View>
+            <TextGrid fields={MEDICAL_HISTORY_TEXT_FIELDS} values={data.medical_surgical_history} onChange={updateMedicalHistory} colors={colors} />
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Current Contraptions and/or Equipment Use</Text>
+              <View style={{ flexDirection: "row", gap: 20 }}>
+                <View style={{ flex: 1 }}>
+                  <RadioRow
+                    options={CONTRAPTIONS_OPTIONS_G1}
+                    value={String(data.medical_surgical_history.contraptions_equipment_g1 ?? "")}
+                    onChange={(v) => updateMedicalHistory("contraptions_equipment_g1", v)}
+                    colors={colors}
+                    disabled={isReadOnly}
+                    vertical
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <RadioRow
+                    options={CONTRAPTIONS_OPTIONS_G2}
+                    value={String(data.medical_surgical_history.contraptions_equipment_g2 ?? "")}
+                    onChange={(v) => updateMedicalHistory("contraptions_equipment_g2", v)}
+                    colors={colors}
+                    disabled={isReadOnly}
+                    vertical
+                  />
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 20 }}>
+                <View style={{ flex: 1 }}>
+                  {data.medical_surgical_history.contraptions_equipment_g1 === "Assistive" ? (
+                    <TextField
+                      fkey="contraptions_equipment_g1_assistive"
+                      label="Assistive — Specify"
+                      value={String(data.medical_surgical_history.contraptions_equipment_g1_assistive ?? "")}
+                      onChangeText={(v) => updateMedicalHistory("contraptions_equipment_g1_assistive", v)}
+                      colors={colors}
+                    />
+                  ) : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  {data.medical_surgical_history.contraptions_equipment_g2 === "Others" ? (
+                    <TextField
+                      fkey="contraptions_equipment_g2_others"
+                      label="Others — Specify"
+                      value={String(data.medical_surgical_history.contraptions_equipment_g2_others ?? "")}
+                      onChangeText={(v) => updateMedicalHistory("contraptions_equipment_g2_others", v)}
+                      colors={colors}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          </View>
+        </Acc>
 
         {/* ─── Surgical History ────────────────────────────────────────── */}
-        <View style={{ gap: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Surgical History</Text>
+        <Acc title="Surgical History" color="#F59E0B" done={false} isOpen={!!sections.surgicalHistory} onToggle={() => toggleSection("surgicalHistory")} colors={colors} isReadOnly={isReadOnly} filled={surgicalHistoryFilled} total={surgicalHistoryTotal} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 10 }}>
             {!isReadOnly && (
-              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); addSurgicalRow(); }} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); addSurgicalRow(); }} style={{ flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end" }}>
                 <Feather name="plus-circle" size={16} color={Colors.primary} />
                 <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: Colors.primary }}>Add</Text>
               </Pressable>
             )}
-          </View>
-          {data.surgical_history.map((row, idx) => (
-            <View key={idx} style={{ gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.card }}>
-              <TextField fkey={`sh_desc_${idx}`} label="Surgical History" value={row.surgical_history} onChangeText={(v) => updateSurgicalRow(idx, { surgical_history: v })} colors={colors} />
-              <View style={s.formRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.formLabel, { color: colors.text }]}>Date Surgery Performed</Text>
-                  <DateTimeField mode="date" value={row.performed_date} onChange={(v) => updateSurgicalRow(idx, { performed_date: v })} colors={colors} />
+            {data.surgical_history.map((row, idx) => (
+              <View key={idx} style={{ gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.borderLight, backgroundColor: colors.card }}>
+                <TextField fkey={`sh_desc_${idx}`} label="Surgical History" value={row.surgical_history} onChangeText={(v) => updateSurgicalRow(idx, { surgical_history: v })} colors={colors} />
+                <View style={{ gap: 10 }}>
+                  <View>
+                    <Text style={[s.formLabel, { color: colors.text }]}>Date Surgery Performed</Text>
+                    <DateTimeField mode="date" value={row.performed_date} onChange={(v) => updateSurgicalRow(idx, { performed_date: v })} colors={colors} />
+                  </View>
+                  <TextField fkey={`sh_place_${idx}`} label="Where?" value={row.performed_place} onChangeText={(v) => updateSurgicalRow(idx, { performed_place: v })} colors={colors} />
                 </View>
-                <TextField fkey={`sh_place_${idx}`} label="Where?" value={row.performed_place} onChangeText={(v) => updateSurgicalRow(idx, { performed_place: v })} colors={colors} />
+                {!isReadOnly && (
+                  <Pressable onPress={() => removeSurgicalRow(idx)} style={{ alignSelf: "flex-end" }}>
+                    <Feather name="trash-2" size={16} color="#EF4444" />
+                  </Pressable>
+                )}
               </View>
-              {!isReadOnly && (
-                <Pressable onPress={() => removeSurgicalRow(idx)} style={{ alignSelf: "flex-end" }}>
-                  <Feather name="trash-2" size={16} color="#EF4444" />
-                </Pressable>
-              )}
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        </Acc>
 
         {/* ─── Social History ──────────────────────────────────────────── */}
-        <SelectGrid title="Social History" fields={SOCIAL_HISTORY_SELECT_FIELDS} values={data.social_hostory} onChange={updateSocialHistory} />
-        <TextGrid fields={SOCIAL_HISTORY_TEXT_FIELDS} values={data.social_hostory} onChange={updateSocialHistory} colors={colors} />
-        <TextGrid title="Patient Information" fields={PATIENT_INFO_FIELDS} values={data.patient_information} onChange={updatePatientInfo} colors={colors} />
+        <Acc title="Social History" color="#10B981" done={false} isOpen={!!sections.socialHistory} onToggle={() => toggleSection("socialHistory")} colors={colors} isReadOnly={isReadOnly} filled={socialHistoryFilled} total={socialHistoryTotal} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 12 }}>
+            <SelectGrid fields={SOCIAL_HISTORY_SELECT_FIELDS} values={data.social_hostory} onChange={updateSocialHistory} />
+            <TextGrid fields={SOCIAL_HISTORY_TEXT_FIELDS} values={data.social_hostory} onChange={updateSocialHistory} colors={colors} />
+            <TextGrid title="Patient Information" fields={PATIENT_INFO_FIELDS} values={data.patient_information} onChange={updatePatientInfo} colors={colors} />
+          </View>
+        </Acc>
 
         {/* ─── Activities of Daily Living ──────────────────────────────── */}
-        <SelectGrid title="Activities of Daily Living" fields={ADL_FIELDS.map((f) => ({ ...f, options: ADL }))} values={data.flat} onChange={updateFlat} />
+        <Acc title="Activities of Daily Living" color="#DB2777" done={false} isOpen={!!sections.adl} onToggle={() => toggleSection("adl")} colors={colors} isReadOnly={isReadOnly} filled={adlFilled} total={adlTotal} style={{ marginBottom: 0 }}>
+          <SelectGrid fields={ADL_FIELDS.map((f) => ({ ...f, options: ADL }))} values={data.flat} onChange={updateFlat} />
+        </Acc>
 
         {/* ─── Environmental Hazards / Safety Checklist ───────────────── */}
-        <SelectGrid title="Environmental Hazards / Safety Checklist" fields={ENVIRONMENTAL_FIELDS.map((f) => ({ ...f, options: YES_NO }))} values={data.flat} onChange={updateFlat} />
-        <TextField fkey={ACTION_PLANNED_FIELD.key} label={ACTION_PLANNED_FIELD.label} value={String(data.flat[ACTION_PLANNED_FIELD.key] ?? "")} onChangeText={(v) => updateFlat(ACTION_PLANNED_FIELD.key, v)} colors={colors} multiline />
+        <Acc title="Environmental Hazards / Safety Checklist" color="#EA580C" done={false} isOpen={!!sections.environmental} onToggle={() => toggleSection("environmental")} colors={colors} isReadOnly={isReadOnly} filled={environmentalFilled} total={environmentalTotal} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 12 }}>
+            <SelectGrid fields={ENVIRONMENTAL_FIELDS.map((f) => ({ ...f, options: YES_NO }))} values={data.flat} onChange={updateFlat} />
+            <TextField fkey={ACTION_PLANNED_FIELD.key} label={ACTION_PLANNED_FIELD.label} value={String(data.flat[ACTION_PLANNED_FIELD.key] ?? "")} onChangeText={(v) => updateFlat(ACTION_PLANNED_FIELD.key, v)} colors={colors} multiline />
+          </View>
+        </Acc>
 
         {/* ─── Referral ────────────────────────────────────────────────── */}
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Referral</Text>
-          {REFERRAL_FLAGS.map(({ key, label }) => (
-            <CheckboxField key={key} label={label} value={!!data.referral[key]} onChange={(v) => toggleReferral(key, v)} disabled={isReadOnly} />
-          ))}
-        </View>
+        <Acc title="Referral" color="#3B82F6" done={false} isOpen={!!sections.referral} onToggle={() => toggleSection("referral")} colors={colors} isReadOnly={isReadOnly} filled={referralFilled} total={referralTotal} hasError={errors.assessment_signature} style={{ marginBottom: 0 }}>
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 10 }}>
+              {REFERRAL_FLAGS.map(({ key, label }) => (
+                <CheckboxField key={key} label={label} value={!!data.referral[key]} onChange={(v) => toggleReferral(key, v)} disabled={isReadOnly} />
+              ))}
+            </View>
 
-        <TextGrid title="Assessor Details" fields={MISC_FIELDS} values={data.flat} onChange={updateFlat} colors={colors} />
+            <TextGrid title="Assessor Details" fields={MISC_FIELDS} values={data.flat} onChange={updateFlat} colors={colors} />
 
-        <AttestField
-          label="Assessment Performed By"
-          value={{ signedAt: data.assessment_signature_signed_at, signedBy: data.assessment_signature_signed_by }}
-          onChange={(v) => setData((prev) => ({ ...prev, assessment_signature_signed_at: v.signedAt ?? null, assessment_signature_signed_by: v.signedBy ?? null }))}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          colors={colors}
-          disabled={isReadOnly}
-        />
+            <AttestField
+              label="Assessment Performed By"
+              value={{ signedAt: data.assessment_signature_signed_at, signedBy: data.assessment_signature_signed_by }}
+              onChange={(v) => {
+                clearError("assessment_signature");
+                setData((prev) => ({ ...prev, assessment_signature_signed_at: v.signedAt ?? null, assessment_signature_signed_by: v.signedBy ?? null }));
+              }}
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              error={errors.assessment_signature}
+              colors={colors}
+              disabled={isReadOnly}
+            />
+          </View>
+        </Acc>
 
         {!isReadOnly && (
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]} onPress={handleSave} disabled={isSaving}>
               {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="save" size={16} color="#fff" />}
               <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>

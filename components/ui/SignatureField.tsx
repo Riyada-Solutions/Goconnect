@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { useNetwork } from "@/context/NetworkContext";
 import { uploadSignature } from "@/data/signature_repository";
 import { SignatureConfirmSheet } from "@/app/visits/components/visitForms/refusal/SignatureConfirmSheet";
 
@@ -64,9 +65,11 @@ export function SignatureField({
   signedLabel = "SIGNED",
 }: Props) {
   const { colors } = useTheme();
+  const { isOnline } = useNetwork();
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadDeferred, setUploadDeferred] = useState(false);
 
   const signedColor = "#22C55E";
   // In useOnly mode, any provided image (dataUrl OR signatureUrl) should
@@ -235,6 +238,11 @@ export function SignatureField({
           </Text>
         </View>
       ) : null}
+      {uploadDeferred ? (
+        <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_500Medium", marginTop: 4 }}>
+          Offline — signature will upload and sync when you reconnect.
+        </Text>
+      ) : null}
       {uploadError ? (
         <Text style={{ fontSize: 11, color: "#EF4444", fontFamily: "Inter_500Medium", marginTop: 4 }}>
           {uploadError}
@@ -281,8 +289,17 @@ export function SignatureField({
           // Show the captured signature immediately, then upload in the
           // background. The form save will pick up `signatureUrl` once ready.
           onChange({ signed: true, dataUrl, signedAt });
-          setUploading(true);
           setUploadError(null);
+          // Offline: skip the network upload attempt entirely (it would just
+          // fail with a raw "Network Error"). The form save falls back to
+          // sending this dataUrl inline via the offline queue instead, so
+          // there's nothing to do here but let the nurse know it's deferred.
+          if (!isOnline) {
+            setUploadDeferred(true);
+            return;
+          }
+          setUploadDeferred(false);
+          setUploading(true);
           try {
             const result = await uploadSignature({
               uri:  dataUrl,

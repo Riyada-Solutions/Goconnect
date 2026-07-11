@@ -336,13 +336,28 @@ function serializePatientAssessment(data: PatientAssessmentData): Record<string,
   const mentalStatus = typeof rawMentalStatus === 'string'
     ? rawMentalStatus.split(',').map((v) => v.trim()).filter(Boolean)
     : rawMentalStatus
+  const rawContraptions = (data.medical_surgical_history as Record<string, unknown>).contraptions_equipment_g1
+  const contraptionsEquipmentG1 = Array.isArray(rawContraptions) ? rawContraptions.join(',') : rawContraptions
+  // The backend represents "Others" (g2) as an empty string on the wire —
+  // the free-text `contraptions_equipment_g2_others` is what actually carries
+  // the value. The UI keeps "Others" as the selected radio value so it stays
+  // visibly selected; translate it to "" only at serialize time. Confirmed
+  // via a live API capture: these 4 fields are nested under
+  // `medical_surgical_history`.
+  const contraptionsEquipmentG2 = data.medical_surgical_history.contraptions_equipment_g2 === 'Others'
+    ? ''
+    : data.medical_surgical_history.contraptions_equipment_g2
   return {
     ...data.flat,
     assessment: { ...data.assessment, mental_status: mentalStatus },
     referral: data.referral,
     social_hostory: data.social_hostory,
     patient_information: data.patient_information,
-    medical_surgical_history: data.medical_surgical_history,
+    medical_surgical_history: {
+      ...data.medical_surgical_history,
+      contraptions_equipment_g1: contraptionsEquipmentG1,
+      contraptions_equipment_g2: contraptionsEquipmentG2,
+    },
     surgical_history: data.surgical_history,
     assessment_signature_signed_at: data.assessment_signature_signed_at,
     assessment_signature_signed_by: data.assessment_signature_signed_by,

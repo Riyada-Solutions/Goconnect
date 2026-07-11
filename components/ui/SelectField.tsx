@@ -15,17 +15,19 @@ interface Props {
   placeholder?: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  error?: string | boolean;
 }
 
 function toPair(o: SelectOption): { value: string; label: string } {
   return typeof o === "string" ? { value: o, label: o } : o;
 }
 
-export function SelectField({ label, value, options, placeholder, onChange, disabled }: Props) {
+export function SelectField({ label, value, options, placeholder, onChange, disabled, error }: Props) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   const pairs = options.map(toPair);
   const selectedLabel = value ? pairs.find((p) => p.value === value)?.label ?? value : null;
+  const errorMessage = typeof error === "string" ? error : error ? "Required" : null;
 
   return (
     <View>
@@ -43,8 +45,8 @@ export function SelectField({ label, value, options, placeholder, onChange, disa
         style={{
           flexDirection: "row",
           alignItems: "center",
-          borderWidth: 1,
-          borderColor: colors.border,
+          borderWidth: errorMessage ? 1.5 : 1,
+          borderColor: errorMessage ? "#EF4444" : colors.border,
           borderRadius: 8,
           paddingHorizontal: 10,
           paddingVertical: 10,
@@ -64,6 +66,11 @@ export function SelectField({ label, value, options, placeholder, onChange, disa
         </Text>
         <Feather name="chevron-down" size={16} color={colors.textSecondary} />
       </Pressable>
+      {errorMessage ? (
+        <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: "#EF4444", marginTop: 3 }}>
+          {errorMessage}
+        </Text>
+      ) : null}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable

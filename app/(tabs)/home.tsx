@@ -39,6 +39,32 @@ function getGreeting() {
   return "goodEvening";
 }
 
+/** Appointment slots carry a raw 24h "HH:mm" string; visits are already
+ *  formatted 12h with AM/PM. Match that format so both time boxes show the
+ *  same shape of text (and therefore render at the same size). */
+function formatTime12h(hhmm?: string | null): string {
+  if (!hhmm) return "";
+  const [hStr, mStr = "00"] = hhmm.split(":");
+  const h = Number(hStr);
+  if (Number.isNaN(h)) return hhmm;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${mStr.padStart(2, "0")} ${ampm}`;
+}
+
+/** Minutes between two "HH:mm" times, for the appointment time box's second
+ *  line — matches the visit card's `{duration}m` so both boxes show the
+ *  same kind of value instead of one showing a short "45m" and the other a
+ *  full clock time like "10:45". */
+function minutesBetween(start?: string | null, end?: string | null): number | null {
+  if (!start || !end) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return null;
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  return diff > 0 ? diff : null;
+}
+
 export default function HomeScreen() {
   const { user, t } = useApp();
   const { colors, isDark } = useTheme();
@@ -348,6 +374,7 @@ export default function HomeScreen() {
                         styles.visitTime,
                         { color: Colors.primaryDark },
                       ]}
+                      numberOfLines={1}
                     >
                       {visit.time}
                     </Text>
@@ -439,12 +466,13 @@ export default function HomeScreen() {
                         styles.visitTime,
                         { color: Colors.primaryDark },
                       ]}
+                      numberOfLines={1}
                     >
-                      {appt.time}
+                      {formatTime12h(appt.time)}
                     </Text>
-                    {appt.endTime ? (
+                    {minutesBetween(appt.time, appt.endTime) != null ? (
                       <Text style={[styles.visitDuration, { color: Colors.primaryDark }]}>
-                        {appt.endTime}
+                        {minutesBetween(appt.time, appt.endTime)}m
                       </Text>
                     ) : null}
                   </View>
@@ -634,19 +662,19 @@ const styles = StyleSheet.create({
   visitTimeBox: {
     borderRadius: 10,
     paddingVertical: 6,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 50,
+    minWidth: 46,
     minHeight: 40,
   },
   visitTime: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_700Bold",
   },
   visitDuration: {
     fontSize: 11,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Inter_700Bold",
     marginTop: 2,
   },
   visitPatient: {

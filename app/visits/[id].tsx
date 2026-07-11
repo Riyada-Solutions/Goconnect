@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import { OfflineQueuedError } from "@/data/offline_api";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { CareTeamView } from "@/components/common/CareTeamView";
@@ -208,13 +208,32 @@ function VisitDetailScreenInner() {
     // are arrays on the wire — the form renders them as checkbox groups, so
     // keep them as arrays rather than joining to a display string.
     const assessmentValue = assessment ?? {};
+    // `contraptions_equipment_g1` / `_g2` are two independent single-select
+    // radio groups nested under `medical_surgical_history` on the wire (e.g.
+    // "IV", "Nebulizer") whose exact casing the backend expects verbatim —
+    // confirmed via a live API capture. Legacy saved data may still be a
+    // comma-joined string or an array, so collapse to a single value without
+    // altering its case.
+    const firstValue = (raw: unknown) =>
+      Array.isArray(raw) ? raw[0] ?? "" : typeof raw === "string" ? raw.split(",")[0].trim() : raw ?? "";
     return {
       flat,
       assessment: assessmentValue,
       referral: referral ?? { social_worker: false, disaster_planning: false, allied_health_professionals: false },
       social_hostory: social_hostory ?? {},
       patient_information: patient_information ?? {},
-      medical_surgical_history: medical_surgical_history ?? {},
+      medical_surgical_history: {
+        ...(medical_surgical_history ?? {}),
+        contraptions_equipment_g1: firstValue(medical_surgical_history?.contraptions_equipment_g1),
+        // The backend sends "" for `contraptions_equipment_g2` when "Others"
+        // was selected — the actual value lives on `..._g2_others`. Restore
+        // "Others" as the display value so the radio shows selected and the
+        // specify field reveals, matching what was actually saved.
+        contraptions_equipment_g2: (() => {
+          const g2 = firstValue(medical_surgical_history?.contraptions_equipment_g2)
+          return g2 === "" && medical_surgical_history?.contraptions_equipment_g2_others ? "Others" : g2
+        })(),
+      },
       surgical_history: surgical_history ?? [],
       assessment_signature_signed_at: assessment_signature_signed_at ?? null,
       assessment_signature_signed_by: assessment_signature_signed_by ?? null,
@@ -664,9 +683,15 @@ function VisitDetailScreenInner() {
       <FeedbackDialog {...dialogProps} />
       <VisitDetailTopBar topPad={topPad} colors={colors} />
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? topPad : 0}
+      >
       <ScrollView
         contentContainerStyle={{ paddingBottom: botPad }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -675,7 +700,7 @@ function VisitDetailScreenInner() {
             colors={[Colors.primary]}
           />
         }
-      > 
+      >
         {/* ─── Patient Hero ───────────────────────────────────────────── */}
         {patientRecord && (
           <Animated.View entering={FadeInDown.delay(30).springify()} style={[s.section,{ marginTop: 16 }]}>
@@ -971,6 +996,10 @@ function VisitDetailScreenInner() {
               isSaving={submitPatientAssessment.isPending}
               currentUserId={user?.employeeId ?? ""}
               currentUserName={user?.name}
+              flowSheetBp={{
+                systolic: (record as any)?.flowSheet?.postAssessment?.bpSystolic,
+                diastolic: (record as any)?.flowSheet?.postAssessment?.bpDiastolic,
+              }}
               onSave={(data) => {
                 submitPatientAssessment.mutate(data, {
                   onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("patientAssessmentTitle") }),
@@ -1086,6 +1115,7 @@ function VisitDetailScreenInner() {
           />
         {/* )} */}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <MorseFallScaleSheet
         visible={morseSheetOpen}

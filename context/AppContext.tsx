@@ -40,6 +40,7 @@ import { getRules } from "@/data/rules_repository";
 import { RULES_QUERY_KEY } from "@/hooks/useRules";
 
 const FCM_TOKEN_KEY = "@goconnect/fcm_token";
+const CACHED_USER_KEY = "@goconnect/cached_user";
 
 // Query keys whose data is scoped to the currently selected system/branch.
 // These must be dropped whenever the user switches workspace so stale
@@ -53,6 +54,24 @@ const WORKSPACE_SCOPED_QUERY_KEYS = [
   ["lab-results"],
   ["notifications"],
 ] as const;
+
+async function cacheUser(user: User): Promise<void> {
+  try {
+    await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+  } catch {
+    // non-fatal — worst case the next offline boot re-fetches instead of
+    // showing a cached profile
+  }
+}
+
+async function readCachedUser(): Promise<User | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHED_USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
 
 async function syncDeviceWithProfile(): Promise<void> {
   try {
@@ -134,10 +153,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let done = false;
     const load = async () => {
       try {
-        const [storedToken, storedLang, storedTheme, settings] = await Promise.all([
+        const [storedToken, storedLang, storedTheme, storedUser, settings] = await Promise.all([
           AsyncStorage.getItem(ACCESS_TOKEN_KEY),
           AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
+          readCachedUser(),
           fetchAppSettings(),
         ]);
         setAppSettings(settings);
@@ -156,20 +176,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
           if (!biometricPending) {
             setToken(storedToken);
+            // Show the last-known profile immediately so the app renders
+            // fully (including offline) instead of sitting on a blank
+            // profile until GET /me resolves — this is also what lets the
+            // rest of the UI treat the session as valid while offline.
+            if (storedUser) {
+              setUser(storedUser);
+              queryClient.setQueryData(["me"], storedUser);
+            }
             try {
               const me = await getMe();
               setUser(me);
               queryClient.setQueryData(["me"], me);
+              void cacheUser(me);
               void syncDeviceWithProfile();
               void syncRules();
             } catch (error: any) {
               const status = error?.response?.status;
               if (status === 401 || status === 403 || status === 404) {
+                // Real auth failure — the session is actually invalid, not
+                // just unreachable. Clear it even if we have a cached user.
                 await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+                await AsyncStorage.removeItem(CACHED_USER_KEY);
                 setToken(null);
                 setUser(null);
                 queryClient.clear();
               }
+              // Otherwise (network error / offline): keep the token and the
+              // cached profile set above, if any, so the app stays usable
+              // offline instead of getting stuck with no user.
             }
           }
         }
@@ -206,6 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       setToken(authToken);
       queryClient.setQueryData(["me"], userData);
+      void cacheUser(userData);
       void syncDeviceWithProfile();
       void syncRules();
     },
@@ -216,6 +252,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearQueue();
     await logoutApi();
     await clearFaceToken();
+    await AsyncStorage.removeItem(CACHED_USER_KEY);
     setUser(null);
     setToken(null);
     setRules(new Set());
@@ -255,6 +292,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       setUser(updated);
       queryClient.setQueryData(["me"], updated);
+      void cacheUser(updated);
     },
     [user, queryClient],
   );
@@ -263,6 +301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const me = await getMe();
     setUser(me);
     queryClient.setQueryData(["me"], me);
+    void cacheUser(me);
   }, [queryClient]);
 
   const updateWorkspaceSelection = useCallback(
@@ -271,6 +310,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!prev) return prev;
         const next = { ...prev, ...patch };
         queryClient.setQueryData(["me"], next);
+        void cacheUser(next);
         return next;
       });
     },

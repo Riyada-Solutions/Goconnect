@@ -1,5 +1,6 @@
 import NetInfo from '@react-native-community/netinfo'
 import { apiClient } from '@/data/api_client'
+import { buildMultipartFormData } from '@/data/offline_api'
 import { getItem, peekAll, markDone, markFailed, type QueuedMutation } from '@/data/offline_queue'
 
 const MAX_RETRIES = 5
@@ -52,9 +53,16 @@ async function attemptItem(item: QueuedMutation): Promise<{ ok: true } | { ok: f
   try {
     let lastError = 'Unknown error'
     const totalAttempts = INLINE_RETRY_DELAYS_MS.length + 1
+    const multipart = item.body && (item.body as any).__multipart
     for (let attempt = 1; attempt <= totalAttempts; attempt++) {
       try {
-        await apiClient({ method: item.method as any, url: item.url, data: item.body })
+        if (multipart) {
+          const { jsonBody, fields, files } = item.body as any
+          const fd = buildMultipartFormData(jsonBody, fields ?? {}, files ?? {})
+          await apiClient.post(item.url, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        } else {
+          await apiClient({ method: item.method as any, url: item.url, data: item.body })
+        }
         return { ok: true }
       } catch (e: any) {
         lastError = e?.message ?? 'Unknown error'

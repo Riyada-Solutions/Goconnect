@@ -24,6 +24,7 @@ interface Props {
   signedLabel?: string;
   /** Optional context line shown under the label (e.g. "on behalf of <patient name>"). */
   subtitle?: string;
+  error?: string | boolean;
 }
 
 /**
@@ -43,8 +44,10 @@ export function AttestField({
   tapLabel = "Tap to confirm",
   signedLabel = "Signed",
   subtitle,
+  error,
 }: Props) {
   const signed = !!value.signedAt;
+  const errorMessage = !signed && error ? (typeof error === "string" ? error : "Required") : null;
 
   const handlePress = () => {
     if (disabled) return;
@@ -57,42 +60,49 @@ export function AttestField({
   };
 
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={disabled}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 12,
-        borderRadius: 10,
-        borderWidth: 1.5,
-        borderStyle: signed ? "solid" : "dashed",
-        borderColor: signed ? "#22C55E" : colors.border,
-        backgroundColor: signed ? "#F0FDF4" : colors.surface,
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      <View style={{ flex: 1, marginRight: 8 }}>
-        <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: colors.text }}>{label}</Text>
-        {subtitle ? (
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: colors.textTertiary, marginTop: 1 }}>
-            {subtitle}
-          </Text>
-        ) : null}
-        {signed ? (
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: "#059669", marginTop: 2 }}>
-            {signedLabel}
-            {currentUserName ? ` by ${currentUserName}` : ""} •{" "}
-            {DateTimeConverter.dateTime(value.signedAt)}
-          </Text>
-        ) : (
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-            {tapLabel}
-          </Text>
-        )}
-      </View>
-      <Feather name={signed ? "check-circle" : "circle"} size={20} color={signed ? "#22C55E" : colors.textTertiary} />
-    </Pressable>
+    <View>
+      <Pressable
+        onPress={handlePress}
+        disabled={disabled}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1.5,
+          borderStyle: signed ? "solid" : "dashed",
+          borderColor: signed ? "#22C55E" : errorMessage ? "#EF4444" : colors.border,
+          backgroundColor: signed ? "#F0FDF4" : colors.surface,
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: colors.text }}>{label}</Text>
+          {subtitle ? (
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: colors.textTertiary, marginTop: 1 }}>
+              {subtitle}
+            </Text>
+          ) : null}
+          {signed ? (
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: "#059669", marginTop: 2 }}>
+              {signedLabel}
+              {currentUserName ? ` by ${currentUserName}` : ""} •{" "}
+              {DateTimeConverter.dateTime(value.signedAt)}
+            </Text>
+          ) : (
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+              {tapLabel}
+            </Text>
+          )}
+        </View>
+        <Feather name={signed ? "check-circle" : "circle"} size={20} color={signed ? "#22C55E" : errorMessage ? "#EF4444" : colors.textTertiary} />
+      </Pressable>
+      {errorMessage ? (
+        <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: "#EF4444", marginTop: 3 }}>
+          {errorMessage}
+        </Text>
+      ) : null}
+    </View>
   );
 }

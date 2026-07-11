@@ -10,6 +10,33 @@ export class OfflineQueuedError extends Error {
   }
 }
 
+export interface MultipartFileRef {
+  /** A `data:` URL (drawn signature) or a local `file://` URI (picked attachment). */
+  uri: string
+  name: string
+  type: string
+}
+
+/** RN's FormData treats `{ uri, name, type }` as a file part. */
+function toFilePart(file: MultipartFileRef) {
+  return { uri: file.uri, name: file.name, type: file.type } as unknown as Blob
+}
+
+/** Reconstructs the exact multipart body used by `offlinePostMultipart`, shared
+ *  with the sync-service replay path so a queued item posts identically to how
+ *  it would have online. */
+export function buildMultipartFormData(
+  jsonBody: Record<string, unknown>,
+  fields: Record<string, string>,
+  files: Record<string, MultipartFileRef>,
+): FormData {
+  const fd = new FormData()
+  fd.append('data', JSON.stringify(jsonBody))
+  for (const [key, value] of Object.entries(fields)) fd.append(key, value)
+  for (const [key, file] of Object.entries(files)) fd.append(key, toFilePart(file))
+  return fd
+}
+
 /**
  * Drop-in wrapper for apiClient.post.
  * - When online: calls the API directly and returns the response.
@@ -43,6 +70,46 @@ export async function offlinePost(
   } catch (e: any) {
     if (e?.response) throw e // real API error — don't queue, let it surface
     enqueue({ method: 'POST', url, body, visitId })
+    throw new OfflineQueuedError()
+  }
+}
+
+/**
+ * Multipart counterpart to `offlinePost`, for saves that carry an inline
+ * (not-yet-uploaded) file — e.g. a signature PNG drawn while offline, where
+ * the `/signatures/upload` pre-upload step itself can't reach the server.
+ *
+ * The file(s) are stored as base64 data URLs inside the queued JSON body
+ * (SQLite has no separate blob/multipart concept), tagged with `__multipart`
+ * so `services/SyncService.ts` knows to rebuild the FormData identically on
+ * replay via `buildMultipartFormData`.
+ *
+ * - When online: posts multipart directly, same as before.
+ * - When offline, or when the request fails with no server response (dropped
+ *   connection/timeout): queues instead of throwing a raw network error.
+ */
+export async function offlinePostMultipart(
+  url: string,
+  parts: { jsonBody: Record<string, unknown>; fields?: Record<string, string>; files: Record<string, MultipartFileRef> },
+  visitId?: string,
+): Promise<any> {
+  const { jsonBody, fields = {}, files } = parts
+  const state = await NetInfo.fetch()
+  const online = !!state.isConnected && state.isInternetReachable !== false
+
+  const queueBody: Record<string, unknown> = { __multipart: true, jsonBody, fields, files }
+
+  if (!online) {
+    enqueue({ method: 'POST', url, body: queueBody, visitId })
+    throw new OfflineQueuedError()
+  }
+
+  try {
+    const fd = buildMultipartFormData(jsonBody, fields, files)
+    return await apiClient.post(url, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+  } catch (e: any) {
+    if (e?.response) throw e
+    enqueue({ method: 'POST', url, body: queueBody, visitId })
     throw new OfflineQueuedError()
   }
 }

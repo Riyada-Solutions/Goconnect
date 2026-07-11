@@ -64,46 +64,50 @@ export const EMPTY_PATIENT_RESPONSIBILITY: PatientResponsibilityData = {
   attending_physician_signature_signed_by: null,
 };
 
-const YES_NO = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-] as const;
+function buildYesNo(t: (key: any) => string) {
+  return [
+    { value: "yes", label: t("yes") },
+    { value: "no", label: t("no") },
+  ] as const;
+}
 
-const RELATION_OPTIONS = [
-  { value: "Father", label: "Father" },
-  { value: "Mother", label: "Mother" },
-  { value: "Spouse", label: "Spouse" },
-  { value: "Son", label: "Son" },
-  { value: "Daughter", label: "Daughter" },
-  { value: "Brother", label: "Brother" },
-  { value: "Sister", label: "Sister" },
-  { value: "other", label: "Other" },
-] as const;
+function buildRelationOptions(t: (key: any) => string) {
+  return [
+    { value: "Father", label: t("relationFather") },
+    { value: "Mother", label: t("relationMother") },
+    { value: "Spouse", label: t("relationSpouse") },
+    { value: "Son", label: t("relationSon") },
+    { value: "Daughter", label: t("relationDaughter") },
+    { value: "Brother", label: t("relationBrother") },
+    { value: "Sister", label: t("relationSister") },
+    { value: "other", label: t("other") },
+  ] as const;
+}
 
 /** Saudi national ID / iqama: exactly 10 digits, starting with 1 (citizen) or 2 (resident). */
 const NATIONAL_ID_RE = /^[12]\d{9}$/;
 
-function getValidationErrors(data: PatientResponsibilityData): string[] {
+function getValidationErrors(data: PatientResponsibilityData, t: (key: any) => string): string[] {
   const errors: string[] = [];
-  if (!data.date) errors.push("Date is required.");
-  if (!data.balance_chair) errors.push("Balance Chair answer is required.");
-  if (!data.kidney_device) errors.push("Kidney Device answer is required.");
-  if (!data.kidney_medical_bed) errors.push("Kidney Medical Bed answer is required.");
-  if (!data.social_worker || !data.social_worker_id) errors.push("Social Worker must be selected.");
-  if (!data.on_charge_nurse || !data.on_charge_nurse_id) errors.push("On-Charge Nurse must be selected.");
-  if (!data.attending_physician || !data.attending_physician_id) errors.push("Attending Physician must be selected.");
+  if (!data.date) errors.push(t("prErrDate"));
+  if (!data.balance_chair) errors.push(t("prErrBalanceChair"));
+  if (!data.kidney_device) errors.push(t("prErrKidneyDevice"));
+  if (!data.kidney_medical_bed) errors.push(t("prErrKidneyMedicalBed"));
+  if (!data.social_worker || !data.social_worker_id) errors.push(t("prErrSocialWorker"));
+  if (!data.on_charge_nurse || !data.on_charge_nurse_id) errors.push(t("prErrOnChargeNurse"));
+  if (!data.attending_physician || !data.attending_physician_id) errors.push(t("prErrAttendingPhysician"));
 
   const relation = data.companion_relation === "other" ? data.custom_relation : data.companion_relation;
-  if (!relation?.trim()) errors.push("Companion relation is required.");
+  if (!relation?.trim()) errors.push(t("prErrRelation"));
 
   const nationalId = (data.companion_national_id ?? "").trim();
-  if (!nationalId) errors.push("Companion National ID is required.");
-  else if (!NATIONAL_ID_RE.test(nationalId)) errors.push("Companion National ID must be 10 digits, starting with 1 or 2.");
+  if (!nationalId) errors.push(t("prErrNationalIdRequired"));
+  else if (!NATIONAL_ID_RE.test(nationalId)) errors.push(t("prErrNationalIdFormat"));
 
-  if (!data.companion_signature_signature_url) errors.push("Companion signature is required.");
-  if (!data.social_worker_signature_signed_at) errors.push("Social Worker sign-off is required.");
-  if (!data.on_charge_nurse_signature_signed_at) errors.push("On-Charge Nurse sign-off is required.");
-  if (!data.attending_physician_signature_signed_at) errors.push("Attending Physician sign-off is required.");
+  if (!data.companion_signature_signature_url) errors.push(t("prErrCompanionSignature"));
+  if (!data.social_worker_signature_signed_at) errors.push(t("prErrSocialWorkerSignOff"));
+  if (!data.on_charge_nurse_signature_signed_at) errors.push(t("prErrOnChargeNurseSignOff"));
+  if (!data.attending_physician_signature_signed_at) errors.push(t("prErrAttendingPhysicianSignOff"));
 
   return errors;
 }
@@ -184,7 +188,9 @@ export function PatientResponsibilityForm({
   const attendingPhysicianValue: StaffValue = { id: data.attending_physician_id || null, name: data.attending_physician };
 
   const [showErrors, setShowErrors] = useState(false);
-  const errors = getValidationErrors(data);
+  const errors = getValidationErrors(data, t);
+  const YES_NO = buildYesNo(t);
+  const RELATION_OPTIONS = buildRelationOptions(t);
 
   const handleSave = () => {
     if (errors.length > 0) {
@@ -220,27 +226,27 @@ export function PatientResponsibilityForm({
         pointerEvents={isReadOnly ? "none" : "auto"}
       >
         <View>
-          <Text style={[s.formLabel, { color: colors.text }]}>Date</Text>
+          <Text style={[s.formLabel, { color: colors.text }]}>{t("prDate")}</Text>
           <DateTimeField mode="date" value={data.date} onChange={(v) => update("date", v)} colors={colors} />
         </View>
 
         <View style={s.formRow}>
           <View style={{ flex: 1 }}>
-            <SelectField label="Balance Chair" value={data.balance_chair || null} options={YES_NO} placeholder="Select" onChange={(v) => update("balance_chair", v)} />
+            <SelectField label={t("prBalanceChair")} value={data.balance_chair || null} options={YES_NO} placeholder={t("prSelect")} onChange={(v) => update("balance_chair", v)} />
           </View>
           <View style={{ flex: 1 }}>
-            <SelectField label="Kidney Device" value={data.kidney_device || null} options={YES_NO} placeholder="Select" onChange={(v) => update("kidney_device", v)} />
+            <SelectField label={t("prKidneyDevice")} value={data.kidney_device || null} options={YES_NO} placeholder={t("prSelect")} onChange={(v) => update("kidney_device", v)} />
           </View>
         </View>
-        <SelectField label="Kidney Medical Bed" value={data.kidney_medical_bed || null} options={YES_NO} placeholder="Select" onChange={(v) => update("kidney_medical_bed", v)} />
+        <SelectField label={t("prKidneyMedicalBed")} value={data.kidney_medical_bed || null} options={YES_NO} placeholder={t("prSelect")} onChange={(v) => update("kidney_medical_bed", v)} />
 
         <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Care Team</Text>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>{t("prCareTeam")}</Text>
           <StaffPickerField
-            label="Attending Physician"
+            label={t("prAttendingPhysician")}
             employeeType="physician"
             value={attendingPhysicianValue}
-            placeholder="Select physician"
+            placeholder={t("prSelectPhysician")}
             disabled={isReadOnly}
             invalid={showErrors && (!data.attending_physician || !data.attending_physician_id)}
             onChange={(v) =>
@@ -248,10 +254,10 @@ export function PatientResponsibilityForm({
             }
           />
           <StaffPickerField
-            label="On-Charge Nurse"
+            label={t("prOnChargeNurse")}
             employeeType="nurse"
             value={onChargeNurseValue}
-            placeholder="Select nurse"
+            placeholder={t("prSelectNurse")}
             disabled={isReadOnly}
             invalid={showErrors && (!data.on_charge_nurse || !data.on_charge_nurse_id)}
             onChange={(v) =>
@@ -259,10 +265,10 @@ export function PatientResponsibilityForm({
             }
           />
           <StaffPickerField
-            label="Social Worker"
+            label={t("prSocialWorker")}
             employeeType="social_worker"
             value={socialWorkerValue}
-            placeholder="Select social worker"
+            placeholder={t("prSelectSocialWorker")}
             disabled={isReadOnly}
             invalid={showErrors && (!data.social_worker || !data.social_worker_id)}
             onChange={(v) =>
@@ -272,19 +278,19 @@ export function PatientResponsibilityForm({
         </View>
 
         <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Companion</Text>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>{t("prCompanion")}</Text>
           <SelectField
-            label="Relation"
+            label={t("prRelation")}
             value={data.companion_relation || null}
             options={RELATION_OPTIONS}
-            placeholder="Select relation"
+            placeholder={t("prSelectRelation")}
             onChange={(v) => update("companion_relation", v)}
           />
           {data.companion_relation === "other" ? (
-            <TextField label="Custom Relation" value={data.custom_relation} onChangeText={(v) => update("custom_relation", v)} colors={colors} />
+            <TextField label={t("prCustomRelation")} value={data.custom_relation} onChangeText={(v) => update("custom_relation", v)} colors={colors} />
           ) : null}
           <View>
-            <Text style={[s.formLabel, { color: colors.text }]}>National ID</Text>
+            <Text style={[s.formLabel, { color: colors.text }]}>{t("prNationalId")}</Text>
             <TextInput
               style={[
                 s.formInput,
@@ -296,20 +302,20 @@ export function PatientResponsibilityForm({
               ]}
               value={data.companion_national_id}
               onChangeText={(v) => update("companion_national_id", v.replace(/[^0-9]/g, "").slice(0, 10))}
-              placeholder="10-digit national ID / iqama"
+              placeholder={t("prNationalIdPlaceholder")}
               placeholderTextColor={colors.textTertiary}
               keyboardType="number-pad"
               maxLength={10}
             />
           </View>
           <TextField
-            label="Companion Name (for signature)"
+            label={t("prCompanionNameForSignature")}
             value={data.companion_signature_signature_name}
             onChangeText={(v) => update("companion_signature_signature_name", v)}
             colors={colors}
           />
           <SignatureField
-            label="Companion Signature"
+            label={t("prCompanionSignature")}
             value={companionSignatureValue}
             onChange={(v) =>
               setData((prev) => ({
@@ -325,9 +331,9 @@ export function PatientResponsibilityForm({
         </View>
 
         <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Sign-offs</Text>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>{t("prSignOffs")}</Text>
           <AttestField
-            label="Social Worker Sign-off"
+            label={t("prSocialWorkerSignOff")}
             value={{ signedAt: data.social_worker_signature_signed_at, signedBy: data.social_worker_signature_signed_by }}
             onChange={(v) => setData((prev) => ({ ...prev, social_worker_signature_signed_at: v.signedAt ?? null, social_worker_signature_signed_by: v.signedBy ?? null }))}
             currentUserId={currentUserId}
@@ -336,7 +342,7 @@ export function PatientResponsibilityForm({
             disabled={isReadOnly}
           />
           <AttestField
-            label="On-Charge Nurse Sign-off"
+            label={t("prOnChargeNurseSignOff")}
             value={{ signedAt: data.on_charge_nurse_signature_signed_at, signedBy: data.on_charge_nurse_signature_signed_by }}
             onChange={(v) => setData((prev) => ({ ...prev, on_charge_nurse_signature_signed_at: v.signedAt ?? null, on_charge_nurse_signature_signed_by: v.signedBy ?? null }))}
             currentUserId={currentUserId}
@@ -345,7 +351,7 @@ export function PatientResponsibilityForm({
             disabled={isReadOnly}
           />
           <AttestField
-            label="Attending Physician Sign-off"
+            label={t("prAttendingPhysicianSignOff")}
             value={{ signedAt: data.attending_physician_signature_signed_at, signedBy: data.attending_physician_signature_signed_by }}
             onChange={(v) => setData((prev) => ({ ...prev, attending_physician_signature_signed_at: v.signedAt ?? null, attending_physician_signature_signed_by: v.signedBy ?? null }))}
             currentUserId={currentUserId}

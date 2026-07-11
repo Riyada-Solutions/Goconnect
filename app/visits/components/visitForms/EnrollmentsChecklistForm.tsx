@@ -7,10 +7,12 @@ import { Card } from "@/components/common/Card";
 import { AttestField } from "@/components/ui/AttestField";
 import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateTimeField } from "@/components/ui/DateTimeField";
+import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { SelectField } from "@/components/ui/SelectField";
 import { Colors } from "@/theme/colors";
 import { DateTimeConverter } from "@/utils/datetime";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { Acc } from "../Acc";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { ReadOnlyField } from "../ReadOnlyField";
@@ -131,11 +133,46 @@ export function EnrollmentsChecklistForm({
   const [data, setData] = useState<EnrollmentsChecklistData>(() =>
     initial ?? { ...EMPTY_ENROLLMENTS_CHECKLIST },
   );
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const { dialogProps, show: showDialog } = useFeedbackDialog();
+  const [sections, setSections] = useState<Record<string, boolean>>(
+    initialExpanded ? { demographics: true, appendixB: true, appendixC: true, overallFeedback: true } : {},
+  );
+  const toggleSection = (key: string) => setSections((p) => ({ ...p, [key]: !p[key] }));
 
   useEffect(() => {
     if (!initial) return;
     setData(initial);
   }, [initial]);
+
+  const clearError = (key: string) =>
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: false } : prev));
+
+  // "Completed" for Appendix B means signed off, not just checked available —
+  // the web form allows signing without marking an item available (see the
+  // per-row SignatureField below), so the checkbox alone isn't a reliable
+  // completion signal.
+  const appendixBCompleted = APPENDIX_B_ITEMS.filter(
+    (item) => !!data.appendixB[`${item.signedKey ?? item.key}_signed_at`],
+  ).length;
+  const appendixCCompleted = APPENDIX_C_ITEMS.filter((item) => !!data.appendixC[item.key]).length;
+  const totalCompleted = appendixBCompleted + appendixCCompleted;
+  const totalItems = APPENDIX_B_ITEMS.length + APPENDIX_C_ITEMS.length;
+  const allCompleted = totalCompleted === totalItems;
+
+  const overallFeedbackFields = [
+    data.overAllFeedback.acceptance,
+    data.overAllFeedback.nd_visit_date,
+    data.overAllFeedback.nd_final,
+    data.overAllFeedback.nurse_name,
+    data.overAllFeedback.primary_physician,
+    data.overAllFeedback.medical_director_name,
+    data.overAllFeedback.nurse_signature_signed_at,
+    data.overAllFeedback.physician_signature_signed_at,
+    data.overAllFeedback.medical_director_signature_signed_at,
+  ];
+  const overallFeedbackFilled = overallFeedbackFields.filter((v) => v !== "" && v !== undefined && v !== null).length;
+  const overallFeedbackTotal = overallFeedbackFields.length;
 
   // Keep the read-only demographics in sync with the live visit record so
   // the saved payload always reflects current patient/referral data.
@@ -149,13 +186,12 @@ export function EnrollmentsChecklistForm({
     patch: Partial<EnrollmentsChecklistData[S]>,
   ) => setData((prev) => ({ ...prev, [section]: { ...prev[section], ...patch } }));
 
+  // Availability (the checkbox) and the sign-off are independent — the web
+  // form allows an item to be signed off without being marked available
+  // (e.g. assessed as not-ready but the visit was still recorded), so the
+  // checkbox no longer auto-stamps a signature.
   const toggleAppendixBItem = (item: (typeof APPENDIX_B_ITEMS)[number], next: boolean) => {
-    const signedKey = item.signedKey ?? item.key;
-    updateSection("appendixB", {
-      [item.key]: next,
-      [`${signedKey}_signed_at`]: next ? new Date().toISOString() : null,
-      [`${signedKey}_signed_by`]: next ? currentUserId : null,
-    } as Partial<AppendixBSection>);
+    updateSection("appendixB", { [item.key]: next } as Partial<AppendixBSection>);
   };
 
   const setAppendixCDate = (key: string, value: string) => {
@@ -168,12 +204,26 @@ export function EnrollmentsChecklistForm({
 
   const handleSave = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const newErrors: Record<string, boolean> = {
+      acceptance: !data.overAllFeedback.acceptance,
+    };
+    setErrors(newErrors);
+    if (Object.values(newErrors).some(Boolean)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showDialog({
+        variant: "error",
+        title: "Missing Required Fields",
+        message: "Please fix the fields highlighted in red below before saving.",
+      });
+      return;
+    }
     onSave(data);
   };
 
   const handleClear = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setData({ ...EMPTY_ENROLLMENTS_CHECKLIST });
+    setErrors({});
   };
 
   return (
@@ -182,14 +232,21 @@ export function EnrollmentsChecklistForm({
         title={t("enrollmentsChecklistTitle")}
         icon="check-square"
         iconColor="#059669"
-        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
+        // badges={[
+        //   {
+        //     text: `${totalCompleted}/${totalItems} completed`,
+        //     bg: allCompleted ? "#DCFCE7" : colors.borderLight,
+        //     fg: allCompleted ? "#059669" : colors.textSecondary,
+        //   },
+        //   ...(isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : []),
+        // ]}
         expanded={open}
         onToggle={() => setOpen(!open)}
         colors={colors}
       />
       <CollapsibleBody
         open={open}
-        style={{ padding: 14, gap: 18 }}
+        style={{ padding: 14, gap: 10 }}
         pointerEvents={isReadOnly ? "none" : "auto"}
       >
         {/* ─── Demographics ─────────────────────────────────────────── */}
@@ -209,19 +266,40 @@ export function EnrollmentsChecklistForm({
         </View>
 
         {/* ─── Appendix B: Home Readiness ───────────────────────────── */}
-        <View style={{ gap: 8 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>
-            Appendix B — Home Readiness Checklist
-          </Text>
-          {APPENDIX_B_ITEMS.map((item) => (
-            <CheckboxField
-              key={item.key}
-              label={item.label}
-              value={!!data.appendixB[item.key]}
-              onChange={(v) => toggleAppendixBItem(item, v)}
-              disabled={isReadOnly}
-            />
-          ))}
+        <Acc
+          title="Home model Setting Checklist"
+          color="#0891B2"
+          done={false}
+          isOpen={!!sections.appendixB}
+          onToggle={() => toggleSection("appendixB")}
+          colors={colors}
+          isReadOnly={isReadOnly}
+          filled={appendixBCompleted}
+          total={APPENDIX_B_ITEMS.length}
+          style={{ marginBottom: 0 }}
+        >
+          {APPENDIX_B_ITEMS.map((item) => {
+            const signedKey = item.signedKey ?? item.key;
+            return (
+              <View key={item.key} style={{ gap: 6, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                <CheckboxField
+                  label={item.label}
+                  value={!!data.appendixB[item.key]}
+                  onChange={(v) => toggleAppendixBItem(item, v)}
+                  disabled={isReadOnly}
+                />
+                {/* View-only, same treatment as Pre-Enrollments Checklist below —
+                    the real payload only ever carries `${key}_signed_at` /
+                    `_signed_by` (no image), so just surface the timestamp when
+                    present and show nothing otherwise. */}
+                {data.appendixB[`${signedKey}_signed_at`] ? (
+                  <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: "#059669" }}>
+                    Confirmed {DateTimeConverter.dateTime(data.appendixB[`${signedKey}_signed_at`] as string)}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
           {APPENDIX_B_STANDALONE_ATTESTATIONS.map((att) => (
             <AttestField
               key={att.key}
@@ -242,13 +320,21 @@ export function EnrollmentsChecklistForm({
               disabled={isReadOnly}
             />
           ))}
-        </View>
+        </Acc>
 
         {/* ─── Appendix C: Document Checklist ───────────────────────── */}
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>
-            Appendix C — Document Checklist
-          </Text>
+        <Acc
+          title="Pre-Enrollments Checklist"
+          color="#7C3AED"
+          done={false}
+          isOpen={!!sections.appendixC}
+          onToggle={() => toggleSection("appendixC")}
+          colors={colors}
+          isReadOnly={isReadOnly}
+          filled={appendixCCompleted}
+          total={APPENDIX_C_ITEMS.length}
+          style={{ marginBottom: 0 }}
+        >
           {APPENDIX_C_ITEMS.map(({ key, label }) => (
             <View key={key} style={{ gap: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
               <Text style={[s.formLabel, { color: colors.text }]}>{label}</Text>
@@ -272,17 +358,31 @@ export function EnrollmentsChecklistForm({
               ) : null}
             </View>
           ))}
-        </View>
+        </Acc>
 
         {/* ─── Overall Feedback ──────────────────────────────────────── */}
-        <View style={{ gap: 10 }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#0891B2" }}>Overall Feedback</Text>
+        <Acc
+          title="Medical and Environmental Acceptance feedback:"
+          color="#3B82F6"
+          done={false}
+          isOpen={!!sections.overallFeedback}
+          onToggle={() => toggleSection("overallFeedback")}
+          colors={colors}
+          isReadOnly={isReadOnly}
+          filled={overallFeedbackFilled}
+          total={overallFeedbackTotal}
+          style={{ marginBottom: 0 }}
+        >
           <SelectField
             label="Acceptance"
             value={(data.overAllFeedback.acceptance as string) || null}
             options={ACCEPTANCE_OPTIONS}
             placeholder="Select"
-            onChange={(v) => updateSection("overAllFeedback", { acceptance: v })}
+            onChange={(v) => {
+              clearError("acceptance");
+              updateSection("overAllFeedback", { acceptance: v });
+            }}
+            error={errors.acceptance}
           />
           <View style={s.formRow}>
             <View style={{ flex: 1 }}>
@@ -348,10 +448,10 @@ export function EnrollmentsChecklistForm({
             colors={colors}
             disabled={isReadOnly}
           />
-        </View>
+        </Acc>
 
         {!isReadOnly && (
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
             <Pressable
               style={[s.saveFlowBtn, { backgroundColor: !isSaving ? Colors.primary : colors.border, flex: 1 }]}
               onPress={handleSave}
@@ -371,6 +471,7 @@ export function EnrollmentsChecklistForm({
           </View>
         )}
       </CollapsibleBody>
+      <FeedbackDialog {...dialogProps} />
     </Card>
   );
 }

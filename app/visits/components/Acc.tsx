@@ -29,6 +29,13 @@ interface Props {
   filled?: number;
   /** Total number of fields in this section. */
   total?: number;
+  /** When true, shows a red alert icon in the header — a required field
+   *  inside this section failed validation. */
+  hasError?: boolean;
+  /** Extra style merged onto the outer wrapper — e.g. to zero out the
+   *  default `marginBottom` when the parent controls spacing via its own
+   *  `gap` instead, so every section is spaced by exactly one value. */
+  style?: any;
 }
 
 /**
@@ -36,7 +43,7 @@ interface Props {
  * Reanimated; the chevron rotates smoothly; the outer wrapper uses a layout
  * transition so neighbouring sections slide into place rather than snapping.
  */
-export function Acc({ title, color, done, isOpen, onToggle, colors, isReadOnly, children, filled, total }: Props) {
+export function Acc({ title, color, done, isOpen, onToggle, colors, isReadOnly, children, filled, total, hasError, style }: Props) {
   void done;
   const chevronRot = useSharedValue(isOpen ? 1 : 0);
   React.useEffect(() => {
@@ -48,11 +55,12 @@ export function Acc({ title, color, done, isOpen, onToggle, colors, isReadOnly, 
 
   const showCounter = typeof filled === "number" && typeof total === "number" && total > 0;
   const isFull = showCounter && (filled as number) >= (total as number);
+  const borderColor = hasError ? "#EF4444" : color;
 
   return (
     <Animated.View
       layout={LinearTransition.duration(220).easing(Easing.out(Easing.cubic))}
-      style={[ms.borderedSection, { borderLeftColor: color, backgroundColor: colors.card }]}
+      style={[ms.borderedSection, { borderLeftColor: borderColor, backgroundColor: colors.card }, style]}
     >
       <Pressable
         onPress={() => {
@@ -63,6 +71,7 @@ export function Acc({ title, color, done, isOpen, onToggle, colors, isReadOnly, 
       >
         <Animated.View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
           <Text style={[ms.accHeaderText, { color }]}>{title}</Text>
+          {hasError && <Feather name="alert-circle" size={15} color="#EF4444" />}
         </Animated.View>
         {showCounter && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginRight: 8 }}>
