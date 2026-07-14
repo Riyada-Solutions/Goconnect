@@ -11,7 +11,7 @@ const APP_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android'
 const TAG = 'API Request'
 
 export const apiClient = axios.create({
-  baseURL: ENV.API_BASE_URL,
+  baseURL: `${ENV.API_BASE_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 })

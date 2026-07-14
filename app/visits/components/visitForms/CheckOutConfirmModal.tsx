@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import React from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
@@ -9,9 +9,10 @@ interface Props {
   visible: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  loading?: boolean;
 }
 
-export function CheckOutConfirmModal({ visible, onConfirm, onCancel }: Props) {
+export function CheckOutConfirmModal({ visible, onConfirm, onCancel, loading }: Props) {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={s.checkoutOverlay}>
@@ -24,17 +25,23 @@ export function CheckOutConfirmModal({ visible, onConfirm, onCancel }: Props) {
           </Text>
           <View style={s.checkoutBtns}>
             <Pressable
-              style={[s.checkoutConfirmBtn, { backgroundColor: Colors.primary }]}
+              style={[s.checkoutConfirmBtn, { backgroundColor: Colors.primary, opacity: loading ? 0.7 : 1 }]}
               onPress={() => {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 onConfirm();
               }}
+              disabled={loading}
             >
-              <Text style={s.checkoutBtnText}>Check Out</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={s.checkoutBtnText}>Check Out</Text>
+              )}
             </Pressable>
             <Pressable
-              style={[s.checkoutCancelBtn, { backgroundColor: "#EF4444" }]}
+              style={[s.checkoutCancelBtn, { backgroundColor: "#EF4444", opacity: loading ? 0.7 : 1 }]}
               onPress={onCancel}
+              disabled={loading}
             >
               <Text style={s.checkoutBtnText}>Cancel</Text>
             </Pressable>

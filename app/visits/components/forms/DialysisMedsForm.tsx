@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 
 import type { FlowSheetDialysisMedication } from "@/data/models/flowSheet";
 import { visitDetailStyles as s } from "../../visit-detail.styles";
+import { ReadOnlyField } from "../ReadOnlyField";
 
 /**
  * Mirrors the FlowSheetMedicationsInput.medAdmin shape (still used by the
@@ -87,10 +88,18 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
               )}
             </View>
 
-            {/* Sub-line: dosage / route / frequency */}
-            <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-              {[med.dosage, med.route, med.frequency, med.administrationType].filter(Boolean).join(" — ")}
-            </Text>
+            {/* Key/value rows for each prescription field — same look as Visit Info */}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
+              <ReadOnlyField label="Form" value={med.form} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Dosage" value={med.dosage} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Route" value={med.route} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Frequency" value={med.frequency} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Duration" value={med.duration} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Duration Period" value={med.durationPeriod} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Admin Type" value={med.administrationType} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Last Dose" value={med.lastDose || formatAdminWhen(serverAdmin?.created_at)} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Instructions" value={med.instructions} colors={colors} style={{ width: "100%" }} />
+            </View>
 
             {/* Locked Yes — show admin metadata (name + when), no buttons */}
             {isLockedYes && (
@@ -194,7 +203,7 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
                     onAction(medId, "yes");
                   }}
                   disabled={isBusy}
-                  style={[s.medAdminBtn, { backgroundColor: "#22C55E", opacity: isBusy ? 0.7 : 1 }]}
+                  style={[s.medAdminBtn, { flex: 1, alignItems: "center", backgroundColor: "#22C55E", opacity: isBusy ? 0.7 : 1 }]}
                 >
                   {isBusy && localPending === "yes" ? (
                     <ActivityIndicator size="small" color="#fff" />
@@ -209,7 +218,7 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
                     setNoReasonFor({ id: medId, reason: serverAdmin?.data?.reason ?? "" });
                   }}
                   disabled={isBusy}
-                  style={[s.medAdminBtn, { backgroundColor: "#EF4444", opacity: isBusy ? 0.7 : 1 }]}
+                  style={[s.medAdminBtn, { flex: 1, alignItems: "center", backgroundColor: "#EF4444", opacity: isBusy ? 0.7 : 1 }]}
                 >
                   <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>No</Text>
                 </Pressable>

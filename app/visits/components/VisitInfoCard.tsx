@@ -33,6 +33,8 @@ interface Props {
   procedureStartTimeStr: string;
   procedureEndTimeStr: string;
   showProcedureEdit: boolean;
+  /** When false, hides the procedure time edit affordance entirely (app_settings: enable_toggle_procedure_button). */
+  enableProcedureEdit?: boolean;
   editProcStart: string;
   editProcEnd: string;
   isReadOnly: boolean;
@@ -55,6 +57,7 @@ export function VisitInfoCard(p: Props) {
   const { t } = useApp();
   const { colors, visitPhase, rawStatus } = p;
   const procedureEditable = visitPhase === "start_procedure" || visitPhase === "end_procedure";
+  const showProcedureEditIcon = (p.enableProcedureEdit ?? true) && procedureEditable;
 
   return (
     <Animated.View entering={FadeInDown.delay(70).springify()} style={s.section}>
@@ -89,7 +92,7 @@ export function VisitInfoCard(p: Props) {
                   {formatElapsed(p.procedureElapsed)}
                 </Text>
               )}
-              {procedureEditable && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
+              {showProcedureEditIcon && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
             </Pressable>
           </View>
           <View style={s.visitInfoCell}>

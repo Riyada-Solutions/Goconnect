@@ -140,6 +140,7 @@ export interface InventoryItem {
   defaultQty?: number
   lowStockQty?: number
   usageCount?: number
+  latestQuantityUsed?: number
   usageHistory?: InventoryUsageRecord[]
 }
 

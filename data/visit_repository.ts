@@ -102,6 +102,7 @@ export function mapInventoryItemFromApi(item: any) {
     defaultQty:   item.usage_default_quantity ?? 0,
     lowStockQty:  item.low_stock_quantity ?? 0,
     usageCount:   item.usage_history_count ?? item.usageHistory?.length ?? 0,
+    latestQuantityUsed: item.latest_quantity_used ?? undefined,
     usageHistory: Array.isArray(item.usage_history)
       ? item.usage_history.map((h: any) => ({
           id:           h.id,
@@ -288,7 +289,8 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
   if (!v) return undefined
 
   const sectionKeys = Object.keys(v).filter(k => k !== 'visitId')
-  if (sectionKeys.length === 0) return undefined
+  const hasTopLevelMedications = Array.isArray(raw?.medications) && raw.medications.length > 0
+  if (sectionKeys.length === 0 && !hasTopLevelMedications) return undefined
 
   const visitId = Number(raw?.id ?? v.visitId)
 
@@ -509,6 +511,7 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
           durationPeriod:     m.duration_period ?? m.durationPeriod ?? undefined,
           instructions:       m.instructions ?? undefined,
           administrationType: m.administration_type ?? m.adminType ?? undefined,
+          lastDose:           m.last_dose ?? m.lastDose ?? undefined,
           administered:       m.administered ?? undefined,
         }))
       : undefined
@@ -603,8 +606,7 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
 /**
  * Resolve a signature reference returned by the backend to an absolute URL.
  *
- * The signature host (`ENV.SIGNATURE_API_BASE_URL`, e.g.
- * `https://staging.careconnectksa.com/api`) stores files under
+ * The API host (`ENV.API_BASE_URL`) stores files under
  * `/uploads/signatures/<filename>`. The server may send back either:
  *   • a bare filename ("6a1aab0816679.png") → prepend `/uploads/signatures/`
  *   • an absolute path ("/uploads/signatures/foo.png") → join with the origin
@@ -613,7 +615,7 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
 function resolveSignatureUrl(value: string): string {
   if (!value) return value
   if (/^https?:\/\//i.test(value)) return value
-  const origin = ENV.SIGNATURE_API_BASE_URL.replace(/\/api\/?$/, '')
+  const origin = ENV.API_BASE_URL
   if (!value.includes('/')) {
     return `${origin}/uploads/signatures/${value}`
   }

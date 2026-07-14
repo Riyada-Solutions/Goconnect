@@ -28,6 +28,14 @@ interface FeedbackDialogProps {
   /** Secondary action (cancel / dismiss). Only shown when provided. */
   secondaryAction?: Action;
   onDismiss: () => void;
+  /**
+   * Set to false when this dialog is rendered inside a screen/component that is
+   * already presented inside another RN <Modal> (e.g. a form modal). Stacking two
+   * native Modals causes the underlying screen to become frozen/unresponsive to
+   * touches on Android after the top one closes. When false, the dialog renders
+   * as a plain absolutely-positioned overlay instead of its own Modal window.
+   */
+  useNativeModal?: boolean;
 }
 
 const ICON: Record<FeedbackVariant, { name: "check-circle" | "x-circle" | "alert-triangle"; color: string }> = {
@@ -44,6 +52,7 @@ export function FeedbackDialog({
   primaryAction,
   secondaryAction,
   onDismiss,
+  useNativeModal = true,
 }: FeedbackDialogProps) {
   const { colors } = useTheme();
   const icon = ICON[variant];
@@ -58,6 +67,58 @@ export function FeedbackDialog({
     secondaryAction?.onPress();
   };
 
+  if (!visible) return null;
+
+  const content = (
+    <Pressable style={styles.overlay} onPress={onDismiss}>
+      <Pressable style={[styles.card, { backgroundColor: colors.card }]} onPress={() => {}}>
+        <View style={[styles.iconCircle, { backgroundColor: icon.color + "20" }]}>
+          <Feather name={icon.name} size={28} color={icon.color} />
+        </View>
+
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        {!!message && (
+          <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+        )}
+
+        <View style={styles.actions}>
+          {secondaryAction && (
+            <Pressable
+              style={[styles.btn, styles.secondaryBtn, { borderColor: colors.border , flex: 1 }]}
+              onPress={handleSecondary}
+            >
+              <Text style={[styles.btnText, { color: colors.text }]}>
+                {secondaryAction.label}
+              </Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={[
+              styles.btn,
+              styles.primaryBtn,
+              {
+                backgroundColor: primaryAction?.destructive
+                  ? "#EF4444"
+                  : Colors.primary,
+                flex:  1,
+                // minWidth: secondaryAction ? undefined : 120,
+              },
+            ]}
+            onPress={handlePrimary}
+          >
+            <Text style={styles.primaryBtnText}>
+              {primaryAction?.label ?? "OK"}
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Pressable>
+  );
+
+  if (!useNativeModal) {
+    return <View style={styles.overlayFill}>{content}</View>;
+  }
+
   return (
     <Modal
       visible={visible}
@@ -65,49 +126,7 @@ export function FeedbackDialog({
       animationType="fade"
       onRequestClose={onDismiss}
     >
-      <Pressable style={styles.overlay} onPress={onDismiss}>
-        <Pressable style={[styles.card, { backgroundColor: colors.card }]} onPress={() => {}}>
-          <View style={[styles.iconCircle, { backgroundColor: icon.color + "20" }]}>
-            <Feather name={icon.name} size={28} color={icon.color} />
-          </View>
-
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-          {!!message && (
-            <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
-          )}
-
-          <View style={styles.actions}>
-            {secondaryAction && (
-              <Pressable
-                style={[styles.btn, styles.secondaryBtn, { borderColor: colors.border , flex: 1 }]}
-                onPress={handleSecondary}
-              >
-                <Text style={[styles.btnText, { color: colors.text }]}>
-                  {secondaryAction.label}
-                </Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={[
-                styles.btn,
-                styles.primaryBtn,
-                {
-                  backgroundColor: primaryAction?.destructive
-                    ? "#EF4444"
-                    : Colors.primary,
-                  flex:  1,
-                  // minWidth: secondaryAction ? undefined : 120,
-                },
-              ]}
-              onPress={handlePrimary}
-            >
-              <Text style={styles.primaryBtnText}>
-                {primaryAction?.label ?? "OK"}
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
+      {content}
     </Modal>
   );
 }
@@ -133,6 +152,11 @@ export function useFeedbackDialog() {
 }
 
 const styles = StyleSheet.create({
+  overlayFill: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

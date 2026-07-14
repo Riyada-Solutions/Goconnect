@@ -67,7 +67,13 @@
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
     "babel-preset-expo": "~54.0.10",
+    "metro-config": "0.83.5",
     "react-native-svg-transformer": "^1.5.3",
     "typescript": "~5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "metro-config": "0.83.5"
+    }
   }
 }

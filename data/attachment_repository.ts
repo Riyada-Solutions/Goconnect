@@ -1,5 +1,4 @@
 import { apiClient } from './api_client'
-import { getUploadApiBase } from './upload_config'
 import { ENV } from '../constants/env'
 
 export interface AttachmentUploadResult {
@@ -74,7 +73,6 @@ export async function uploadVisitAttachment(params: {
   } as unknown as Blob)
 
   const res = await apiClient.post('/agent/attachments/upload', fd, {
-    baseURL: getUploadApiBase(),
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 

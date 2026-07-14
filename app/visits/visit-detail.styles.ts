@@ -98,7 +98,7 @@ export const visitDetailStyles = StyleSheet.create({
   medCellLabel: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#9CA3AF", letterSpacing: 0.3 },
   medCellVal: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 1 },
   medAdminBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6 },
-  medAdminBtn: { paddingHorizontal: 18, paddingVertical: 7, borderRadius: 8 },
+  medAdminBtn: { paddingHorizontal: 18, paddingVertical: 14, borderRadius: 8 },
 
   invRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 10, borderWidth: 1 },
   invName: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 2 },

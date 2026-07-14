@@ -137,11 +137,23 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
                             Haptics.selectionAsync();
                             setHistoryItem(item);
                           }}
-                          style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3 }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            alignSelf: "flex-start",
+                            gap: 5,
+                            marginTop: 6,
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: Colors.primary,
+                            backgroundColor: `${Colors.primary}15`,
+                          }}
                         >
-                          <Feather name="clock" size={10} color={Colors.primary} />
-                          <Text style={{ fontSize: 10, color: Colors.primary, fontFamily: "Inter_500Medium" }}>
-                            History ({item.usageHistory!.length})
+                          <Feather name="clock" size={13} color={Colors.primary} />
+                          <Text style={{ fontSize: 13, color: Colors.primary, fontFamily: "Inter_600SemiBold" }}>
+                            History {/* ({item.usageHistory!.length}) */}
                           </Text>
                         </Pressable>
                       )}
@@ -149,8 +161,8 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
                     <View style={{ alignItems: "center", marginRight: 10 }}>
                       <Text style={{ fontSize: 16, fontFamily: "Inter_700Bold", color: item.available > 0 ? Colors.primary : "#EF4444" }}>{item.available}</Text>
                       <Text style={{ fontSize: 10, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>available</Text>
-                      {(item.usageCount ?? 0) > 0 && (
-                        <Text style={{ fontSize: 10, color: colors.textTertiary, fontFamily: "Inter_400Regular" }}>used {item.usageCount}×</Text>
+                      {(item.latestQuantityUsed ?? 0) > 0 && (
+                        <Text style={{ fontSize: 10, color: colors.textTertiary, fontFamily: "Inter_400Regular" }}>last used {item.latestQuantityUsed}</Text>
                       )}
                     </View>
                     {!isReadOnly && (

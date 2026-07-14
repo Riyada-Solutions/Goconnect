@@ -1,6 +1,15 @@
 const { getDefaultConfig } = require("expo/metro-config");
+const exclusionList = require("metro-config/private/defaults/exclusionList").default;
 
 const config = getDefaultConfig(__dirname);
+
+// Native (Android/iOS) build output inside node_modules is irrelevant to JS
+// bundling and can crash Metro's Windows file watcher (ENOENT on deeply
+// nested Gradle/Kotlin build artifact folders), so keep it out of the watch.
+config.resolver.blockList = exclusionList([
+  /node_modules\/.*\/android\/.*\/build\/.*/,
+  /node_modules\/.*\/ios\/.*\/build\/.*/,
+]);
 
 config.transformer.babelTransformerPath = require.resolve(
   "react-native-svg-transformer/expo",

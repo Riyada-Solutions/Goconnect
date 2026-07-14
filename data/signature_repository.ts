@@ -3,11 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { ENV } from '@/constants/env'
 
-// Dedicated axios client for the signature/upload host (different domain from
-// the main API). Mirrors the auth-token + language headers used by apiClient,
-// but with its own baseURL so calls hit `/signatures/upload` on that host.
+// Dedicated axios client for signature uploads. Mirrors the auth-token +
+// language headers used by apiClient, but with its own longer timeout for
+// multipart uploads.
 const signatureClient = axios.create({
-  baseURL: ENV.SIGNATURE_API_BASE_URL,
+  baseURL: `${ENV.API_BASE_URL}/api`,
   timeout: 60000,
 })
 

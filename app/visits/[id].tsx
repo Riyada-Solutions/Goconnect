@@ -38,6 +38,8 @@ import { ConsentFormForm } from "./components/visitForms/ConsentFormForm";
 import { PatientResponsibilityForm } from "./components/visitForms/PatientResponsibilityForm";
 import { ConsentForHemodialysisForm } from "./components/visitForms/ConsentForHemodialysisForm";
 import { EnrollmentsChecklistForm } from "./components/visitForms/EnrollmentsChecklistForm";
+import { MedicationsForm } from "./components/visitForms/MedicationsForm";
+import { DialysisOrderForm } from "./components/visitForms/DialysisOrderForm";
 import { PatientAssessmentForm } from "./components/visitForms/PatientAssessmentForm";
 import { VisualTriageChecklistForm, type VisualTriageHistoryEntry } from "./components/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
@@ -68,7 +70,7 @@ export default function VisitDetailScreen() {
 
 function VisitDetailScreenInner() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
-  const { t, user, can } = useApp();
+  const { t, user, can, appSettings } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad } = useScreenPadding({ hasActionBar: true });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
@@ -729,6 +731,7 @@ function VisitDetailScreenInner() {
           procedureStartTimeStr={procedureStartTimeStr}
           procedureEndTimeStr={procedureEndTimeStr}
           showProcedureEdit={showProcedureEdit}
+          enableProcedureEdit={appSettings.enableToggleProcedureButton}
           editProcStart={editProcStart}
           editProcEnd={editProcEnd}
           isReadOnly={isReadOnly}
@@ -780,6 +783,16 @@ function VisitDetailScreenInner() {
             onRequestPhysicianCall={() => { setPhysicianCalled(null); setTimeout(() => setPhysicianModalOpen(true), 150); }}
           />
         </Animated.View>
+
+        {/* ─── Medications (webview) ──────────────────────────────────────── */}
+        {/* <Animated.View entering={FadeInDown.delay(218).springify()} style={s.section}>
+          <MedicationsForm visitId={numId} colors={colors} />
+        </Animated.View> */}
+
+        {/* ─── Dialysis Order (webview) ───────────────────────────────────── */}
+        {/* <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
+          <DialysisOrderForm visitId={numId} colors={colors} />
+        </Animated.View> */}
 
         {/* ─── Progress Note (Doctor / Nursing / Social Worker) ───────────── */}
         <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>
@@ -1112,6 +1125,12 @@ function VisitDetailScreenInner() {
             onCheckOutWithoutSap={handleCheckOutWithoutSap}
             onClose={handleCloseVisit}
             onReopen={handleReopenVisit}
+            startProcedureLoading={startVisitMutation.isPending}
+            endProcedureLoading={endVisitMutation.isPending}
+            checkOutLoading={checkoutVisitMutation.isPending}
+            checkOutWithoutSapLoading={checkoutWithoutSapMutation.isPending}
+            closeLoading={closeVisitMutation.isPending}
+            reopenLoading={reopenVisitMutation.isPending}
           />
         {/* )} */}
       </ScrollView>
@@ -1167,6 +1186,7 @@ function VisitDetailScreenInner() {
         visible={showCheckoutModal}
         onConfirm={handleCheckOut}
         onCancel={() => setShowCheckoutModal(false)}
+        loading={checkoutVisitMutation.isPending}
       />
       {/* Use Items Modal */}
       <UseItemsModal

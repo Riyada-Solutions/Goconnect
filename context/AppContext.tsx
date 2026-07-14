@@ -26,7 +26,7 @@ import {
   DEFAULT_APP_SETTINGS,
   type AppSettings,
 } from "@/data/app_settings_repository";
-import { setUploadApiBase } from "@/data/upload_config";
+import { setWebDomain } from "@/data/upload_config";
 import type { User } from "@/data/models/auth";
 import {
   ALL_BACKEND_RULES,
@@ -95,7 +95,7 @@ interface AppContextValue {
   language: Language;
   theme: Theme;
   isDark: boolean;
-  /** Remote app settings (allow_register, allow_guest_mode, upload_media_url). */
+  /** Remote app settings (allow_register, allow_guest_mode, upload_media_url, enable_toggle_procedure_button). */
   appSettings: AppSettings;
   /** Action keys the user is allowed to perform. */
   rules: Set<string>;
@@ -161,7 +161,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           fetchAppSettings(),
         ]);
         setAppSettings(settings);
-        if (settings.uploadMediaUrl) setUploadApiBase(settings.uploadMediaUrl);
+        setWebDomain(settings.uploadMediaUrl);
         if (storedLang) setLanguageState(storedLang as Language);
         if (storedTheme) setThemeState(storedTheme as Theme);
 

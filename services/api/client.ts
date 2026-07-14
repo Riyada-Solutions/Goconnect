@@ -6,7 +6,7 @@ export const apiClient = {
   baseUrl: ENV.API_BASE_URL,
 
   async get<T>(endpoint: string, token?: string): Promise<T> {
-    const res = await fetch(`${ENV.API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${ENV.API_BASE_URL}/api${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -17,7 +17,7 @@ export const apiClient = {
   },
 
   async post<T>(endpoint: string, body: unknown, token?: string): Promise<T> {
-    const res = await fetch(`${ENV.API_BASE_URL}${endpoint}`, {
+    const res = await fetch(`${ENV.API_BASE_URL}/api${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

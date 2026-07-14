@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
@@ -20,6 +21,7 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
   const [qty, setQty] = useState("1");
   const [notes, setNotes] = useState("");
   const { dialogProps: modalDialogProps, show: showDialog } = useFeedbackDialog();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!item) return;
@@ -142,7 +144,7 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
               </View>
             </ScrollView>
 
-            <View style={s.modalFooter}>
+            <View style={[s.modalFooter, { paddingBottom: insets.bottom + 32 }]}>
               <Pressable
                 style={[s.modalCancelBtn, { backgroundColor: "#EF4444" }]}
                 onPress={onClose}
@@ -154,7 +156,7 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
                 style={[s.modalUseBtn, { backgroundColor: Colors.primary }]}
                 onPress={() => {
                   const n = parseInt(qty, 10);
-                  if (!n || n <= 0) {
+                  if (Number.isNaN(n) || n < 0) {
                     showDialog({ variant: "error", title: "Invalid", message: "Enter a valid quantity." });
                     return;
                   }
@@ -174,8 +176,8 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
           </View>
         </View>
         </KeyboardAvoidingView>
+        <FeedbackDialog {...modalDialogProps} useNativeModal={false} />
       </Modal>
-      <FeedbackDialog {...modalDialogProps} />
     </>
   );
 }

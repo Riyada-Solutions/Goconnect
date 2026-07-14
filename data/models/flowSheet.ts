@@ -382,6 +382,8 @@ export interface FlowSheetDialysisMedication {
   durationPeriod?: string
   instructions?: string
   administrationType?: string
+  /** Pre-formatted timestamp of the most recent administration, e.g. `2026/07/09 19:10`. */
+  lastDose?: string
   administered?: MedicationAdministeredAction
 }
 
