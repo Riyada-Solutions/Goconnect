@@ -54,6 +54,34 @@ export function UseItemsModal({ visible, item, onClose, onUse, colors }: Props) 
               </Pressable>
             </View>
 
+            <View
+              style={{
+                margin: 16,
+                marginBottom: 0,
+                padding: 10,
+                borderRadius: 8,
+                backgroundColor: "#FEE2E2",
+                borderWidth: 2,
+                borderColor: "#EF4444",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8, paddingBottom: 10 }}>
+                <Feather name="alert-triangle" size={18} color="#991B1B" style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: "#991B1B", fontFamily: "Inter_600SemiBold" }}>
+                  <Text style={{ fontFamily: "Inter_700Bold" }}>Note:</Text> the quantity you enter for an item will{" "}
+                  <Text style={{ fontFamily: "Inter_700Bold" }}>replace</Text> its previously entered quantity, it will not be added/summed to it.
+                </Text>
+              </View>
+              <View style={{ borderTopWidth: 1.5, borderTopColor: "#EF4444" }} />
+              <View style={{ flexDirection: "row-reverse", alignItems: "flex-start", gap: 8, paddingTop: 10 }}>
+                <Feather name="alert-triangle" size={18} color="#991B1B" style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 13, lineHeight: 20, color: "#991B1B", fontWeight: "600", textAlign: "right" }}>
+                  <Text style={{ fontWeight: "800" }}>ملاحظة:</Text> الكمية التي تدخلها لأي صنف{" "}
+                  <Text style={{ fontWeight: "800" }}>ستحل محل</Text> الكمية المدخلة سابقاً لنفس الصنف، ولن تُضاف إليها.
+                </Text>
+              </View>
+            </View>
+
             <ScrollView style={{ padding: 16 }} contentContainerStyle={{ gap: 16 }}>
               <View style={s.modalItemRow}>
                 <View style={[s.modalItemBox, { borderColor: colors.border }]}>
