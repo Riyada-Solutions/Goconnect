@@ -19,7 +19,7 @@
       "requiresFullScreen": true,
       "displayName": "Goconnect",
       "bundleIdentifier": "com.careconnectksa.nurse",
-      "buildNumber": "1",
+      "buildNumber": "7",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Goconnect needs camera access to capture patient documents.",
