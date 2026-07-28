@@ -539,6 +539,11 @@ export const translations = {
     updatePassword: "Update Password",
     failedChangePassword: "Failed to change password. Please check your current password.",
 
+    // Password expired
+    passwordExpiredTitle: "Change Your Password",
+    passwordExpiredSubtitle: "Your password has expired and must be changed to continue.",
+    passwordExpiredWarning: "Your password has expired and must be changed to continue using the system.",
+
     // Delete account
     permanentAction: "Permanent action",
     deleteWarningTitle: "Warning: Irreversible Action",
@@ -1224,6 +1229,11 @@ export const translations = {
     ok: "حسناً",
     updatePassword: "تحديث كلمة المرور",
     failedChangePassword: "فشل تغيير كلمة المرور. يرجى التحقق من كلمة المرور الحالية.",
+
+    // Password expired
+    passwordExpiredTitle: "تغيير كلمة المرور",
+    passwordExpiredSubtitle: "انتهت صلاحية كلمة المرور الخاصة بك ويجب تغييرها للمتابعة.",
+    passwordExpiredWarning: "انتهت صلاحية كلمة المرور الخاصة بك ويجب تغييرها لمتابعة استخدام النظام.",
 
     // Delete account
     permanentAction: "إجراء دائم",

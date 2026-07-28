@@ -150,18 +150,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   useEffect(() => {
-    let done = false;
-    const load = async () => {
+    // Restore everything from local storage first — this is all disk I/O,
+    // never network, so it can't stall on a dead connection. `isReady` flips
+    // true as soon as this resolves, before any network call is even
+    // started, so a cold start while offline routes straight to the cached
+    // session instead of racing fetchAppSettings()/getMe() and falling
+    // through to the login screen if they're slow to fail.
+    const restoreLocal = async () => {
+      let biometricPending = false;
       try {
-        const [storedToken, storedLang, storedTheme, storedUser, settings] = await Promise.all([
+        const [storedToken, storedLang, storedTheme, storedUser] = await Promise.all([
           AsyncStorage.getItem(ACCESS_TOKEN_KEY),
           AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
           readCachedUser(),
-          fetchAppSettings(),
         ]);
-        setAppSettings(settings);
-        setWebDomain(settings.uploadMediaUrl);
         if (storedLang) setLanguageState(storedLang as Language);
         if (storedTheme) setThemeState(storedTheme as Theme);
 
@@ -172,7 +175,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // login() which restores the session with a fresh token.
           const biometricEnabled = await AsyncStorage.getItem("@goconnect/biometric");
           const faceToken = biometricEnabled === "true" ? await getFaceToken() : null;
-          const biometricPending = biometricEnabled === "true" && !!faceToken;
+          biometricPending = biometricEnabled === "true" && !!faceToken;
 
           if (!biometricPending) {
             setToken(storedToken);
@@ -184,44 +187,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               setUser(storedUser);
               queryClient.setQueryData(["me"], storedUser);
             }
-            try {
-              const me = await getMe();
-              setUser(me);
-              queryClient.setQueryData(["me"], me);
-              void cacheUser(me);
-              void syncDeviceWithProfile();
-              void syncRules();
-            } catch (error: any) {
-              const status = error?.response?.status;
-              if (status === 401 || status === 403 || status === 404) {
-                // Real auth failure — the session is actually invalid, not
-                // just unreachable. Clear it even if we have a cached user.
-                await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
-                await AsyncStorage.removeItem(CACHED_USER_KEY);
-                setToken(null);
-                setUser(null);
-                queryClient.clear();
-              }
-              // Otherwise (network error / offline): keep the token and the
-              // cached profile set above, if any, so the app stays usable
-              // offline instead of getting stuck with no user.
-            }
           }
         }
       } catch (_e) {}
-      if (!done) {
-        done = true;
-        setIsReady(true);
+      setIsReady(true);
+      return biometricPending;
+    };
+
+    // Network-dependent refresh — runs after isReady is already set, so it
+    // never blocks initial routing. Safe to let this take as long as it
+    // needs (or fail) in the background.
+    const refreshFromNetwork = async (biometricPending: boolean) => {
+      try {
+        const settings = await fetchAppSettings();
+        setAppSettings(settings);
+        setWebDomain(settings.uploadMediaUrl);
+      } catch (_e) {}
+
+      if (biometricPending) return;
+      const storedToken = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+      if (!storedToken) return;
+
+      try {
+        const me = await getMe();
+        setUser(me);
+        queryClient.setQueryData(["me"], me);
+        void cacheUser(me);
+        void syncDeviceWithProfile();
+        void syncRules();
+      } catch (error: any) {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || status === 404) {
+          // Real auth failure — the session is actually invalid, not
+          // just unreachable. Clear it even if we have a cached user.
+          await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+          await AsyncStorage.removeItem(CACHED_USER_KEY);
+          setToken(null);
+          setUser(null);
+          queryClient.clear();
+        }
+        // Otherwise (network error / offline): keep the token and the
+        // cached profile set above, if any, so the app stays usable
+        // offline instead of getting stuck with no user.
       }
     };
-    const safety = setTimeout(() => {
-      if (!done) {
-        done = true;
-        setIsReady(true);
-      }
-    }, 3000);
-    load();
-    return () => clearTimeout(safety);
+
+    restoreLocal().then(refreshFromNetwork);
   }, [queryClient]);
 
   const isDark =

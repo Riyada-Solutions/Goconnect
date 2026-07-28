@@ -40,6 +40,7 @@ import { ConsentForHemodialysisForm } from "./components/visitForms/ConsentForHe
 import { EnrollmentsChecklistForm } from "./components/visitForms/EnrollmentsChecklistForm";
 import { MedicationsForm } from "./components/visitForms/MedicationsForm";
 import { DialysisOrderForm } from "./components/visitForms/DialysisOrderForm";
+import { MARForm } from "./components/visitForms/MARForm";
 import { PatientAssessmentForm } from "./components/visitForms/PatientAssessmentForm";
 import { VisualTriageChecklistForm, type VisualTriageHistoryEntry } from "./components/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "./components/visitForms/MorseFallScaleSheet";
@@ -785,14 +786,19 @@ function VisitDetailScreenInner() {
         </Animated.View>
 
         {/* ─── Medications (webview) ──────────────────────────────────────── */}
-        {/* <Animated.View entering={FadeInDown.delay(218).springify()} style={s.section}>
+        <Animated.View entering={FadeInDown.delay(218).springify()} style={s.section}>
           <MedicationsForm visitId={numId} colors={colors} />
-        </Animated.View> */}
+        </Animated.View>
 
         {/* ─── Dialysis Order (webview) ───────────────────────────────────── */}
-        {/* <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
+        <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
           <DialysisOrderForm visitId={numId} colors={colors} />
-        </Animated.View> */}
+        </Animated.View>
+
+        {/* ─── MAR (webview) ──────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(221).springify()} style={s.section}>
+          <MARForm visitId={numId} colors={colors} />
+        </Animated.View>
 
         {/* ─── Progress Note (Doctor / Nursing / Social Worker) ───────────── */}
         <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>

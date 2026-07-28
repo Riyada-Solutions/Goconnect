@@ -9,6 +9,7 @@ export default function AuthLayout() {
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="otp" />
       <Stack.Screen name="new-password" />
+      <Stack.Screen name="password-expired" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }

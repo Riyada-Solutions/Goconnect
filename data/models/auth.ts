@@ -35,6 +35,8 @@ export interface LoginRequest {
 export interface LoginResponse {
   accessToken: string
   user: User
+  /** True when the user's password has expired and must be changed before continuing. */
+  passwordExpired?: boolean
 }
 
 export interface VerifyFaceRequest {
