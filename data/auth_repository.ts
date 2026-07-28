@@ -28,11 +28,16 @@ export const ACCESS_TOKEN_KEY = 'access_token'
 export async function login(body: LoginRequest): Promise<LoginResponse> {
   if (ENV.USE_MOCK_DATA) {
     const res = await mockLogin(body)
-    await AsyncStorage.setItem(ACCESS_TOKEN_KEY, res.accessToken)
+    if (res.passwordExpired) await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
+    else await AsyncStorage.setItem(ACCESS_TOKEN_KEY, res.accessToken)
     return res
   }
   const { data } = await apiClient.post<{ data: LoginResponse }>('/auth/login', body)
-  await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.data.accessToken)
+  // Don't persist the token when the password is expired — the user isn't
+  // fully signed in yet, they must change their password first. Also clear
+  // any stale token from a previous session so it can't leak into requests.
+  if (data.data.passwordExpired) await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
+  else await AsyncStorage.setItem(ACCESS_TOKEN_KEY, data.data.accessToken)
   return data.data
 }
 
@@ -84,9 +89,12 @@ export async function resetPassword(body: ResetPasswordRequest): Promise<void> {
   await apiClient.post('/auth/reset-password', body)
 }
 
-export async function changePassword(body: ChangePasswordRequest): Promise<void> {
+export async function changePassword(body: ChangePasswordRequest, accessToken?: string): Promise<void> {
   if (ENV.USE_MOCK_DATA) return
-  await apiClient.post('/auth/change-password', body)
+  // `accessToken` lets the password-expired flow authenticate this one call
+  // without persisting the token to AsyncStorage (see `login()`).
+  const config = accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined
+  await apiClient.post('/auth/change-password', body, config)
 }
 
 export async function logout(): Promise<void> {

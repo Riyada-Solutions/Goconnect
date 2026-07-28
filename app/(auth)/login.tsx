@@ -107,7 +107,12 @@ export default function LoginScreen() {
       // Request permission + get FCM token; fall back to any cached token
       const fresh = await requestAndSavePushToken();
       const firebase_token = fresh ?? await AsyncStorage.getItem(FCM_TOKEN_STORAGE_KEY);
-      const { accessToken, user } = await authLogin({ username, password, firebase_token });
+      const { accessToken, user, passwordExpired } = await authLogin({ username, password, firebase_token });
+      if (passwordExpired) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        router.push({ pathname: "/(auth)/password-expired", params: { accessToken } });
+        return;
+      }
       await login(user, accessToken);
       const biometricEnabled =
         (await AsyncStorage.getItem("@goconnect/biometric")) === "true";

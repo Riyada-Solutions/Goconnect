@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { ACCESS_TOKEN_KEY } from '@/data/auth_repository'
 import { getWebBaseUrl } from '@/data/upload_config'
+import { log } from '@/utils/logger'
 
 /**
  * Builds an auto-login web URL: `${webBaseUrl}/auto-login?token=...&to=...`.
@@ -12,14 +13,20 @@ import { getWebBaseUrl } from '@/data/upload_config'
 export async function buildAutoLoginUrl(to: string): Promise<string> {
   const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY)
   const params = new URLSearchParams({ token: token ?? '', to })
-  return `${getWebBaseUrl()}/auto-login?${params.toString()}`
-}
 
+  const webBaseUrl =  `${getWebBaseUrl()}/auto-login?${params.toString()}`
+  log('buildAutoLoginUrl', webBaseUrl)
+  return webBaseUrl;
+}
 export function getMedicationsUrl(visitId: string | number): Promise<string> {
-  return buildAutoLoginUrl(`patients/${visitId}/active-medications`)
+  return buildAutoLoginUrl(`visits/${visitId}/edit?tab=medications`)
 }
 
 export function getDialysisOrderUrl(visitId: string | number): Promise<string> {
   return buildAutoLoginUrl(`visits/${visitId}/edit?tab=dialysis_order`)
+}
+
+ export function getMARUrl(visitId: string | number): Promise<string> {
+  return buildAutoLoginUrl(`visits/${visitId}/edit?tab=medication-administration`)
 }
  
