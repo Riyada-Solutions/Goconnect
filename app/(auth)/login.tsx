@@ -90,7 +90,7 @@ export default function LoginScreen() {
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
-
+ 
   const handleLogin = async () => {
     const newErrors: { username?: string; password?: string } = {};
     if (!username.trim()) newErrors.username = t("usernameRequired");
