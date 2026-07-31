@@ -31,6 +31,8 @@ interface BottomSheetProps {
   children: React.ReactNode;
   /** Fraction of the screen height the sheet is allowed to grow to. */
   maxHeightRatio?: number;
+  /** Optional callback to copy URL — if provided, shows a copy icon. */
+  onCopyUrl?: () => void;
 }
 
 /**
@@ -45,6 +47,7 @@ export function BottomSheet({
   subtitle,
   children,
   maxHeightRatio = 0.9,
+  onCopyUrl,
 }: BottomSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -129,13 +132,24 @@ export function BottomSheet({
                       </Text>
                     ) : null}
                   </View>
-                  <Pressable
-                    onPress={onClose}
-                    hitSlop={10}
-                    style={[styles.closeBtn, { backgroundColor: colors.borderLight }]}
-                  >
-                    <Feather name="x" size={18} color={colors.textSecondary} />
-                  </Pressable>
+                  <View style={styles.buttonRow}>
+                    {onCopyUrl && (
+                      <Pressable
+                        onPress={onCopyUrl}
+                        hitSlop={10}
+                        style={[styles.closeBtn, { backgroundColor: colors.borderLight }]}
+                      >
+                        <Feather name="copy" size={18} color={colors.textSecondary} />
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={onClose}
+                      hitSlop={10}
+                      style={[styles.closeBtn, { backgroundColor: colors.borderLight }]}
+                    >
+                      <Feather name="x" size={18} color={colors.textSecondary} />
+                    </Pressable>
+                  </View>
                 </View>
               )}
             </View>
@@ -184,6 +198,11 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
   closeBtn: {
     width: 32,
     height: 32,

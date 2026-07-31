@@ -1,5 +1,5 @@
-import React from 'react'
-import { StyleSheet, View, Text, useWindowDimensions } from 'react-native'
+import React, { useCallback } from 'react'
+import { StyleSheet, View, Text, useWindowDimensions, Alert } from 'react-native'
 
 import { BottomSheet } from '@/components/common/BottomSheet'
 import { WebViewPanel } from '@/components/common/WebViewPanel'
@@ -17,8 +17,21 @@ interface WebViewBottomSheetProps {
 export function WebViewBottomSheet({ visible, onClose, url, title }: WebViewBottomSheetProps) {
   const { height } = useWindowDimensions()
 
+  const handleCopyUrl = useCallback(() => {
+    if (!url) return
+    // Show alert with URL that user can copy
+    Alert.alert(
+      'WebView URL',
+      url,
+      [
+        { text: 'Close', style: 'cancel' },
+      ],
+      { cancelable: true }
+    )
+  }, [url])
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={title} maxHeightRatio={0.92}>
+    <BottomSheet visible={visible} onClose={onClose} title={title} maxHeightRatio={0.92} onCopyUrl={url ? handleCopyUrl : undefined}>
       <View style={[styles.body, { height: height * 0.8 }]}>
         {url ? (
           <WebViewPanel url={url} />
