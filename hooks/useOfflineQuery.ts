@@ -1,7 +1,6 @@
 import NetInfo from '@react-native-community/netinfo'
 import { useQuery, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query'
 import { cacheService } from '@/data/cache_service'
-import { log } from '@/utils/logger'
 
 interface OfflineQueryOptions<T> extends Omit<UseQueryOptions<T>, 'queryFn'> {
   /** API call that fetches the data. */
@@ -50,7 +49,7 @@ export function useOfflineQuery<T>({
           // Offline: try cache first
           const cached = await cacheService.get<T>(cacheKey)
           if (cached) {
-            log(`useOfflineQuery(${cacheKey}) → cached`, { online: false })
+            console.log(`[useOfflineQuery] Offline cached for ${JSON.stringify(queryKey)}`)
             return cached
           }
           // No cache and offline = throw to show error
@@ -66,28 +65,23 @@ export function useOfflineQuery<T>({
           }
 
           await cacheService.set(cacheKey, data, cacheTtl)
-          log(`useOfflineQuery(${cacheKey}) → fresh`, { online: true })
+          console.log(`[useOfflineQuery] Fresh data for ${JSON.stringify(queryKey)}`)
           return data
         } catch (error: any) {
-          log(`useOfflineQuery(${cacheKey}) → error during queryFn`, {
-            online: true,
-            error: error?.message || String(error),
-          })
+          console.log(`[useOfflineQuery] Error for ${JSON.stringify(queryKey)}:`, error?.message || String(error))
           // ALWAYS MANDATORY: Try to fall back to cache on any error, even HTTP errors
           const cached = await cacheService.get<T>(cacheKey)
           if (cached) {
-            log(`useOfflineQuery(${cacheKey}) → USING CACHED (error recovery)`, { online: true })
+            console.log(`[useOfflineQuery] Using cached for ${JSON.stringify(queryKey)}`)
             return cached
           }
 
           // If no cache, return null instead of throwing
-          log(`useOfflineQuery(${cacheKey}) → no cache available, returning null`, { online: true })
+          console.log(`[useOfflineQuery] No cache, returning null for ${JSON.stringify(queryKey)}`)
           return null as any
         }
       } catch (error: any) {
-        log(`useOfflineQuery → unexpected error`, {
-          error: error?.message || String(error),
-        })
+        console.log(`[useOfflineQuery] Unexpected error in outer catch:`, error?.message || String(error))
         // Never throw: try cache, then return null
         const cached = await cacheService.get<T>(cacheKey)
         if (cached) {
