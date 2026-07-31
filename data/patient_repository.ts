@@ -25,18 +25,34 @@ export async function getPatientsPage(
     }
     return { items, meta: { ...EMPTY_META, current_page: page, per_page: perPage, total: items.length }, hasMore: false }
   }
-  const params: Record<string, unknown> = { per_page: perPage, page }
-  if (q) params.search = q
-  const res = await apiClient.get('/patients', { params })
-  return parsePage<Patient>(res.data, page, perPage)
+  try {
+    const params: Record<string, unknown> = { per_page: perPage, page }
+    if (q) params.search = q
+    const res = await apiClient.get('/patients', { params })
+    return parsePage<Patient>(res.data, page, perPage)
+  } catch (error) {
+    console.error('[getPatientsPage] Error (returning empty):', {
+      error: String(error),
+      message: (error as any)?.message,
+    })
+    return { items: [], meta: EMPTY_META, hasMore: false }
+  }
 }
 
 export async function getPatientById(
   id: number | string,
 ): Promise<Patient | undefined> {
   if (ENV.USE_MOCK_DATA) return mockGetPatientById(Number(id))
-  const res = await apiClient.get(`/patients/${id}`)
-  return res.data?.data ?? res.data
+  try {
+    const res = await apiClient.get(`/patients/${id}`)
+    return res.data?.data ?? res.data
+  } catch (error) {
+    console.error('[getPatientById] Error (returning undefined):', {
+      error: String(error),
+      message: (error as any)?.message,
+    })
+    return undefined
+  }
 }
 
 export async function getPatientAlerts(

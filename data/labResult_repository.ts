@@ -7,8 +7,16 @@ export async function getLabResultsByPatient(
   patientId: number,
 ): Promise<LabResult[]> {
   if (ENV.USE_MOCK_DATA) return mockGetLabResultsByPatient(patientId)
-  const { data } = await apiClient.get<{ data: LabResult[] } | LabResult[]>(
-    `/patients/${patientId}/lab-orders`,
-  )
-  return Array.isArray(data) ? data : data.data
+  try {
+    const { data } = await apiClient.get<{ data: LabResult[] } | LabResult[]>(
+      `/patients/${patientId}/lab-orders`,
+    )
+    return Array.isArray(data) ? data : data.data
+  } catch (error) {
+    console.error('[getLabResultsByPatient] Error (returning empty):', {
+      error: String(error),
+      message: (error as any)?.message,
+    })
+    return []
+  }
 }

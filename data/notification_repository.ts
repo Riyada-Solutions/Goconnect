@@ -25,23 +25,37 @@ export async function fetchNotifications(
 ): Promise<NotificationListResponse> {
   const { filter = 'all', per_page = 50, page = 1 } = params
   if (ENV.USE_MOCK_DATA) return mockFetchNotifications(filter, page, per_page)
-  const res = await apiClient.get('/notifications', {
-    params: { filter, per_page, page },
-  })
-  // The endpoint returns { data: [...], meta: {...}, links: {...} }
-  // so we return the full body as-is (it already matches NotificationListResponse).
-  const body = res.data as any
-  return {
-    data: Array.isArray(body?.data) ? body.data : [],
-    meta: body?.meta ?? { current_page: 1, last_page: 1, per_page, total: 0 },
+  try {
+    const res = await apiClient.get('/notifications', {
+      params: { filter, per_page, page },
+    })
+    const body = res.data as any
+    return {
+      data: Array.isArray(body?.data) ? body.data : [],
+      meta: body?.meta ?? { current_page: 1, last_page: 1, per_page, total: 0 },
+    }
+  } catch (error) {
+    console.error('[fetchNotifications] Error (returning empty):', {
+      error: String(error),
+      message: (error as any)?.message,
+    })
+    return { data: [], meta: { current_page: 1, last_page: 1, per_page: 50, total: 0 } }
   }
 }
 
 /** `GET /api/notifications/unread-count` → `{ count: number }` */
 export async function fetchUnreadCount(): Promise<{ count: number }> {
   if (ENV.USE_MOCK_DATA) return mockFetchUnreadCount()
-  const res = await apiClient.get('/notifications/unread-count')
-  return unwrap<{ count: number }>(res.data)
+  try {
+    const res = await apiClient.get('/notifications/unread-count')
+    return unwrap<{ count: number }>(res.data)
+  } catch (error) {
+    console.error('[fetchUnreadCount] Error (returning zero):', {
+      error: String(error),
+      message: (error as any)?.message,
+    })
+    return { count: 0 }
+  }
 }
 
 /** `POST /api/notifications/:id/read` — 204 No Content */

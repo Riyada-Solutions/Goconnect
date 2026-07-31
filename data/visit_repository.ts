@@ -77,7 +77,6 @@ export async function getVisitsPage(
 
     const res = await apiClient.get('/visits', { params })
 
-    // Defensive parsing to handle edge cases
     const data = res?.data
     if (!data) {
       console.warn('[getVisitsPage] No data in response')
@@ -88,11 +87,11 @@ export async function getVisitsPage(
     console.log('[getVisitsPage] Success:', { itemCount: result.items.length, page, hasMore: result.hasMore })
     return result
   } catch (error) {
-    console.error('[getVisitsPage] Error:', {
+    console.error('[getVisitsPage] Error (returning empty):', {
       error: String(error),
       message: (error as any)?.message,
     })
-    throw error
+    return { items: [], meta: EMPTY_META, hasMore: false }
   }
 }
 
