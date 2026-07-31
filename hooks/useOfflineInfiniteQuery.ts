@@ -42,6 +42,7 @@ export function useOfflineInfiniteQuery<T, K>({
   ...options
 }: OfflineInfiniteQueryOptions<T, K>): UseInfiniteQueryResult<PagedResponse<T>> {
   const baseCacheKey = `${cachePrefix}:${JSON.stringify(queryKey)}`
+  const qkString = JSON.stringify(queryKey)
 
   return useInfiniteQuery({
     queryKey,
@@ -49,18 +50,22 @@ export function useOfflineInfiniteQuery<T, K>({
     gcTime: cacheTtl,
     retry: 0,
     queryFn: async ({ pageParam }) => {
+      console.log(`[useOfflineInfiniteQuery] Starting queryFn for ${qkString}, page: ${pageParam}`)
       try {
         const state = await NetInfo.fetch()
         const online = !!state.isConnected && state.isInternetReachable !== false
         const pageCacheKey = `${baseCacheKey}:page:${pageParam}`
 
         if (!online) {
+          console.log(`[useOfflineInfiniteQuery] Device offline for ${qkString}`)
           // Offline: return cached page if available
           const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
           if (cached) {
             log(`useOfflineInfiniteQuery(${pageCacheKey}) → cached`, { online: false })
+            console.log(`[useOfflineInfiniteQuery] Returning offline cached data for ${qkString}`)
             return cached
           }
+          console.warn(`[useOfflineInfiniteQuery] Offline and no cache for ${qkString}, returning empty`)
           throw new Error('Offline and no cached page data')
         }
 
@@ -82,21 +87,25 @@ export function useOfflineInfiniteQuery<T, K>({
 
           await cacheService.set(pageCacheKey, safeData, cacheTtl)
           log(`useOfflineInfiniteQuery(${pageCacheKey}) → fresh`, { online: true, items: safeData.data?.length ?? safeData.items?.length ?? 0 })
+          console.log(`[useOfflineInfiniteQuery] Returning fresh data for ${qkString}:`, { itemCount: safeData.data?.length ?? safeData.items?.length ?? 0, hasMore: safeData.hasMore })
           return safeData
         } catch (error: any) {
           log(`useOfflineInfiniteQuery(${pageCacheKey}) → error during queryFn`, {
             online: true,
             error: error?.message || String(error),
           })
+          console.error(`[useOfflineInfiniteQuery] Error in queryFn for ${qkString}:`, error)
           // ALWAYS MANDATORY: Try to fall back to cache on any error, even HTTP errors
           const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
           if (cached) {
             log(`useOfflineInfiniteQuery(${pageCacheKey}) → USING CACHED (error recovery)`, { online: true })
+            console.log(`[useOfflineInfiniteQuery] Returning cached data for ${qkString}`)
             return cached
           }
 
           // If no cache, return empty data instead of throwing
           log(`useOfflineInfiniteQuery(${pageCacheKey}) → no cache available, returning empty`, { online: true })
+          console.log(`[useOfflineInfiniteQuery] No cache available, returning empty for ${qkString}`)
           return {
             data: [],
             items: [],
@@ -108,11 +117,14 @@ export function useOfflineInfiniteQuery<T, K>({
         log(`useOfflineInfiniteQuery → unexpected error`, {
           error: error?.message || String(error),
         })
+        console.error(`[useOfflineInfiniteQuery] OUTER CATCH for ${qkString}:`, error)
         // Never throw: try cache, then return empty
         const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
         if (cached) {
+          console.log(`[useOfflineInfiniteQuery] Outer catch returning cached for ${qkString}`)
           return cached
         }
+        console.log(`[useOfflineInfiniteQuery] Outer catch returning empty for ${qkString}`)
         return {
           data: [],
           items: [],

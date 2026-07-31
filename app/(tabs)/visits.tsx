@@ -83,6 +83,16 @@ export default function VisitsScreen() {
   // If we have data, never show error even if isError is true (fallback/cache recovery)
   const shouldShowError = isError && !filtered.length;
 
+  React.useEffect(() => {
+    console.log('[VisitsScreen] State:', {
+      isLoading,
+      isError,
+      filteredLength: filtered.length,
+      shouldShowError,
+      hasData: !!pagesData?.pages,
+    })
+  }, [isLoading, isError, filtered.length, shouldShowError, pagesData])
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
