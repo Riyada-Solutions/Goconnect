@@ -54,39 +54,47 @@ export function useOfflineInfiniteQuery<T, K>({
       return failureCount < 2
     },
     queryFn: async ({ pageParam }) => {
-      const state = await NetInfo.fetch()
-      const online = !!state.isConnected && state.isInternetReachable !== false
-      const pageCacheKey = `${baseCacheKey}:page:${pageParam}`
-
-      if (!online) {
-        // Offline: return cached page if available
-        const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
-        if (cached) {
-          log(`useOfflineInfiniteQuery(${pageCacheKey}) → cached`, { online: false })
-          return cached
-        }
-        throw new Error('Offline and no cached page data')
-      }
-
       try {
-        // Online: fetch fresh, cache result
-        const data = await queryFn(pageParam as K)
-        await cacheService.set(pageCacheKey, data, cacheTtl)
-        log(`useOfflineInfiniteQuery(${pageCacheKey}) → fresh`, { online: true })
-        return data
-      } catch (error: any) {
-        log(`useOfflineInfiniteQuery(${pageCacheKey}) → error during queryFn`, {
-          online: true,
-          error: error?.message || String(error),
-          hasResponse: !!error?.response,
-          status: error?.response?.status
-        })
-        // Any error = try to fall back to cache
-        const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
-        if (cached) {
-          log(`useOfflineInfiniteQuery(${pageCacheKey}) → cached (error fallback)`, { online: true, error: error?.message })
-          return cached
+        const state = await NetInfo.fetch()
+        const online = !!state.isConnected && state.isInternetReachable !== false
+        const pageCacheKey = `${baseCacheKey}:page:${pageParam}`
+
+        if (!online) {
+          // Offline: return cached page if available
+          const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
+          if (cached) {
+            log(`useOfflineInfiniteQuery(${pageCacheKey}) → cached`, { online: false })
+            return cached
+          }
+          throw new Error('Offline and no cached page data')
         }
+
+        try {
+          // Online: fetch fresh, cache result
+          const data = await queryFn(pageParam as K)
+          await cacheService.set(pageCacheKey, data, cacheTtl)
+          log(`useOfflineInfiniteQuery(${pageCacheKey}) → fresh`, { online: true })
+          return data
+        } catch (error: any) {
+          log(`useOfflineInfiniteQuery(${pageCacheKey}) → error during queryFn`, {
+            online: true,
+            error: error?.message || String(error),
+            hasResponse: !!error?.response,
+            status: error?.response?.status
+          })
+          // Any error = try to fall back to cache
+          const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
+          if (cached) {
+            log(`useOfflineInfiniteQuery(${pageCacheKey}) → cached (error fallback)`, { online: true, error: error?.message })
+            return cached
+          }
+          throw error
+        }
+      } catch (error: any) {
+        // Catch any unexpected errors
+        log(`useOfflineInfiniteQuery → unexpected error`, {
+          error: error?.message || String(error),
+        })
         throw error
       }
     },

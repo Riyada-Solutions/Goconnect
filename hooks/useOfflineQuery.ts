@@ -47,33 +47,41 @@ export function useOfflineQuery<T>({
       return failureCount < 2
     },
     queryFn: async () => {
-      const state = await NetInfo.fetch()
-      const online = !!state.isConnected && state.isInternetReachable !== false
-
-      if (!online) {
-        // Offline: try cache first
-        const cached = await cacheService.get<T>(cacheKey)
-        if (cached) {
-          log(`useOfflineQuery(${cacheKey}) → cached`, { online: false })
-          return cached
-        }
-        // No cache and offline = throw to show error
-        throw new Error('Offline and no cached data')
-      }
-
       try {
-        // Online: fetch fresh, cache result
-        const data = await queryFn()
-        await cacheService.set(cacheKey, data, cacheTtl)
-        log(`useOfflineQuery(${cacheKey}) → fresh`, { online: true })
-        return data
-      } catch (error: any) {
-        // Any error = try to fall back to cache
-        const cached = await cacheService.get<T>(cacheKey)
-        if (cached) {
-          log(`useOfflineQuery(${cacheKey}) → cached (error fallback)`, { online: true, error: error?.message })
-          return cached
+        const state = await NetInfo.fetch()
+        const online = !!state.isConnected && state.isInternetReachable !== false
+
+        if (!online) {
+          // Offline: try cache first
+          const cached = await cacheService.get<T>(cacheKey)
+          if (cached) {
+            log(`useOfflineQuery(${cacheKey}) → cached`, { online: false })
+            return cached
+          }
+          // No cache and offline = throw to show error
+          throw new Error('Offline and no cached data')
         }
+
+        try {
+          // Online: fetch fresh, cache result
+          const data = await queryFn()
+          await cacheService.set(cacheKey, data, cacheTtl)
+          log(`useOfflineQuery(${cacheKey}) → fresh`, { online: true })
+          return data
+        } catch (error: any) {
+          // Any error = try to fall back to cache
+          const cached = await cacheService.get<T>(cacheKey)
+          if (cached) {
+            log(`useOfflineQuery(${cacheKey}) → cached (error fallback)`, { online: true, error: error?.message })
+            return cached
+          }
+          throw error
+        }
+      } catch (error: any) {
+        // Catch any unexpected errors
+        log(`useOfflineQuery → unexpected error`, {
+          error: error?.message || String(error),
+        })
         throw error
       }
     },
