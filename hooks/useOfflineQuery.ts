@@ -40,12 +40,7 @@ export function useOfflineQuery<T>({
     queryKey,
     staleTime: cacheTtl,
     gcTime: cacheTtl,
-    retry: (failureCount, error: any) => {
-      // Never retry on HTTP errors (4xx, 5xx)
-      if (error?.response?.status) return false
-      // Disable retries on other errors - fall back to cache instead
-      return false
-    },
+    retry: 0,
     queryFn: async () => {
       try {
         const state = await NetInfo.fetch()
@@ -78,13 +73,16 @@ export function useOfflineQuery<T>({
             online: true,
             error: error?.message || String(error),
           })
-          // ALWAYS try to fall back to cache on any error
+          // ALWAYS MANDATORY: Try to fall back to cache on any error, even HTTP errors
           const cached = await cacheService.get<T>(cacheKey)
           if (cached) {
-            log(`useOfflineQuery(${cacheKey}) → using cached data (error recovery)`, { online: true })
+            log(`useOfflineQuery(${cacheKey}) → USING CACHED (error recovery)`, { online: true })
             return cached
           }
-          throw error
+
+          // If no cache, return null instead of throwing
+          log(`useOfflineQuery(${cacheKey}) → no cache available, returning null`, { online: true })
+          return null as any
         }
       } catch (error: any) {
         // Catch any unexpected errors

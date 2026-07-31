@@ -47,12 +47,7 @@ export function useOfflineInfiniteQuery<T, K>({
     queryKey,
     staleTime: cacheTtl,
     gcTime: cacheTtl,
-    retry: (failureCount, error: any) => {
-      // Never retry on HTTP errors (4xx, 5xx)
-      if (error?.response?.status) return false
-      // Disable retries on other errors - fall back to cache instead
-      return false
-    },
+    retry: 0,
     queryFn: async ({ pageParam }) => {
       try {
         const state = await NetInfo.fetch()
@@ -86,23 +81,28 @@ export function useOfflineInfiniteQuery<T, K>({
           }
 
           await cacheService.set(pageCacheKey, safeData, cacheTtl)
-          log(`useOfflineInfiniteQuery(${pageCacheKey}) → fresh`, { online: true })
+          log(`useOfflineInfiniteQuery(${pageCacheKey}) → fresh`, { online: true, items: safeData.data?.length ?? safeData.items?.length ?? 0 })
           return safeData
         } catch (error: any) {
           log(`useOfflineInfiniteQuery(${pageCacheKey}) → error during queryFn`, {
             online: true,
             error: error?.message || String(error),
-            hasResponse: !!error?.response,
-            status: error?.response?.status
           })
-          // ALWAYS try to fall back to cache on any error
+          // ALWAYS MANDATORY: Try to fall back to cache on any error, even HTTP errors
           const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
           if (cached) {
-            log(`useOfflineInfiniteQuery(${pageCacheKey}) → using cached data (error recovery)`, { online: true })
+            log(`useOfflineInfiniteQuery(${pageCacheKey}) → USING CACHED (error recovery)`, { online: true })
             return cached
           }
-          // Only throw if we have absolutely no data
-          throw error
+
+          // If no cache, return empty data instead of throwing
+          log(`useOfflineInfiniteQuery(${pageCacheKey}) → no cache available, returning empty`, { online: true })
+          return {
+            data: [],
+            items: [],
+            hasMore: false,
+            meta: {},
+          } as PagedResponse<T>
         }
       } catch (error: any) {
         // Catch any unexpected errors
