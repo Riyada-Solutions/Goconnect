@@ -80,6 +80,9 @@ export default function VisitsScreen() {
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
 
+  // If we have data, never show error even if isError is true (fallback/cache recovery)
+  const shouldShowError = isError && !filtered.length;
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -146,7 +149,7 @@ export default function VisitsScreen() {
           renderItem={() => <VisitCardSkeleton />}
           style={{ paddingBottom: botPad }}
         />
-      ) : isError ? (
+      ) : shouldShowError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : (
         <PaginationList
