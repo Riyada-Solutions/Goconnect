@@ -53,7 +53,17 @@ export function useVisits(date?: string, status?: string) {
     queryKey: ['visits', date ?? null, status ?? null],
     queryFn: (pageParam) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date, status),
     initialPageParam: 1,
-    getNextPageParam: (last) => last.hasMore ? last.meta.current_page + 1 : undefined,
+    getNextPageParam: (last) => {
+      try {
+        if (!last) return undefined
+        const hasMore = last.hasMore ?? false
+        const currentPage = last.meta?.current_page ?? 1
+        return hasMore ? currentPage + 1 : undefined
+      } catch (error) {
+        console.error('[useVisits] Error in getNextPageParam:', error)
+        return undefined
+      }
+    },
     cacheTtl: 5 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -64,7 +74,10 @@ export function useVisits(date?: string, status?: string) {
 export function useVisit(id: number) {
   return useOfflineQuery({
     queryKey: ['visits', id],
-    queryFn: () => getVisitById(id),
+    queryFn: () => {
+      if (!id) throw new Error('Visit ID is required')
+      return getVisitById(id)
+    },
     cacheTtl: 2 * 60 * 1000,
     refetchOnMount: 'always',
     enabled: !!id,
