@@ -1,12 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
-
 import { getLabResultsByPatient } from '../data/labResult_repository'
+import { useOfflineQuery } from './useOfflineQuery'
 
 export function useLabResults(patientId: number) {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: ['lab-results', patientId],
     queryFn: () => getLabResultsByPatient(patientId),
     enabled: !!patientId,
-    staleTime: 30_000,
+    cacheTtl: 30_000,
   })
 }

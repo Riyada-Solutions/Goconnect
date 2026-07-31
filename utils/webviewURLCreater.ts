@@ -14,8 +14,9 @@ export async function buildAutoLoginUrl(to: string): Promise<string> {
   const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY)
   const params = new URLSearchParams({ token: token ?? '', to })
 
-  const webBaseUrl =  `${getWebBaseUrl()}/auto-login?${params.toString()}`
-  log('buildAutoLoginUrl', webBaseUrl)
+  const domain = getWebBaseUrl()
+  const webBaseUrl =  `${domain}/auto-login?${params.toString()}`
+  log('buildAutoLoginUrl', `domain=${domain}, to=${to}, hasToken=${!!token}`)
   return webBaseUrl;
 }
 export function getMedicationsUrl(visitId: string | number): Promise<string> {

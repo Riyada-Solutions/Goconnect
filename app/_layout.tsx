@@ -84,6 +84,10 @@ const queryClient = new QueryClient({
     queries: {
       networkMode: 'offlineFirst',
       gcTime: 24 * 60 * 60 * 1000,
+      retry: 0,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
     mutations: {
       networkMode: 'offlineFirst',

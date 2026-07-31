@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
   deleteNotification,
@@ -11,25 +11,26 @@ import type {
   ApiNotification,
   NotificationListResponse,
 } from '@/data/models/notification'
+import { useOfflineQuery } from './useOfflineQuery'
 
 export const NOTIFICATIONS_QUERY_KEY = ['notifications', 'inbox'] as const
 export const UNREAD_COUNT_QUERY_KEY = ['notifications', 'unread-count'] as const
 
 // ─── List ──────────────────────────────────────────────────────────────────────
 export function useNotifications(filter: 'all' | 'unread' = 'all') {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: [...NOTIFICATIONS_QUERY_KEY, filter],
     queryFn: () => fetchNotifications({ filter, per_page: 50, page: 1 }),
-    staleTime: 30_000,
+    cacheTtl: 30_000,
   })
 }
 
 // ─── Unread count ──────────────────────────────────────────────────────────────
 export function useUnreadCount() {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: UNREAD_COUNT_QUERY_KEY,
     queryFn: fetchUnreadCount,
-    staleTime: 30_000,
+    cacheTtl: 30_000,
   })
 }
 

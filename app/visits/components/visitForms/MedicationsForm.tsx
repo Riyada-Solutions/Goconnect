@@ -1,10 +1,11 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, Clipboard } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { WebViewBottomSheet } from "@/components/common/WebViewBottomSheet";
 import { getMedicationsUrl } from "@/utils/webviewURLCreater";
+import { useApp } from "@/context/AppContext";
 
 interface Props {
   visitId: number;
@@ -13,12 +14,31 @@ interface Props {
 
 /** Visit form section that opens the web app's Medications tab in a webview bottom sheet. */
 export function MedicationsForm({ visitId, colors }: Props) {
+  const { refreshAppSettings } = useApp();
   const [visible, setVisible] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
 
+  // Build URL when component mounts (settings already refreshed by parent)
+  useEffect(() => {
+    getMedicationsUrl(visitId).then((builtUrl) => {
+      console.log('🔗 MedicationsForm URL:', builtUrl);
+      setUrl(builtUrl);
+    }).catch((err) => {
+      console.log('❌ Error building URL:', err);
+    });
+  }, [visitId]);
+
   const handleOpen = () => {
     setVisible(true);
-    if (!url) getMedicationsUrl(visitId).then(setUrl);
+  };
+
+  const handleCopyUrl = () => {
+    if (!url) {
+      Alert.alert('URL not ready', 'URL is still being built. Try again in a moment.');
+      return;
+    }
+    Clipboard.setString(url);
+    Alert.alert('Copied!', 'URL copied to clipboard');
   };
 
   return (
@@ -26,7 +46,12 @@ export function MedicationsForm({ visitId, colors }: Props) {
       <Card style={styles.card}>
         <Pressable style={styles.row} onPress={handleOpen}>
           <Feather name="clipboard" size={18} color="#0D9488" />
-          <Text style={[styles.title, { color: colors.text }]}>Medications</Text>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+            Medications
+          </Text>
+          <Pressable onPress={handleCopyUrl} hitSlop={8}>
+            <Feather name="copy" size={16} color={colors.textTertiary} />
+          </Pressable>
           <Feather name="chevron-right" size={18} color={colors.textTertiary} />
         </Pressable>
       </Card>

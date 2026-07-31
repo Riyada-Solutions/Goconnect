@@ -126,7 +126,7 @@ export function mapInventoryItemFromApi(item: any) {
  * read `flowSheet.dialysisParams` / `bpSite` / `preTreatmentVitals` as
  * `undefined` — the fields would blank out right after a save.
  */
-function mapVisitFromApi(raw: any): Visit {
+export function mapVisitFromApi(raw: any): Visit {
   return {
     ...raw,
     ...mapVisitTimestamps(raw),

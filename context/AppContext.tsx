@@ -26,7 +26,8 @@ import {
   DEFAULT_APP_SETTINGS,
   type AppSettings,
 } from "@/data/app_settings_repository";
-import { setWebDomain } from "@/data/upload_config";
+import { setWebDomain, restoreCachedWebDomain } from "@/data/upload_config";
+import { cacheService } from "@/data/cache_service";
 import type { User } from "@/data/models/auth";
 import {
   ALL_BACKEND_RULES,
@@ -109,6 +110,8 @@ interface AppContextValue {
   updateProfile: (data: Partial<User>) => Promise<void>;
   /** Reload profile from `GET /me` (e.g. after avatar upload). */
   refreshUser: () => Promise<void>;
+  /** Reload app settings from server (includes webview domain). */
+  refreshAppSettings: () => Promise<void>;
   /** Locally patch the user's selected system / branch (optimistic update). */
   updateWorkspaceSelection: (patch: Partial<User>) => void;
   /** Drop all workspace-scoped list caches (visits, slots, home, patients, …) after a workspace/branch switch. */
@@ -164,6 +167,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
           AsyncStorage.getItem(STORAGE_KEYS.THEME),
           readCachedUser(),
+          restoreCachedWebDomain(),
         ]);
         if (storedLang) setLanguageState(storedLang as Language);
         if (storedTheme) setThemeState(storedTheme as Theme);
@@ -202,7 +206,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const settings = await fetchAppSettings();
         setAppSettings(settings);
         setWebDomain(settings.uploadMediaUrl);
-      } catch (_e) {}
+        console.log('✅ Settings API success:', { uploadMediaUrl: settings.uploadMediaUrl });
+      } catch (err) {
+        console.log('❌ Settings API failed:', err);
+      }
 
       if (biometricPending) return;
       const storedToken = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
@@ -264,6 +271,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await logoutApi();
     await clearFaceToken();
     await AsyncStorage.removeItem(CACHED_USER_KEY);
+    await cacheService.clearAll(); // Clear all cached API responses
     setUser(null);
     setToken(null);
     setRules(new Set());
@@ -315,6 +323,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void cacheUser(me);
   }, [queryClient]);
 
+  const refreshAppSettings = useCallback(async () => {
+    try {
+      const settings = await fetchAppSettings();
+      setAppSettings(settings);
+      setWebDomain(settings.uploadMediaUrl);
+    } catch {
+      // ignore — keep current settings
+    }
+  }, []);
+
   const updateWorkspaceSelection = useCallback(
     (patch: Partial<User>) => {
       setUser((prev) => {
@@ -332,6 +350,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     for (const queryKey of WORKSPACE_SCOPED_QUERY_KEYS) {
       queryClient.removeQueries({ queryKey });
     }
+    // Also clear disk cache for workspace-scoped queries
+    void Promise.all(
+      WORKSPACE_SCOPED_QUERY_KEYS.map((key) =>
+        cacheService.invalidate(`query:${JSON.stringify(key)}`)
+      )
+    );
   }, [queryClient]);
 
   const value = useMemo(
@@ -352,10 +376,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       updateProfile,
       refreshUser,
+      refreshAppSettings,
       updateWorkspaceSelection,
       clearWorkspaceCaches,
     }),
-    [user, token, isReady, language, theme, isDark, appSettings, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, updateWorkspaceSelection, clearWorkspaceCaches],
+    [user, token, isReady, language, theme, isDark, appSettings, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, refreshAppSettings, updateWorkspaceSelection, clearWorkspaceCaches],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

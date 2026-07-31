@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, View, Text, useWindowDimensions } from 'react-native'
 
 import { BottomSheet } from '@/components/common/BottomSheet'
 import { WebViewPanel } from '@/components/common/WebViewPanel'
@@ -20,7 +20,15 @@ export function WebViewBottomSheet({ visible, onClose, url, title }: WebViewBott
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title} maxHeightRatio={0.92}>
       <View style={[styles.body, { height: height * 0.8 }]}>
-        {url ? <WebViewPanel url={url} /> : null}
+        {url ? (
+          <WebViewPanel url={url} />
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+            <Text style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>
+              Loading URL...
+            </Text>
+          </View>
+        )}
       </View>
     </BottomSheet>
   )

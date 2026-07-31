@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-
 import { getRules } from '@/data/rules_repository'
 import type { RuleAction } from '@/data/models/rules'
+import { useOfflineQuery } from './useOfflineQuery'
 
 export const RULES_QUERY_KEY = ['rules'] as const
 
@@ -12,10 +11,10 @@ export const RULES_QUERY_KEY = ['rules'] as const
  * directly to loading/error state of the rules call.
  */
 export function useRules() {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: RULES_QUERY_KEY,
     queryFn: getRules,
-    staleTime: 5 * 60_000, // 5 min — rules rarely change mid-session
+    cacheTtl: 5 * 60_000, // 5 min — rules rarely change mid-session
   })
 }
 

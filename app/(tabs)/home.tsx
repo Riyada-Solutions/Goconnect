@@ -88,7 +88,7 @@ export default function HomeScreen() {
     try {
       await Promise.all([
         refetchHome(),
-        qc.invalidateQueries({ queryKey: ['visits'] }),
+        qc.invalidateQueries({ queryKey: ['visits'], exact: false }),
         qc.invalidateQueries({ queryKey: ['patients'] }),
         qc.invalidateQueries({ queryKey: ['scheduler'] }),
         qc.invalidateQueries({ queryKey: ['notifications'] }),

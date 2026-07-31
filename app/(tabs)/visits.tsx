@@ -53,11 +53,11 @@ export default function VisitsScreen() {
   // Backend filters by `status` directly now — "in progress" (with a space,
   // matching the API's own status value) and "completed" map straight
   // through; "all" omits the param entirely (see getVisitsPage).
-  const STATUS_PARAM: Record<VisitFilter, string | undefined> = {
-    in_progress: "in progress",
-    completed: "completed",
+  const STATUS_PARAM = useMemo(() => ({
+    in_progress: "in progress" as const,
+    completed: "completed" as const,
     all: undefined,
-  };
+  }), []);
   const {
     data: pagesData,
     isLoading,

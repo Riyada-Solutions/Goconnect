@@ -71,7 +71,7 @@ export default function VisitDetailScreen() {
 
 function VisitDetailScreenInner() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
-  const { t, user, can, appSettings } = useApp();
+  const { t, user, can, appSettings, refreshAppSettings } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad } = useScreenPadding({ hasActionBar: true });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
@@ -83,6 +83,11 @@ function VisitDetailScreenInner() {
     }
     showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") });
   }, [showDialog, t]);
+
+  // Refresh app settings (including webview domain) when entering visit details
+  useEffect(() => {
+    void refreshAppSettings();
+  }, [refreshAppSettings]);
 
   const isSlot = mode === "slot";
   const numId = Number(id);

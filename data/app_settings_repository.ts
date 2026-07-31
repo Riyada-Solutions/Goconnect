@@ -11,10 +11,10 @@ export interface AppSettings {
   enableToggleProcedureButton: boolean
 }
 
-// EXPO_PUBLIC_API_BASE_URL, used for the webview domain when the /settings/app
+// EXPO_PUBLIC_WEBVIEW_DOMAIN, used for the webview domain when the /settings/app
 // call fails and there is no cached value to fall back to yet.
 function fallbackDomain(): string {
-  return ENV.API_BASE_URL
+  return process.env.EXPO_PUBLIC_WEBVIEW_DOMAIN ?? ''
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {

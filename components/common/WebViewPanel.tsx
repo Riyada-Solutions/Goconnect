@@ -6,6 +6,7 @@ import { WebView } from 'react-native-webview'
 
 import { ACCESS_TOKEN_KEY } from '@/data/auth_repository'
 import { useTheme } from '@/hooks/useTheme'
+import { log } from '@/utils/logger'
 
 interface WebViewPanelProps {
   /** The URL to load — pass a fully-built URL (see `utils/webviewURLCreater.ts`). */
@@ -21,17 +22,39 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
   const [tokenReady, setTokenReady] = useState(false)
 
   useEffect(() => {
+    console.log('🎬 WebViewPanel received URL:', url);
     AsyncStorage.getItem(ACCESS_TOKEN_KEY).then((value) => {
       setToken(value)
       setTokenReady(true)
+      console.log('✅ WebViewPanel token ready:', { hasToken: !!value, url });
+      log('WebViewPanel.token', `hasToken=${!!value}, url=${url}`)
     })
-  }, [])
+  }, [url])
+
+  // Timeout if loading takes too long (15 seconds)
+  useEffect(() => {
+    if (!loading || error) return
+    const timeout = setTimeout(() => {
+      setLoading(false)
+      setError(true)
+      log('WebViewPanel.timeout', `URL did not load in 15s: ${url}`)
+    }, 15000)
+    return () => clearTimeout(timeout)
+  }, [loading, error, url])
 
   const showWebView = tokenReady && !error
   const showLoading = (loading || !tokenReady) && !error
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Debug: Show URL on screen if empty */}
+      {!url && (
+        <View style={[styles.centerState, { backgroundColor: colors.background }]}>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            ⚠️ No URL provided
+          </Text>
+        </View>
+      )}
       {showWebView && (
         <WebView
           source={{
@@ -44,11 +67,24 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           }}
           style={[styles.webview, { backgroundColor: colors.background }]}
           containerStyle={{ backgroundColor: colors.background }}
-          onLoadStart={() => setLoading(true)}
-          onLoadEnd={() => setLoading(false)}
-          onError={() => {
+          onLoadStart={() => {
+            setLoading(true)
+            log('WebView.onLoadStart', `url=${url}`)
+          }}
+          onLoadEnd={() => {
+            setLoading(false)
+            log('WebView.onLoadEnd', `url=${url}`)
+          }}
+          onError={(syntheticEvent) => {
             setLoading(false)
             setError(true)
+            log('WebView.onError', `url=${url}, error=${syntheticEvent.nativeEvent.description}`)
+          }}
+          onHttpError={(syntheticEvent) => {
+            log('WebView.onHttpError', `url=${url}, statusCode=${syntheticEvent.nativeEvent.statusCode}`)
+          }}
+          onLoadingStart={() => {
+            log('WebView.onLoadingStart', `url=${url}`)
           }}
         />
       )}
@@ -56,7 +92,10 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
         <View style={[styles.centerState, { backgroundColor: colors.background }]}>
           <Feather name="alert-triangle" size={28} color={colors.textSecondary} />
           <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            Failed to load this page.
+            Failed to load: {url || 'No URL'}
+          </Text>
+          <Text style={[{ fontSize: 12, color: colors.textTertiary, marginTop: 8 }]}>
+            Check network connection and domain settings
           </Text>
         </View>
       )}

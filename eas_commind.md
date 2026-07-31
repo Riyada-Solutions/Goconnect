@@ -4,8 +4,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## COMMON
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Start Metro bundler (debug mode, clears cache)
-npx expo start --clear
+
 # Start Metro bundler (debug mode, clears cache)
 npx expo start -━━━━━━━━# Build for both iOS and Android (testing)
 eas build --platform all --profile preview
@@ -27,7 +26,7 @@ npx expo run:android --variant release
 # (EAS)-----------------------------------------
 # Build APK - direct install, no Play Store (EAS)
 eas build --platform android --profile preview
-# PATH :: D:\work\React\waleed\careconnect\nurse\v4\Goconnect\android\app\build\outputs\apk\release
+
 # Build AAB - for Google Play Store (EAS)
 eas build --platform android --profile production
 

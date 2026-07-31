@@ -1,4 +1,6 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useOfflineInfiniteQuery } from './useOfflineInfiniteQuery'
+import { useOfflineQuery } from './useOfflineQuery'
 import {
   checkoutVisit,
   checkoutWithoutSapVisit,
@@ -47,24 +49,23 @@ import type { SocialWorkerLocation } from '../data/models/socialWorkerProgressNo
 const CACHE_24H = 24 * 60 * 60 * 1000
 
 export function useVisits(date?: string, status?: string) {
-  return useInfiniteQuery({
+  return useOfflineInfiniteQuery({
     queryKey: ['visits', date ?? null, status ?? null],
-    queryFn: ({ pageParam = 1 }) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date, status),
+    queryFn: (pageParam) => getVisitsPage(VISITS_PER_PAGE, pageParam as number, date, status),
     initialPageParam: 1,
     getNextPageParam: (last) => last.hasMore ? last.meta.current_page + 1 : undefined,
-    staleTime: 5 * 60 * 1000,
-    gcTime: CACHE_24H,
-    networkMode: 'offlineFirst',
+    cacheTtl: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
 export function useVisit(id: number) {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: ['visits', id],
     queryFn: () => getVisitById(id),
-    staleTime: 2 * 60 * 1000,
-    gcTime: CACHE_24H,
-    networkMode: 'offlineFirst',
+    cacheTtl: 2 * 60 * 1000,
     refetchOnMount: 'always',
     enabled: !!id,
   })
