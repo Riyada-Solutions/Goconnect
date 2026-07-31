@@ -17,17 +17,36 @@ interface WebViewBottomSheetProps {
 export function WebViewBottomSheet({ visible, onClose, url, title }: WebViewBottomSheetProps) {
   const { height } = useWindowDimensions()
 
-  const handleCopyUrl = useCallback(() => {
+  const handleCopyUrl = useCallback(async () => {
     if (!url) return
-    // Show alert with URL that user can copy
-    Alert.alert(
-      'WebView URL',
-      url,
-      [
-        { text: 'Close', style: 'cancel' },
-      ],
-      { cancelable: true }
-    )
+    try {
+      // Try to use native clipboard
+      const { NativeModules } = require('react-native')
+
+      // For iOS/Android, try to copy to clipboard
+      if (NativeModules.RNClipboard) {
+        await NativeModules.RNClipboard.setString(url)
+        Alert.alert('✅ URL Copied', 'The URL has been copied to your clipboard')
+        return
+      }
+
+      // Fallback: show alert that user can select and copy
+      Alert.alert(
+        'Copy URL',
+        url,
+        [
+          { text: 'Done', style: 'cancel' },
+        ]
+      )
+    } catch (error) {
+      Alert.alert(
+        'Copy URL',
+        url,
+        [
+          { text: 'Done', style: 'cancel' },
+        ]
+      )
+    }
   }, [url])
 
   return (
