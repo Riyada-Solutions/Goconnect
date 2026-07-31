@@ -85,11 +85,15 @@ export function useOfflineQuery<T>({
           return null as any
         }
       } catch (error: any) {
-        // Catch any unexpected errors
         log(`useOfflineQuery → unexpected error`, {
           error: error?.message || String(error),
         })
-        throw error
+        // Never throw: try cache, then return null
+        const cached = await cacheService.get<T>(cacheKey)
+        if (cached) {
+          return cached
+        }
+        return null as any
       }
     },
     ...options,

@@ -105,11 +105,20 @@ export function useOfflineInfiniteQuery<T, K>({
           } as PagedResponse<T>
         }
       } catch (error: any) {
-        // Catch any unexpected errors
         log(`useOfflineInfiniteQuery → unexpected error`, {
           error: error?.message || String(error),
         })
-        throw error
+        // Never throw: try cache, then return empty
+        const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
+        if (cached) {
+          return cached
+        }
+        return {
+          data: [],
+          items: [],
+          hasMore: false,
+          meta: {},
+        } as PagedResponse<T>
       }
     },
     ...options,
