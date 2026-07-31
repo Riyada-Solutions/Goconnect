@@ -68,6 +68,9 @@ export default function PatientsScreen() {
     );
   }, [patients, activeFilter]);
 
+  // If we have data, never show error even if isError is true (fallback/cache recovery)
+  const shouldShowError = isError && !filtered.length;
+
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -138,7 +141,7 @@ export default function PatientsScreen() {
           renderItem={() => <PatientCardSkeleton />}
           style={{ paddingBottom: botPad }}
         />
-      ) : isError ? (
+      ) : shouldShowError ? (
         <ErrorState onRetry={() => refetch()} />
       ) : (
         <PaginationList
