@@ -48,10 +48,10 @@ export function useOfflineInfiniteQuery<T, K>({
     staleTime: cacheTtl,
     gcTime: cacheTtl,
     retry: (failureCount, error: any) => {
-      // Retry on network errors, but not on API errors (4xx, 5xx)
+      // Never retry on HTTP errors (4xx, 5xx)
       if (error?.response?.status) return false
-      // For non-HTTP errors (like data processing errors), retry once
-      return failureCount < 2
+      // Disable retries on other errors - fall back to cache instead
+      return false
     },
     queryFn: async ({ pageParam }) => {
       try {
@@ -72,9 +72,22 @@ export function useOfflineInfiniteQuery<T, K>({
         try {
           // Online: fetch fresh, cache result
           const data = await queryFn(pageParam as K)
-          await cacheService.set(pageCacheKey, data, cacheTtl)
+
+          // Ensure data has the right structure
+          if (!data) {
+            throw new Error('No data returned from queryFn')
+          }
+
+          const hasMore = data.hasMore ?? (data.meta?.current_page ?? 0) < (data.meta?.last_page ?? 0)
+          const safeData = {
+            ...data,
+            hasMore,
+            meta: data.meta ?? {},
+          }
+
+          await cacheService.set(pageCacheKey, safeData, cacheTtl)
           log(`useOfflineInfiniteQuery(${pageCacheKey}) → fresh`, { online: true })
-          return data
+          return safeData
         } catch (error: any) {
           log(`useOfflineInfiniteQuery(${pageCacheKey}) → error during queryFn`, {
             online: true,
@@ -82,12 +95,13 @@ export function useOfflineInfiniteQuery<T, K>({
             hasResponse: !!error?.response,
             status: error?.response?.status
           })
-          // Any error = try to fall back to cache
+          // ALWAYS try to fall back to cache on any error
           const cached = await cacheService.get<PagedResponse<T>>(pageCacheKey)
           if (cached) {
-            log(`useOfflineInfiniteQuery(${pageCacheKey}) → cached (error fallback)`, { online: true, error: error?.message })
+            log(`useOfflineInfiniteQuery(${pageCacheKey}) → using cached data (error recovery)`, { online: true })
             return cached
           }
+          // Only throw if we have absolutely no data
           throw error
         }
       } catch (error: any) {

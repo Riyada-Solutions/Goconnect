@@ -69,11 +69,31 @@ export async function getVisitsPage(
     const items = await mockGetVisits()
     return { items, meta: { ...EMPTY_META, current_page: page, per_page: perPage, total: items.length }, hasMore: false }
   }
-  const params: Record<string, unknown> = { per_page: perPage, page }
-  if (date) params.date = date
-  if (status && status !== 'all') params.status = status
-  const res = await apiClient.get('/visits', { params })
-  return parsePage<Visit>(res.data, page, perPage)
+
+  try {
+    const params: Record<string, unknown> = { per_page: perPage, page }
+    if (date) params.date = date
+    if (status && status !== 'all') params.status = status
+
+    const res = await apiClient.get('/visits', { params })
+
+    // Defensive parsing to handle edge cases
+    const data = res?.data
+    if (!data) {
+      console.warn('[getVisitsPage] No data in response')
+      return { items: [], meta: EMPTY_META, hasMore: false }
+    }
+
+    const result = parsePage<Visit>(data, page, perPage)
+    console.log('[getVisitsPage] Success:', { itemCount: result.items.length, page, hasMore: result.hasMore })
+    return result
+  } catch (error) {
+    console.error('[getVisitsPage] Error:', {
+      error: String(error),
+      message: (error as any)?.message,
+    })
+    throw error
+  }
 }
 
 export async function getVisitById(
