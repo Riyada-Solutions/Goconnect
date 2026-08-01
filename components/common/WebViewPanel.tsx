@@ -20,6 +20,7 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
   const [error, setError] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [tokenReady, setTokenReady] = useState(false)
+  const [callbacksFired, setCallbacksFired] = useState<string[]>([])
 
   useEffect(() => {
     console.log('🎬 WebViewPanel received URL:', url);
@@ -31,16 +32,17 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
     })
   }, [url])
 
-  // Timeout if loading takes too long (15 seconds)
+  // Timeout if loading takes too long (8 seconds) — force error display
   useEffect(() => {
     if (!loading || error) return
     const timeout = setTimeout(() => {
+      console.log('[WebView] Timeout after 8s, no callbacks fired:', callbacksFired)
       setLoading(false)
       setError(true)
-      log('WebViewPanel.timeout', `URL did not load in 15s: ${url}`)
-    }, 15000)
+      log('WebViewPanel.timeout', `URL did not load in 8s: ${url}`)
+    }, 8000)
     return () => clearTimeout(timeout)
-  }, [loading, error, url])
+  }, [loading, error, url, callbacksFired])
 
   const showWebView = tokenReady && !error
   const showLoading = (loading || !tokenReady) && !error
@@ -72,33 +74,46 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           domStorageEnabled={true}
           mixedContentMode="always"
           startInLoadingState={true}
+          useWebKit={true}
+          allowsBackForwardNavigationGestures={true}
+          decelerationRate="normal"
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
           renderLoading={() => (
             <View style={[styles.centerState, { backgroundColor: colors.background }]}>
               <ActivityIndicator size="large" color={colors.text} />
+              <Text style={[{ fontSize: 12, color: colors.textTertiary, marginTop: 12 }]}>
+                Loading WebView...
+              </Text>
             </View>
           )}
           onLoadStart={() => {
             console.log('[WebView] onLoadStart:', url)
+            setCallbacksFired(p => [...p, 'onLoadStart'])
             setLoading(true)
             log('WebView.onLoadStart', `url=${url}`)
           }}
           onLoadEnd={() => {
             console.log('[WebView] onLoadEnd:', url)
+            setCallbacksFired(p => [...p, 'onLoadEnd'])
             setLoading(false)
             log('WebView.onLoadEnd', `url=${url}`)
           }}
           onError={(syntheticEvent) => {
             console.error('[WebView] onError:', syntheticEvent.nativeEvent)
+            setCallbacksFired(p => [...p, 'onError'])
             setLoading(false)
             setError(true)
             log('WebView.onError', `url=${url}, error=${syntheticEvent.nativeEvent.description}`)
           }}
           onHttpError={(syntheticEvent) => {
             console.error('[WebView] onHttpError:', syntheticEvent.nativeEvent)
+            setCallbacksFired(p => [...p, `onHttpError(${syntheticEvent.nativeEvent.statusCode})`])
             log('WebView.onHttpError', `url=${url}, statusCode=${syntheticEvent.nativeEvent.statusCode}`)
           }}
           onLoadingStart={() => {
             console.log('[WebView] onLoadingStart:', url)
+            setCallbacksFired(p => [...p, 'onLoadingStart'])
             log('WebView.onLoadingStart', `url=${url}`)
           }}
           onMessage={(event) => {
@@ -107,13 +122,16 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
         />
       )}
       {error && (
-        <View style={[styles.centerState, { backgroundColor: colors.background }]}>
+        <View style={[styles.centerState, { backgroundColor: colors.background, padding: 20 }]}>
           <Feather name="alert-triangle" size={28} color={colors.textSecondary} />
           <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            Failed to load: {url || 'No URL'}
+            Failed to load WebView
           </Text>
-          <Text style={[{ fontSize: 12, color: colors.textTertiary, marginTop: 8 }]}>
-            Check network connection and domain settings
+          <Text style={[{ fontSize: 11, color: colors.textTertiary, marginTop: 12, fontFamily: 'monospace', textAlign: 'center' }]}>
+            {`Callbacks fired: ${callbacksFired.join(', ') || 'NONE'}\n\nToken: ${token ? '✓ Ready' : '✗ Missing'}\n\nURL:\n${url}`}
+          </Text>
+          <Text style={[{ fontSize: 12, color: colors.textTertiary, marginTop: 16 }]}>
+            Check: Network • Domain • ATS Settings
           </Text>
         </View>
       )}
