@@ -598,7 +598,7 @@ function VisitDetailScreenInner() {
   if ((isLoading && !record) || refreshing) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
-        <VisitDetailTopBar topPad={topPad} colors={colors} />
+        <VisitDetailTopBar topPad={topPad} colors={colors} onRefresh={refetch} isRefreshing={refreshing} />
         <VisitDetailSkeleton colors={colors} />
       </View>
     );
@@ -606,7 +606,7 @@ function VisitDetailScreenInner() {
   if (isError && !record) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
-        <VisitDetailTopBar topPad={topPad} colors={colors} />
+        <VisitDetailTopBar topPad={topPad} colors={colors} onRefresh={refetch} isRefreshing={refreshing} />
         <VisitDetailError colors={colors} message={errorMessage} onRetry={refetch} />
       </View>
     );
@@ -614,7 +614,7 @@ function VisitDetailScreenInner() {
   if (!record) {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
-        <VisitDetailTopBar topPad={topPad} colors={colors} />
+        <VisitDetailTopBar topPad={topPad} colors={colors} onRefresh={refetch} isRefreshing={refreshing} />
         <VisitDetailEmpty colors={colors} onRetry={refetch} />
       </View>
     );

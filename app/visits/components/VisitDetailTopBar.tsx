@@ -10,9 +10,11 @@ interface Props {
   topPad: number;
   colors: any;
   title?: string;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
-export function VisitDetailTopBar({ topPad, colors, title = "Visit Details" }: Props) {
+export function VisitDetailTopBar({ topPad, colors, title = "Visit Details", onRefresh, isRefreshing }: Props) {
   return (
     <View
       style={[
@@ -32,7 +34,25 @@ export function VisitDetailTopBar({ topPad, colors, title = "Visit Details" }: P
       <Text style={[s.topTitle, { color: colors.text }]} numberOfLines={1}>
         {title}
       </Text>
-      <View style={s.topActions} />
+      <View style={s.topActions}>
+        {onRefresh && (
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              onRefresh();
+            }}
+            style={s.iconBtn}
+            disabled={isRefreshing}
+          >
+            <Feather
+              name="rotate-cw"
+              size={22}
+              color={isRefreshing ? colors.textTertiary : colors.text}
+              style={isRefreshing ? { opacity: 0.6 } : {}}
+            />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
