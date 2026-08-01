@@ -88,9 +88,16 @@ export function VisitInfoCard(p: Props) {
                 {p.procedureEndTimeStr !== "--:-- --" ? ` – ${p.procedureEndTimeStr}` : ""}
               </Text>
               {procedureEditable && p.procedureElapsed > 0 && (
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#22C55E" }}>
-                  {formatElapsed(p.procedureElapsed)}
-                </Text>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync()
+                    p.onToggleProcedureEdit()
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#0EA5E9", textDecorationLine: "underline" }}>
+                    {formatElapsed(p.procedureElapsed)}
+                  </Text>
+                </Pressable>
               )}
               {showProcedureEditIcon && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
             </Pressable>
@@ -138,9 +145,11 @@ export function VisitInfoCard(p: Props) {
             <Feather name="clock" size={16} color={Colors.primary} />
             <Text style={[s.visitInfoValue, { color: colors.text }]}>{t("procedureTime")}: {p.procedureStartTimeStr}</Text>
             {p.procedureElapsed > 0 && (
-              <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#22C55E" }}>
-                {formatElapsed(p.procedureElapsed)}
-              </Text>
+              <Pressable onPress={() => Haptics.selectionAsync()}>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#0EA5E9", textDecorationLine: "underline" }}>
+                  {formatElapsed(p.procedureElapsed)}
+                </Text>
+              </Pressable>
             )}
             <Pressable onPress={p.onToggleProcedureEdit} style={{ marginLeft: "auto" }}>
               <Feather name="edit-2" size={14} color={Colors.primary} />
