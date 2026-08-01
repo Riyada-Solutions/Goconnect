@@ -104,19 +104,33 @@ export function VisitInfoCard(p: Props) {
           </View>
           <View style={s.visitInfoCell}>
             <Text style={[s.formLabel, { color: colors.text }]}>{t("visitTimeLabel")}</Text>
-            <View
+            <Pressable
               style={[
                 s.formInput,
                 { backgroundColor: colors.borderLight, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 4 },
               ]}
+              onPress={() => {
+                if (visitPhase !== "completed") {
+                  Haptics.selectionAsync()
+                  p.onToggleProcedureEdit()
+                }
+              }}
             >
               <Text style={{ color: colors.text }}>{p.visitTime || "—"}</Text>
               {p.visitElapsed > 0 && (
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#DC2626" }}>
-                  {formatElapsed(p.visitElapsed)}
-                </Text>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation()
+                    Haptics.selectionAsync()
+                    p.onToggleProcedureEdit()
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#0EA5E9", textDecorationLine: "underline" }}>
+                    {formatElapsed(p.visitElapsed)}
+                  </Text>
+                </Pressable>
               )}
-            </View>
+            </Pressable>
           </View>
           <View style={s.visitInfoCell}>
             <Text style={[s.formLabel, { color: colors.text }]}>{t("status")}</Text>
