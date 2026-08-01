@@ -29,6 +29,7 @@ LogBox.ignoreLogs([
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { SplashView } from "@/components/common/SplashView";
 import { AppProvider } from "@/context/AppContext";
+import { RefreshProvider } from "@/context/RefreshContext";
 
 // ─── Suppress fontfaceobserver "timeout exceeded" errors on web ───────────────
 if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -217,11 +218,13 @@ export default function RootLayout() {
           }}
         >
           <AppProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
+            <RefreshProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </RefreshProvider>
           </AppProvider>
         </PersistQueryClientProvider>
       </ErrorBoundary>

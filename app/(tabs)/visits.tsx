@@ -1,7 +1,8 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import NetInfo from '@react-native-community/netinfo'
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Pressable,
   ScrollView,
@@ -22,6 +23,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListSkeleton, VisitCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { useTabRefresh } from "@/context/RefreshContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useVisits } from "@/hooks/useVisits";
@@ -43,6 +45,8 @@ export default function VisitsScreen() {
   const { t, user } = useApp();
   const isGuest = !user || user.role === "guest";
   const { colors } = useTheme();
+  const { onTabRefresh } = useTabRefresh();
+
   const FILTER_LABELS: Record<VisitFilter, string> = {
     all: t("all"),
     in_progress: t("visitFilterInProgress"),
@@ -82,6 +86,18 @@ export default function VisitsScreen() {
 
   // If we have data, never show error even if isError is true (fallback/cache recovery)
   const shouldShowError = isError && !filtered.length;
+
+  // Tap-to-refresh: refresh when visits tab is tapped
+  useEffect(() => {
+    const unsubscribe = onTabRefresh(async () => {
+      const state = await NetInfo.fetch()
+      const isOnline = !!state.isConnected && state.isInternetReachable !== false
+      if (isOnline) {
+        refetch()
+      }
+    })
+    return unsubscribe
+  }, [onTabRefresh, refetch])
 
   React.useEffect(() => {
     console.log('[VisitsScreen] State:', {

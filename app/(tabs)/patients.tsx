@@ -1,5 +1,6 @@
 import * as Haptics from "expo-haptics";
-import React, { useMemo, useState } from "react";
+import NetInfo from '@react-native-community/netinfo'
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -17,6 +18,7 @@ import { SearchBar } from "@/components/common/SearchBar";
 import { ListSkeleton, PatientCardSkeleton } from "@/components/skeletons";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { useTabRefresh } from "@/context/RefreshContext";
 import { GuestWall } from "@/components/ui/GuestWall";
 import { useDebounce } from "@/hooks/useDebounce";
 import { usePatients } from "@/hooks/usePatients";
@@ -32,6 +34,7 @@ export default function PatientsScreen() {
   const { t, user } = useApp();
   const isGuest = !user || user.role === "guest";
   const { colors } = useTheme();
+  const { onTabRefresh } = useTabRefresh();
   const { topPad, botPad, horizontal, listGap } = useScreenPadding({ hasTabBar: true });
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
@@ -70,6 +73,18 @@ export default function PatientsScreen() {
 
   // If we have data, never show error even if isError is true (fallback/cache recovery)
   const shouldShowError = isError && !filtered.length;
+
+  // Tap-to-refresh: refresh when patients tab is tapped
+  useEffect(() => {
+    const unsubscribe = onTabRefresh(async () => {
+      const state = await NetInfo.fetch()
+      const isOnline = !!state.isConnected && state.isInternetReachable !== false
+      if (isOnline) {
+        refetch()
+      }
+    })
+    return unsubscribe
+  }, [onTabRefresh, refetch])
 
   React.useEffect(() => {
     console.log('[PatientsScreen] State:', {

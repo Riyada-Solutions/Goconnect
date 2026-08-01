@@ -1,12 +1,13 @@
 import { BlurView } from "expo-blur";
-import { Tabs } from "expo-router";
+import { Tabs, useNavigation } from "expo-router";
 import { MaterialCommunityIcons, Feather } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
+import { useTabRefresh } from "@/context/RefreshContext";
 
 export default function TabLayout() {
   const { isDark } = useApp();
@@ -14,6 +15,16 @@ export default function TabLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const dark = isDark;
+  const navigation = useNavigation();
+  const { triggerRefresh } = useTabRefresh();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress', (e) => {
+      // Trigger refresh when tab is pressed
+      triggerRefresh(e.target?.split('-')[0] || '')
+    })
+    return unsubscribe
+  }, [navigation, triggerRefresh])
 
   return (
     <Tabs
