@@ -19,4 +19,15 @@
 -keep class com.reactnativecommunity.webview.RCTWebViewManager { *; }
 -keep class com.reactnativecommunity.webview.RCTWebViewManager$* { *; }
 
+# Keep Android WebView classes
+-keep class android.webkit.** { *; }
+-keepclassmembers class android.webkit.** { *; }
+
+# Keep JavaScript bridge methods
+-keepclassmembers class * {
+    public *;
+}
+-keep public class * extends android.webkit.WebViewClient { *; }
+-keep public class * extends android.webkit.WebChromeClient { *; }
+
 # Add any project specific keep options here:

@@ -67,24 +67,42 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           }}
           style={[styles.webview, { backgroundColor: colors.background }]}
           containerStyle={{ backgroundColor: colors.background }}
+          scalesPageToFit={true}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          mixedContentMode="always"
+          startInLoadingState={true}
+          renderLoading={() => (
+            <View style={[styles.centerState, { backgroundColor: colors.background }]}>
+              <ActivityIndicator size="large" color={colors.text} />
+            </View>
+          )}
           onLoadStart={() => {
+            console.log('[WebView] onLoadStart:', url)
             setLoading(true)
             log('WebView.onLoadStart', `url=${url}`)
           }}
           onLoadEnd={() => {
+            console.log('[WebView] onLoadEnd:', url)
             setLoading(false)
             log('WebView.onLoadEnd', `url=${url}`)
           }}
           onError={(syntheticEvent) => {
+            console.error('[WebView] onError:', syntheticEvent.nativeEvent)
             setLoading(false)
             setError(true)
             log('WebView.onError', `url=${url}, error=${syntheticEvent.nativeEvent.description}`)
           }}
           onHttpError={(syntheticEvent) => {
+            console.error('[WebView] onHttpError:', syntheticEvent.nativeEvent)
             log('WebView.onHttpError', `url=${url}, statusCode=${syntheticEvent.nativeEvent.statusCode}`)
           }}
           onLoadingStart={() => {
+            console.log('[WebView] onLoadingStart:', url)
             log('WebView.onLoadingStart', `url=${url}`)
+          }}
+          onMessage={(event) => {
+            console.log('[WebView] onMessage:', event.nativeEvent.data)
           }}
         />
       )}
