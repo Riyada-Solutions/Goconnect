@@ -12,10 +12,18 @@ import { log } from '@/utils/logger'
  */
 export async function buildAutoLoginUrl(to: string): Promise<string> {
   const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY)
-  const params = new URLSearchParams({ token: token ?? '', to })
-
   const domain = getWebBaseUrl()
-  const webBaseUrl =  `${domain}/auto-login?${params.toString()}`
+
+  console.log('buildAutoLoginUrl:', { domain, to, hasToken: !!token })
+
+  if (!domain) {
+    console.error('❌ buildAutoLoginUrl: NO DOMAIN SET! Using empty domain')
+  }
+
+  const params = new URLSearchParams({ token: token ?? '', to })
+  const webBaseUrl = `${domain}/auto-login?${params.toString()}`
+
+  console.log('✅ Built URL:', webBaseUrl)
   log('buildAutoLoginUrl', `domain=${domain}, to=${to}, hasToken=${!!token}`)
   return webBaseUrl;
 }

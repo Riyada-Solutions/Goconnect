@@ -25,14 +25,17 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
   const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
-    console.log('🎬 WebViewPanel received URL:', url);
+    console.log('🎬 WebViewPanel received URL:', url, 'URL empty?', !url);
+    if (!url) {
+      console.warn('⚠️ WebViewPanel: URL is empty!')
+    }
     let isMounted = true
 
     AsyncStorage.getItem(ACCESS_TOKEN_KEY).then((value) => {
       if (!isMounted) return
       setToken(value)
       setTokenReady(true)
-      console.log('✅ WebViewPanel token ready:', { hasToken: !!value, url });
+      console.log('✅ WebViewPanel token ready:', { hasToken: !!value, url, tokenValue: value ? `${value.substring(0, 20)}...` : 'none' });
       log('WebViewPanel.token', `hasToken=${!!value}, url=${url}`)
     }).catch((err) => {
       if (!isMounted) return
