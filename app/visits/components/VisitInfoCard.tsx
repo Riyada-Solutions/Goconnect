@@ -114,7 +114,7 @@ export function VisitInfoCard(p: Props) {
             <Pressable
               style={[
                 s.formInput,
-                { backgroundColor: colors.borderLight, borderColor: colors.border, flexDirection: "row", alignItems: "center", gap: 4 },
+                { backgroundColor: colors.borderLight, borderColor: colors.border, flexDirection: "column", gap: 6 },
               ]}
               onPress={() => {
                 if (visitPhase !== "completed") {
@@ -127,24 +127,26 @@ export function VisitInfoCard(p: Props) {
                 {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" ? p.visitStartTimeStr : (p.visitTime || "—")}
                 {p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" ? ` – ${p.visitEndTimeStr}` : ""}
               </Text>
-              {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" && p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" && (
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
-                  ({calculateDuration(p.visitStartTimeStr, p.visitEndTimeStr)})
-                </Text>
-              )}
-              {p.visitElapsed > 0 && (
-                <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation()
-                    Haptics.selectionAsync()
-                    p.onToggleProcedureEdit()
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#0EA5E9", textDecorationLine: "underline" }}>
-                    {formatElapsed(p.visitElapsed)}
+              <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+                {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" && p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" && (
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
+                    ({calculateDuration(p.visitStartTimeStr, p.visitEndTimeStr)})
                   </Text>
-                </Pressable>
-              )}
+                )}
+                {p.visitElapsed > 0 && (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation()
+                      Haptics.selectionAsync()
+                      p.onToggleProcedureEdit()
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#0EA5E9", textDecorationLine: "underline" }}>
+                      {formatElapsed(p.visitElapsed)}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             </Pressable>
           </View>
           <View style={s.visitInfoCell}>
