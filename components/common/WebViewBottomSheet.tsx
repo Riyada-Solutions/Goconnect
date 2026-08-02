@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react'
-import { StyleSheet, View, Text, useWindowDimensions, Alert } from 'react-native'
+import React from 'react'
+import { StyleSheet, View, Text, useWindowDimensions } from 'react-native'
 
 import { BottomSheet } from '@/components/common/BottomSheet'
 import { WebViewPanel } from '@/components/common/WebViewPanel'
@@ -17,40 +17,8 @@ interface WebViewBottomSheetProps {
 export function WebViewBottomSheet({ visible, onClose, url, title }: WebViewBottomSheetProps) {
   const { height } = useWindowDimensions()
 
-  const handleCopyUrl = useCallback(async () => {
-    if (!url) return
-    try {
-      // Try to use native clipboard
-      const { NativeModules } = require('react-native')
-
-      // For iOS/Android, try to copy to clipboard
-      if (NativeModules.RNClipboard) {
-        await NativeModules.RNClipboard.setString(url)
-        Alert.alert('✅ URL Copied', 'The URL has been copied to your clipboard')
-        return
-      }
-
-      // Fallback: show alert that user can select and copy
-      Alert.alert(
-        'Copy URL',
-        url,
-        [
-          { text: 'Done', style: 'cancel' },
-        ]
-      )
-    } catch (error) {
-      Alert.alert(
-        'Copy URL',
-        url,
-        [
-          { text: 'Done', style: 'cancel' },
-        ]
-      )
-    }
-  }, [url])
-
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={title} maxHeightRatio={0.92} onCopyUrl={url ? handleCopyUrl : undefined}>
+    <BottomSheet visible={visible} onClose={onClose} title={title} maxHeightRatio={0.92}>
       <View style={[styles.body, { height: height * 0.8 }]}>
         {url ? (
           <WebViewPanel url={url} />

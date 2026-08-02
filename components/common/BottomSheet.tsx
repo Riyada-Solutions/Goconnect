@@ -31,8 +31,6 @@ interface BottomSheetProps {
   children: React.ReactNode;
   /** Fraction of the screen height the sheet is allowed to grow to. */
   maxHeightRatio?: number;
-  /** Optional callback to copy URL — if provided, shows a copy icon. */
-  onCopyUrl?: () => void;
 }
 
 /**
@@ -47,7 +45,6 @@ export function BottomSheet({
   subtitle,
   children,
   maxHeightRatio = 0.9,
-  onCopyUrl,
 }: BottomSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -133,15 +130,6 @@ export function BottomSheet({
                     ) : null}
                   </View>
                   <View style={styles.buttonRow}>
-                    {onCopyUrl && (
-                      <Pressable
-                        onPress={onCopyUrl}
-                        hitSlop={10}
-                        style={[styles.closeBtn, { backgroundColor: colors.borderLight }]}
-                      >
-                        <Feather name="copy" size={18} color={colors.textSecondary} />
-                      </Pressable>
-                    )}
                     <Pressable
                       onPress={onClose}
                       hitSlop={10}
