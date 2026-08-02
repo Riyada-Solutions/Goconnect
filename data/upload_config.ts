@@ -6,8 +6,11 @@ import { ENV } from '@/constants/env'
 let _domain: string = ENV.API_BASE_URL.replace(/\/+$/, '')
 const WEB_DOMAIN_CACHE_KEY = '@goconnect/web_domain'
 
+console.log('🔧 upload_config initialized:', { ENV_API_BASE_URL: ENV.API_BASE_URL, _domain })
+
 /** Returns the bare domain to use for webview / auto-login links. */
 export function getWebBaseUrl(): string {
+  console.log('getWebBaseUrl called:', { _domain })
   return _domain
 }
 
