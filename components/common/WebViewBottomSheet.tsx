@@ -17,6 +17,12 @@ interface WebViewBottomSheetProps {
 export function WebViewBottomSheet({ visible, onClose, url, title }: WebViewBottomSheetProps) {
   const { height } = useWindowDimensions()
 
+  React.useEffect(() => {
+    if (visible) {
+      console.log('📋 WebViewBottomSheet opened with url:', url)
+    }
+  }, [visible, url])
+
   const handleCopyUrl = useCallback(async () => {
     if (!url) return
     try {
