@@ -25,21 +25,15 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
   const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
-    console.log('🎬 WebViewPanel received URL:', url, 'URL empty?', !url);
-    if (!url) {
-      console.warn('⚠️ WebViewPanel: URL is empty!')
-    }
     let isMounted = true
 
     AsyncStorage.getItem(ACCESS_TOKEN_KEY).then((value) => {
       if (!isMounted) return
       setToken(value)
       setTokenReady(true)
-      console.log('✅ WebViewPanel token ready:', { hasToken: !!value, url, tokenValue: value ? `${value.substring(0, 20)}...` : 'none' });
       log('WebViewPanel.token', `hasToken=${!!value}, url=${url}`)
     }).catch((err) => {
       if (!isMounted) return
-      console.error('❌ Error fetching token:', err)
       setToken(null)
       setTokenReady(true)
     })
@@ -73,18 +67,6 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
 
   const showWebView = tokenReady && !error
   const showLoading = (loading || !tokenReady) && !error
-
-  // Log the state when WebView is about to render
-  if (showWebView) {
-    console.log('🔴 RENDER: WebView about to render with state:', {
-      url,
-      urlEmpty: !url,
-      tokenReady,
-      token: token ? `${token.substring(0, 20)}...` : null,
-      error,
-      showWebView
-    })
-  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -128,27 +110,22 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
             </View>
           )}
           onLoadStart={() => {
-            console.log('📱 [WebView] onLoadStart fired with URL:', url)
-            console.log('🔴 WebView source.uri was:', url)
             setCallbacksFired(p => [...p, 'onLoadStart'])
             setLoading(true)
             log('WebView.onLoadStart', `url=${url}`)
           }}
           onLoadEnd={() => {
-            console.log('✅ [WebView] onLoadEnd fired - page fully loaded')
             setCallbacksFired(p => [...p, 'onLoadEnd'])
             setLoading(false)
             log('WebView.onLoadEnd', `url=${url}`)
           }}
           onError={(syntheticEvent) => {
-            console.error('❌ [WebView] onError:', syntheticEvent.nativeEvent.description)
             setCallbacksFired(p => [...p, 'onError'])
             setLoading(false)
             setError(true)
             log('WebView.onError', `url=${url}, error=${syntheticEvent.nativeEvent.description}`)
           }}
           onHttpError={(syntheticEvent) => {
-            console.error('❌ [WebView] onHttpError:', syntheticEvent.nativeEvent.statusCode)
             setCallbacksFired(p => [...p, `onHttpError(${syntheticEvent.nativeEvent.statusCode})`])
             log('WebView.onHttpError', `url=${url}, statusCode=${syntheticEvent.nativeEvent.statusCode}`)
           }}
@@ -185,19 +162,11 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           onMessage={(event) => {
             try {
               const data = JSON.parse(event.nativeEvent.data)
-              console.log('[WebView] onMessage:', data)
-              if (data.type === 'content_check') {
-                console.log('[WebView] Content check:', {
-                  hasContent: data.hasContent,
-                  url: data.currentUrl,
-                  bodyChildren: data.bodyChildCount,
-                  title: data.title
-                })
-              } else if (data.type === 'error') {
-                console.error('[WebView] JavaScript error:', data.message)
+              if (data.type === 'error') {
+                log('WebView.message.error', data.message)
               }
             } catch (e) {
-              console.error('[WebView] Failed to parse message:', e)
+              log('WebView.message.parseError', String(e))
             }
           }}
         />
