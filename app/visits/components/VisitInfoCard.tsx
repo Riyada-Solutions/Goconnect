@@ -90,7 +90,7 @@ export function VisitInfoCard(p: Props) {
                 {p.procedureEndTimeStr !== "--:-- --" ? ` – ${p.procedureEndTimeStr}` : ""}
               </Text>
               {p.procedureStartTimeStr !== "--:-- --" && p.procedureEndTimeStr !== "--:-- --" && (
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.textSecondary }}>
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
                   ({calculateDuration(p.procedureStartTimeStr, p.procedureEndTimeStr)})
                 </Text>
               )}
@@ -128,7 +128,7 @@ export function VisitInfoCard(p: Props) {
                 {p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" ? ` – ${p.visitEndTimeStr}` : ""}
               </Text>
               {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" && p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" && (
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.textSecondary }}>
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
                   ({calculateDuration(p.visitStartTimeStr, p.visitEndTimeStr)})
                 </Text>
               )}
