@@ -1,11 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ENV } from '@/constants/env'
 
-const initialDomain = process.env.EXPO_PUBLIC_WEBVIEW_DOMAIN
-  ? process.env.EXPO_PUBLIC_WEBVIEW_DOMAIN.replace(/\/+$/, '')
-  : ENV.API_BASE_URL.replace(/\/api\/?$/, '')
-
-let _domain: string = initialDomain
+// Strip /api suffix from API_BASE_URL to get the base web domain
+let _domain: string = ENV.API_BASE_URL.replace(/\/api\/?$/, '')
 const WEB_DOMAIN_CACHE_KEY = '@goconnect/web_domain'
 
 /** Returns the bare domain to use for webview / auto-login links. */
