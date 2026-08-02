@@ -9,6 +9,39 @@ export function formatElapsed(ms: number): string {
   return `${mm}:${ss}`
 }
 
+/** Calculate duration between two 12-hour format time strings (e.g. "10:00 AM" to "11:30 AM"). */
+export function calculateDuration(startTime: string, endTime: string): string {
+  if (!startTime || !endTime || startTime === "--:-- --" || endTime === "--:-- --") {
+    return ""
+  }
+  try {
+    const start24 = clock12hTo24h(startTime)
+    const end24 = clock12hTo24h(endTime)
+
+    // Parse HH:mm format
+    const [startH, startM] = start24.split(":").map(Number)
+    const [endH, endM] = end24.split(":").map(Number)
+
+    let startMin = startH * 60 + startM
+    let endMin = endH * 60 + endM
+
+    // Handle case where end time is on next day (e.g., 11 PM to 1 AM)
+    if (endMin < startMin) {
+      endMin += 24 * 60
+    }
+
+    const diffMin = endMin - startMin
+    const h = Math.floor(diffMin / 60)
+    const m = diffMin % 60
+
+    if (h === 0) return `${m}m`
+    if (m === 0) return `${h}h`
+    return `${h}h ${m}m`
+  } catch {
+    return ""
+  }
+}
+
 import { DateTimeConverter } from './datetime'
 
 /**

@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { DateTimeField } from "@/components/ui/DateTimeField";
 import { useApp } from "@/context/AppContext";
 import { Colors } from "@/theme/colors";
-import { clock12hTo24h, clock24hTo12h, formatElapsed } from "@/utils/time";
+import { clock12hTo24h, clock24hTo12h, calculateDuration, formatElapsed } from "@/utils/time";
 
 import { visitDetailStyles as s } from "../visit-detail.styles";
 import { ReadOnlyField } from "./ReadOnlyField";
@@ -20,6 +20,8 @@ interface Props {
   visitId?: number | string;
   visitDate?: string;
   visitTime?: string;
+  visitStartTimeStr?: string;
+  visitEndTimeStr?: string;
   procedureTime?: string;
   patientName?: string;
   hospital?: string;
@@ -87,6 +89,11 @@ export function VisitInfoCard(p: Props) {
                 {p.procedureStartTimeStr !== "--:-- --" ? p.procedureStartTimeStr : (p.procedureTime || "—")}
                 {p.procedureEndTimeStr !== "--:-- --" ? ` – ${p.procedureEndTimeStr}` : ""}
               </Text>
+              {p.procedureStartTimeStr !== "--:-- --" && p.procedureEndTimeStr !== "--:-- --" && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.textSecondary }}>
+                  ({calculateDuration(p.procedureStartTimeStr, p.procedureEndTimeStr)})
+                </Text>
+              )}
               {procedureEditable && p.procedureElapsed > 0 && (
                 <Pressable
                   onPress={() => {
@@ -116,7 +123,15 @@ export function VisitInfoCard(p: Props) {
                 }
               }}
             >
-              <Text style={{ color: colors.text }}>{p.visitTime || "—"}</Text>
+              <Text style={{ color: colors.text }}>
+                {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" ? p.visitStartTimeStr : (p.visitTime || "—")}
+                {p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" ? ` – ${p.visitEndTimeStr}` : ""}
+              </Text>
+              {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" && p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.textSecondary }}>
+                  ({calculateDuration(p.visitStartTimeStr, p.visitEndTimeStr)})
+                </Text>
+              )}
               {p.visitElapsed > 0 && (
                 <Pressable
                   onPress={(e) => {

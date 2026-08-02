@@ -631,6 +631,9 @@ function VisitDetailScreenInner() {
     ((record as any).startTime
       ? DateTimeConverter.time((record as any).startTime)
       : (record as any).visitTime) as string | undefined;
+  // Visit start and end times for duration calculation
+  const visitStartTimeStr = (record as any).startTime ? DateTimeConverter.time((record as any).startTime) : undefined;
+  const visitEndTimeStr = (record as any).endTime ? DateTimeConverter.time((record as any).endTime) : undefined;
   // Hospital and insurance live on the embedded patient record.
   const hospital = (patientRecord?.hospital ?? (record as any).hospital) as string | undefined;
   const insurance = (patientRecord?.insuranceCompany ?? (record as any).insurance) as string | undefined;
@@ -724,6 +727,8 @@ function VisitDetailScreenInner() {
           visitId={(record as any)?.id ?? numId}
           visitDate={visitDate || (record as any).date}
           visitTime={visitTime || (record as any).time}
+          visitStartTimeStr={visitStartTimeStr}
+          visitEndTimeStr={visitEndTimeStr}
           procedureTime={procedureTime}
           patientName={patientName}
           hospital={hospital}
