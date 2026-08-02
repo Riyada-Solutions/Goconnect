@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ENV } from '@/constants/env'
 
-// Strip /api suffix from API_BASE_URL to get the base web domain
-let _domain: string = ENV.API_BASE_URL.replace(/\/api\/?$/, '')
+// API_BASE_URL is the bare domain (e.g. "https://nurse-app.careconnectksa.com")
+// This is used as-is for webview links; API calls append /api when creating axios instances
+let _domain: string = ENV.API_BASE_URL.replace(/\/+$/, '')
 const WEB_DOMAIN_CACHE_KEY = '@goconnect/web_domain'
 
 /** Returns the bare domain to use for webview / auto-login links. */
