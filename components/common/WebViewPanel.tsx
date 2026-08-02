@@ -116,26 +116,26 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
             </View>
           )}
           onLoadStart={() => {
-            console.log('[WebView] onLoadStart:', url)
+            console.log('📱 [WebView] onLoadStart fired:', url)
             setCallbacksFired(p => [...p, 'onLoadStart'])
             setLoading(true)
             log('WebView.onLoadStart', `url=${url}`)
           }}
           onLoadEnd={() => {
-            console.log('[WebView] onLoadEnd:', url)
+            console.log('✅ [WebView] onLoadEnd fired - page fully loaded')
             setCallbacksFired(p => [...p, 'onLoadEnd'])
             setLoading(false)
             log('WebView.onLoadEnd', `url=${url}`)
           }}
           onError={(syntheticEvent) => {
-            console.error('[WebView] onError:', syntheticEvent.nativeEvent)
+            console.error('❌ [WebView] onError:', syntheticEvent.nativeEvent.description)
             setCallbacksFired(p => [...p, 'onError'])
             setLoading(false)
             setError(true)
             log('WebView.onError', `url=${url}, error=${syntheticEvent.nativeEvent.description}`)
           }}
           onHttpError={(syntheticEvent) => {
-            console.error('[WebView] onHttpError:', syntheticEvent.nativeEvent)
+            console.error('❌ [WebView] onHttpError:', syntheticEvent.nativeEvent.statusCode)
             setCallbacksFired(p => [...p, `onHttpError(${syntheticEvent.nativeEvent.statusCode})`])
             log('WebView.onHttpError', `url=${url}, statusCode=${syntheticEvent.nativeEvent.statusCode}`)
           }}
