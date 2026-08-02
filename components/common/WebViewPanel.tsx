@@ -79,6 +79,9 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           decelerationRate="normal"
           scrollEnabled={true}
           nestedScrollEnabled={true}
+          hardwareAccelerationDisabled={false}
+          originWhitelist={['*']}
+          webviewDebuggingEnabled={false}
           renderLoading={() => (
             <View style={[styles.centerState, { backgroundColor: colors.background }]}>
               <ActivityIndicator size="large" color={colors.text} />
