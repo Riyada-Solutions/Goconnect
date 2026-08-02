@@ -66,6 +66,15 @@
           <key>NSTemporaryExceptionMinimumTLSVersion</key>
           <string>TLSv1.2</string>
         </dict>
+        <key>careconnectksa.com</key>
+        <dict>
+          <key>NSIncludesSubdomains</key>
+          <true/>
+          <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+          <false/>
+          <key>NSTemporaryExceptionMinimumTLSVersion</key>
+          <string>TLSv1.2</string>
+        </dict>
       </dict>
     </dict>
     <key>NSCameraUsageDescription</key>

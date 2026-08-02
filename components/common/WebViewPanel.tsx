@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import React, { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { WebView } from 'react-native-webview'
 
 import { ACCESS_TOKEN_KEY } from '@/data/auth_repository'
@@ -16,20 +16,34 @@ interface WebViewPanelProps {
 /** Reusable widget that renders a URL in an embedded webview, with loading/error states. */
 export function WebViewPanel({ url }: WebViewPanelProps) {
   const { colors } = useTheme()
+  const webViewRef = useRef<WebView>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [tokenReady, setTokenReady] = useState(false)
   const [callbacksFired, setCallbacksFired] = useState<string[]>([])
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     console.log('🎬 WebViewPanel received URL:', url);
+    let isMounted = true
+
     AsyncStorage.getItem(ACCESS_TOKEN_KEY).then((value) => {
+      if (!isMounted) return
       setToken(value)
       setTokenReady(true)
       console.log('✅ WebViewPanel token ready:', { hasToken: !!value, url });
       log('WebViewPanel.token', `hasToken=${!!value}, url=${url}`)
+    }).catch((err) => {
+      if (!isMounted) return
+      console.error('❌ Error fetching token:', err)
+      setToken(null)
+      setTokenReady(true)
     })
+
+    return () => {
+      isMounted = false
+    }
   }, [url])
 
   // Timeout if loading takes too long (8 seconds) — force error display
@@ -43,6 +57,16 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
     }, 8000)
     return () => clearTimeout(timeout)
   }, [loading, error, url, callbacksFired])
+
+  const handleRetry = () => {
+    setError(false)
+    setLoading(true)
+    setCallbacksFired([])
+    setRetryCount(r => r + 1)
+    if (webViewRef.current) {
+      webViewRef.current.reload()
+    }
+  }
 
   const showWebView = tokenReady && !error
   const showLoading = (loading || !tokenReady) && !error
@@ -59,6 +83,7 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
       )}
       {showWebView && (
         <WebView
+          ref={webViewRef}
           source={{
             uri: url,
             // The webview is embedded in-app, so (unlike an external browser
@@ -74,14 +99,11 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           domStorageEnabled={true}
           mixedContentMode="always"
           startInLoadingState={true}
-          useWebKit={true}
           allowsBackForwardNavigationGestures={true}
           decelerationRate="normal"
           scrollEnabled={true}
           nestedScrollEnabled={true}
-          hardwareAccelerationDisabled={false}
           originWhitelist={['*']}
-          webviewDebuggingEnabled={false}
           renderLoading={() => (
             <View style={[styles.centerState, { backgroundColor: colors.background }]}>
               <ActivityIndicator size="large" color={colors.text} />
@@ -114,13 +136,34 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
             setCallbacksFired(p => [...p, `onHttpError(${syntheticEvent.nativeEvent.statusCode})`])
             log('WebView.onHttpError', `url=${url}, statusCode=${syntheticEvent.nativeEvent.statusCode}`)
           }}
-          onLoadingStart={() => {
-            console.log('[WebView] onLoadingStart:', url)
-            setCallbacksFired(p => [...p, 'onLoadingStart'])
-            log('WebView.onLoadingStart', `url=${url}`)
-          }}
+          injectedJavaScript={`
+            (function() {
+              try {
+                document.body.style.backgroundColor = 'white';
+                document.documentElement.style.backgroundColor = 'white';
+                if (document.body.children.length === 0) {
+                  document.body.innerHTML = '<div style="padding: 20px; color: red;">No content loaded</div>';
+                }
+                window.ReactNativeWebView?.postMessage(JSON.stringify({
+                  type: 'content_check',
+                  hasContent: document.body.innerText.length > 0,
+                  bodyHTML: document.body.innerHTML.substring(0, 100)
+                }));
+              } catch (e) {
+                window.ReactNativeWebView?.postMessage(JSON.stringify({
+                  type: 'error',
+                  message: e.toString()
+                }));
+              }
+            })();
+            true;
+          `}
           onMessage={(event) => {
-            console.log('[WebView] onMessage:', event.nativeEvent.data)
+            const data = JSON.parse(event.nativeEvent.data)
+            console.log('[WebView] onMessage:', data)
+            if (data.type === 'error') {
+              console.error('[WebView] JavaScript error:', data.message)
+            }
           }}
         />
       )}
@@ -136,6 +179,15 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
           <Text style={[{ fontSize: 12, color: colors.textTertiary, marginTop: 16 }]}>
             Check: Network • Domain • ATS Settings
           </Text>
+          <Pressable
+            style={[styles.retryBtn, { marginTop: 20, backgroundColor: colors.info ?? '#3B82F6' }]}
+            onPress={handleRetry}
+          >
+            <Feather name="refresh-cw" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 14, marginLeft: 6 }}>
+              Retry
+            </Text>
+          </Pressable>
         </View>
       )}
       {showLoading && (
@@ -158,4 +210,5 @@ const styles = StyleSheet.create({
   webview: { flex: 1 },
   centerState: { alignItems: 'center', justifyContent: 'center', gap: 8 },
   errorText: { fontSize: 14, fontFamily: 'Inter_400Regular' },
+  retryBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6 },
 })
