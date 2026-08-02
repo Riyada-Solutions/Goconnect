@@ -141,13 +141,21 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
               try {
                 document.body.style.backgroundColor = 'white';
                 document.documentElement.style.backgroundColor = 'white';
-                if (document.body.children.length === 0) {
-                  document.body.innerHTML = '<div style="padding: 20px; color: red;">No content loaded</div>';
+
+                const hasContent = document.body.innerText.length > 0;
+                const currentUrl = window.location.href;
+                const bodyChildCount = document.body.children.length;
+
+                if (!hasContent) {
+                  document.body.innerHTML = '<div style="padding: 20px; color: red; font-size: 14px; font-family: monospace;">No content loaded\\n\\nURL: ' + currentUrl + '\\nBody children: ' + bodyChildCount + '</div>';
                 }
+
                 window.ReactNativeWebView?.postMessage(JSON.stringify({
                   type: 'content_check',
-                  hasContent: document.body.innerText.length > 0,
-                  bodyHTML: document.body.innerHTML.substring(0, 100)
+                  hasContent: hasContent,
+                  currentUrl: currentUrl,
+                  bodyChildCount: bodyChildCount,
+                  title: document.title
                 }));
               } catch (e) {
                 window.ReactNativeWebView?.postMessage(JSON.stringify({
@@ -159,10 +167,21 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
             true;
           `}
           onMessage={(event) => {
-            const data = JSON.parse(event.nativeEvent.data)
-            console.log('[WebView] onMessage:', data)
-            if (data.type === 'error') {
-              console.error('[WebView] JavaScript error:', data.message)
+            try {
+              const data = JSON.parse(event.nativeEvent.data)
+              console.log('[WebView] onMessage:', data)
+              if (data.type === 'content_check') {
+                console.log('[WebView] Content check:', {
+                  hasContent: data.hasContent,
+                  url: data.currentUrl,
+                  bodyChildren: data.bodyChildCount,
+                  title: data.title
+                })
+              } else if (data.type === 'error') {
+                console.error('[WebView] JavaScript error:', data.message)
+              }
+            } catch (e) {
+              console.error('[WebView] Failed to parse message:', e)
             }
           }}
         />
