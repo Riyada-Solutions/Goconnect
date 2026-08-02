@@ -74,6 +74,18 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
   const showWebView = tokenReady && !error
   const showLoading = (loading || !tokenReady) && !error
 
+  // Log the state when WebView is about to render
+  if (showWebView) {
+    console.log('🔴 RENDER: WebView about to render with state:', {
+      url,
+      urlEmpty: !url,
+      tokenReady,
+      token: token ? `${token.substring(0, 20)}...` : null,
+      error,
+      showWebView
+    })
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Debug: Show URL on screen if empty */}
@@ -116,7 +128,8 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
             </View>
           )}
           onLoadStart={() => {
-            console.log('📱 [WebView] onLoadStart fired:', url)
+            console.log('📱 [WebView] onLoadStart fired with URL:', url)
+            console.log('🔴 WebView source.uri was:', url)
             setCallbacksFired(p => [...p, 'onLoadStart'])
             setLoading(true)
             log('WebView.onLoadStart', `url=${url}`)
