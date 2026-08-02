@@ -34,8 +34,7 @@ export function calculateDuration(startTime: string, endTime: string): string {
     const h = Math.floor(diffMin / 60)
     const m = diffMin % 60
 
-    if (h === 0) return `${m}m`
-    if (m === 0) return `${h}h`
+    // Always show both h and m for consistency
     return `${h}h ${m}m`
   } catch {
     return ""
