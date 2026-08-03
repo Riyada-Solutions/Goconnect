@@ -3,6 +3,7 @@ import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
+import messaging from '@react-native-firebase/messaging'
 
 export const FCM_TOKEN_STORAGE_KEY = '@goconnect/fcm_token'
 
@@ -66,33 +67,54 @@ function handleNotificationResponse(response: Notifications.NotificationResponse
 
 /**
  * Register notification listeners for handling received and tapped notifications.
+ * Uses Firebase Messaging for foreground messages + Expo Notifications for response.
  * Call this once from the root layout after configureNotificationHandler().
  * Returns a cleanup function to unsubscribe.
  */
 export function registerNotificationListeners(): () => void {
-  // Handle notifications received while app is in foreground
-  const foregroundSubscription = Notifications.addNotificationReceivedListener(
-    handleNotificationReceived
-  )
+  const unsubscribers: Array<() => void> = []
 
-  // Handle user tapping on notification
+  // Firebase Messaging: Handle foreground messages (iOS & Android)
+  const firebaseUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+    console.log('📲 Foreground notification received:', {
+      title: remoteMessage.notification?.title,
+      body: remoteMessage.notification?.body,
+      data: remoteMessage.data,
+    })
+
+    // Show notification to user even in foreground
+    if (remoteMessage.notification) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: remoteMessage.notification.title || '',
+          body: remoteMessage.notification.body || '',
+          data: remoteMessage.data || {},
+        },
+        trigger: null,
+      })
+    }
+  })
+  unsubscribers.push(() => firebaseUnsubscribe())
+
+  // Expo Notifications: Handle user tapping on notification
   const responseSubscription = Notifications.addNotificationResponseReceivedListener(
     handleNotificationResponse
   )
+  unsubscribers.push(() => responseSubscription.remove())
 
-  console.log('✅ Notification listeners registered')
+  console.log('✅ Firebase Messaging + Expo Notifications listeners registered')
 
   // Return cleanup function
   return () => {
-    foregroundSubscription.remove()
-    responseSubscription.remove()
+    unsubscribers.forEach(unsub => unsub())
   }
 }
 
 /**
- * Request permission and fetch the native device push token (FCM on Android,
- * APNs on iOS). Saves the token to AsyncStorage so subsequent calls can read
- * it without re-requesting permission.
+ * Request permission and fetch the Firebase Cloud Messaging token.
+ * On iOS: Returns FCM token (via Firebase Messaging)
+ * On Android: Returns FCM token (via Firebase Messaging)
+ * Saves token to AsyncStorage for later use.
  *
  * Returns the token string on success, null if permission is denied or the
  * device is a simulator.
@@ -102,6 +124,7 @@ export async function requestAndSavePushToken(): Promise<string | null> {
   if (!Device.isDevice) return null // simulators can't receive push notifications
 
   try {
+    // Request notification permission
     const { status: current } = await Notifications.getPermissionsAsync()
     let finalStatus = current
 
@@ -110,16 +133,19 @@ export async function requestAndSavePushToken(): Promise<string | null> {
       finalStatus = status
     }
 
-    if (finalStatus !== 'granted') return null
+    if (finalStatus !== 'granted') {
+      console.warn('⚠️ Notification permission denied')
+      return null
+    }
 
-    // getDevicePushTokenAsync returns the raw FCM token on Android and the
-    // APNs device token on iOS — exactly what the backend expects.
-    const result = await Notifications.getDevicePushTokenAsync()
-    const token = result.data as string
+    // Get Firebase Messaging token (works on both iOS and Android)
+    const fcmToken = await messaging().getToken()
+    console.log('🔥 Firebase FCM Token:', fcmToken)
 
-    await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
-    return token
-  } catch {
+    await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, fcmToken)
+    return fcmToken
+  } catch (error) {
+    console.error('❌ Error getting FCM token:', error)
     return null
   }
 }
