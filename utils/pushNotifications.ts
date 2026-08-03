@@ -3,9 +3,18 @@ import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 import { router } from 'expo-router'
-import messaging from '@react-native-firebase/messaging'
 
 export const FCM_TOKEN_STORAGE_KEY = '@goconnect/fcm_token'
+
+// Lazy load Firebase Messaging - only available after native build
+let messaging: any = null
+try {
+  if (Platform.OS !== 'web') {
+    messaging = require('@react-native-firebase/messaging').default
+  }
+} catch (error) {
+  console.warn('⚠️ Firebase Messaging not available in this environment')
+}
 
 export type NotificationPayload = {
   visitId?: string | number
@@ -74,35 +83,45 @@ function handleNotificationResponse(response: Notifications.NotificationResponse
 export function registerNotificationListeners(): () => void {
   const unsubscribers: Array<() => void> = []
 
-  // Firebase Messaging: Handle foreground messages (iOS & Android)
-  const firebaseUnsubscribe = messaging().onMessage(async (remoteMessage) => {
-    console.log('📲 Foreground notification received:', {
-      title: remoteMessage.notification?.title,
-      body: remoteMessage.notification?.body,
-      data: remoteMessage.data,
-    })
+  // Firebase Messaging: Handle foreground messages (if available)
+  if (messaging) {
+    try {
+      const firebaseUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+        console.log('📲 Foreground notification received via Firebase:', {
+          title: remoteMessage.notification?.title,
+          body: remoteMessage.notification?.body,
+          data: remoteMessage.data,
+        })
 
-    // Show notification to user even in foreground
-    if (remoteMessage.notification) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: remoteMessage.notification.title || '',
-          body: remoteMessage.notification.body || '',
-          data: remoteMessage.data || {},
-        },
-        trigger: null,
+        // Show notification to user even in foreground
+        if (remoteMessage.notification) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: remoteMessage.notification.title || '',
+              body: remoteMessage.notification.body || '',
+              data: remoteMessage.data || {},
+            },
+            trigger: null,
+          })
+        }
       })
+      unsubscribers.push(() => firebaseUnsubscribe())
+      console.log('✅ Firebase Messaging listener registered')
+    } catch (error) {
+      console.warn('⚠️ Failed to register Firebase Messaging listener:', error)
     }
-  })
-  unsubscribers.push(() => firebaseUnsubscribe())
+  }
 
   // Expo Notifications: Handle user tapping on notification
-  const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-    handleNotificationResponse
-  )
-  unsubscribers.push(() => responseSubscription.remove())
-
-  console.log('✅ Firebase Messaging + Expo Notifications listeners registered')
+  try {
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse
+    )
+    unsubscribers.push(() => responseSubscription.remove())
+    console.log('✅ Expo Notifications response listener registered')
+  } catch (error) {
+    console.warn('⚠️ Failed to register Expo Notifications listener:', error)
+  }
 
   // Return cleanup function
   return () => {
@@ -138,14 +157,32 @@ export async function requestAndSavePushToken(): Promise<string | null> {
       return null
     }
 
-    // Get Firebase Messaging token (works on both iOS and Android)
-    const fcmToken = await messaging().getToken()
-    console.log('🔥 Firebase FCM Token:', fcmToken)
+    // Try Firebase Messaging first (native), fall back to Expo if not available
+    let token: string | null = null
 
-    await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, fcmToken)
-    return fcmToken
+    if (messaging) {
+      try {
+        token = await messaging().getToken()
+        console.log('🔥 Firebase FCM Token:', token)
+      } catch (fbError) {
+        console.warn('⚠️ Firebase Messaging unavailable, using Expo token:', fbError)
+        const result = await Notifications.getDevicePushTokenAsync()
+        token = result.data as string
+        console.log('📱 Expo Push Token:', token)
+      }
+    } else {
+      // Firebase not available, use Expo token
+      const result = await Notifications.getDevicePushTokenAsync()
+      token = result.data as string
+      console.log('📱 Expo Push Token:', token)
+    }
+
+    if (token) {
+      await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
+    }
+    return token
   } catch (error) {
-    console.error('❌ Error getting FCM token:', error)
+    console.error('❌ Error getting push token:', error)
     return null
   }
 }
