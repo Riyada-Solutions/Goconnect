@@ -13,7 +13,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { initDb } from "@/data/db";
-import { configureNotificationHandler } from "@/utils/pushNotifications";
+import { configureNotificationHandler, registerNotificationListeners } from "@/utils/pushNotifications";
 import { NetworkProvider } from "@/context/NetworkContext";
 import { flushQueue, registerVisitInvalidator } from "@/services/SyncService";
 import { registerBackgroundSync } from "@/services/BackgroundSyncTask";
@@ -187,6 +187,7 @@ export default function RootLayout() {
     }, 3000);
 
     configureNotificationHandler();
+    const unsubscribeNotifications = registerNotificationListeners();
     initDb();
     void registerBackgroundSync();
 
@@ -201,6 +202,7 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      unsubscribeNotifications?.();
     };
   }, []);
 
