@@ -11,23 +11,4 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# react-native-webview — required for WebView to work in release builds
--keep class com.reactnativecommunity.webview.** { *; }
--keepclassmembers class com.reactnativecommunity.webview.** { *; }
-
-# Keep RCTWebViewManager and related classes
--keep class com.reactnativecommunity.webview.RCTWebViewManager { *; }
--keep class com.reactnativecommunity.webview.RCTWebViewManager$* { *; }
-
-# Keep Android WebView classes
--keep class android.webkit.** { *; }
--keepclassmembers class android.webkit.** { *; }
-
-# Keep JavaScript bridge methods
--keepclassmembers class * {
-    public *;
-}
--keep public class * extends android.webkit.WebViewClient { *; }
--keep public class * extends android.webkit.WebChromeClient { *; }
-
 # Add any project specific keep options here:

@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-		<string>$(MARKETING_VERSION)</string>
+    <string>1.0.8</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -33,7 +33,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>7</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -46,36 +46,6 @@
       <false/>
       <key>NSAllowsLocalNetworking</key>
       <true/>
-      <key>NSExceptionDomains</key>
-      <dict>
-        <key>staging.careconnectksa.com</key>
-        <dict>
-          <key>NSIncludesSubdomains</key>
-          <true/>
-          <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
-          <false/>
-          <key>NSTemporaryExceptionMinimumTLSVersion</key>
-          <string>TLSv1.2</string>
-        </dict>
-        <key>nurse-app.careconnectksa.com</key>
-        <dict>
-          <key>NSIncludesSubdomains</key>
-          <true/>
-          <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
-          <false/>
-          <key>NSTemporaryExceptionMinimumTLSVersion</key>
-          <string>TLSv1.2</string>
-        </dict>
-        <key>careconnectksa.com</key>
-        <dict>
-          <key>NSIncludesSubdomains</key>
-          <true/>
-          <key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
-          <false/>
-          <key>NSTemporaryExceptionMinimumTLSVersion</key>
-          <string>TLSv1.2</string>
-        </dict>
-      </dict>
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>Goconnect needs camera access to capture patient documents.</string>
@@ -88,7 +58,7 @@
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Goconnect needs your location to verify visit check-in.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>Goconnect needs microphone access to record patient videos.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Goconnect needs photo library access to upload patient documents.</string>
     <key>NSUserActivityTypes</key>
