@@ -17,6 +17,8 @@ import type {
   FlowSheetMobileVitals as FlowSheetFormVitals,
   FlowSheetNursingAction,
   FlowSheetPainDetails,
+  FlowSheetVascularAccessPre,
+  FlowSheetVascularAccessPost,
 } from "@/data/models/flowSheet";
 import type { RuleAction } from "@/data/models/rules";
 import type { FlowSheetDialysisMedication } from "@/data/models/flowSheet";
@@ -29,6 +31,8 @@ import {
   submitFlowSheetOutsideDialysis,
   submitFlowSheetPain,
   submitFlowSheetPostTreatment,
+  submitFlowSheetVascularAccessPost,
+  submitFlowSheetVascularAccessPre,
   submitFlowSheetVitals,
 } from "@/data/visit_repository";
 import { OfflineQueuedError } from "@/data/offline_api";
@@ -66,6 +70,8 @@ import { NursingActionForm } from "../forms/NursingActionForm";
 import { OutsideDialysisForm } from "../forms/OutsideDialysisForm";
 import { PainForm } from "../forms/PainForm";
 import { PostTreatmentForm } from "../forms/PostTreatmentForm";
+import { VascularAccessPostForm } from "../forms/VascularAccessPostForm";
+import { VascularAccessPreForm } from "../forms/VascularAccessPreForm";
 import { VitalsForm } from "../forms/VitalsForm";
 
 const EMPTY_VITALS: FlowSheetFormVitals = {
@@ -86,6 +92,16 @@ const EMPTY_DIALYSIS: FlowSheetDialysisParam = {
 };
 const EMPTY_CAR: FlowSheetCar = { ffPercent: "", dialyzer: "", temp: "" };
 const EMPTY_DIALYSATE: FlowSheetDialysate = { na: "", hco3: "", k: "", glucose: "" };
+const EMPTY_VASCULAR_PRE: FlowSheetVascularAccessPre = {
+  accessType: "", accessSite: "", accessPatency: "", bruit: "", catheterCondition: "",
+  exitSiteAppearance: "", dressingStatus: "", infectionSigns: "", painScore: "",
+  edema: "", hematoma: "", cannulationSite: "", bloodFlowBeforeStart: "", readyForDialysis: "",
+};
+const EMPTY_VASCULAR_POST: FlowSheetVascularAccessPost = {
+  hemostasisTime: "", bleedingAfterNeedleRemoval: "", thrillAfter: "", bruitAfter: "",
+  catheterLocked: "", lockingSolution: "", dressingApplied: "", exitSiteAfter: "",
+  painAfter: "", complications: "", accessStatusDischarge: "", nurseComments: "", physicianNotification: "",
+};
 const EMPTY_POST: FlowSheetFormPostTx = {
   bpSystolic: "", bpDiastolic: "", bpSite: "", pulse: "", temp: "", tempMethod: "",
   spo2: "", rr: "", rbs: "", weight: "",
@@ -99,6 +115,7 @@ const ALL_SECTIONS_OPEN: Record<string, boolean> = {
   outside: false, vitals: false, machines: false, pain: false, fall: false,
   nursing: false, dialysis: false, alarms: false, intake: false, car: false,
   access: false, dialysate: false, anticoag: false, meds: false, post: false,
+  vascularPre: false, vascularPost: false,
 };
 
 export interface FlowSheetFormData {
@@ -339,6 +356,12 @@ export function FlowSheetForm(props: Props) {
     }
   }
   const [postTx, setPostTx] = useState<FlowSheetFormPostTx>(initPostTx);
+  const [vascularAccessPre, setVascularAccessPre] = useState<FlowSheetVascularAccessPre>(
+    init?.vascularAccessPre ?? EMPTY_VASCULAR_PRE,
+  );
+  const [vascularAccessPost, setVascularAccessPost] = useState<FlowSheetVascularAccessPost>(
+    init?.vascularAccessPost ?? EMPTY_VASCULAR_POST,
+  );
   // Note: response now returns `url` (CDN/S3 link), not inline base64. We feed
   // the URL into the local SignatureValue via the same `dataUrl` field â€” the
   // SignaturePad WebView can render an http(s) URL identically.
@@ -416,6 +439,8 @@ export function FlowSheetForm(props: Props) {
       dialyzerSurfaceArea: init.dialyzerSurfaceArea ?? "",
     });
     setPostTx(initPostTx());
+    setVascularAccessPre(init.vascularAccessPre ?? EMPTY_VASCULAR_PRE);
+    setVascularAccessPost(init.vascularAccessPost ?? EMPTY_VASCULAR_POST);
   }, [init]);
 
   const updateVital = useCallback(
@@ -527,6 +552,15 @@ export function FlowSheetForm(props: Props) {
   const postTotal = postValues.length;
   const postDone = postFilled > 0;
 
+  // Vascular Access Assessment — pre / post treatment
+  const vascularPreFilled = countFilled(Object.values(vascularAccessPre));
+  const vascularPreTotal = Object.keys(vascularAccessPre).length;
+  const vascularPreDone = vascularPreFilled > 0;
+
+  const vascularPostFilled = countFilled(Object.values(vascularAccessPost));
+  const vascularPostTotal = Object.keys(vascularAccessPost).length;
+  const vascularPostDone = vascularPostFilled > 0;
+
   const { colors, isReadOnly, visitId } = props;
 
   return (
@@ -559,6 +593,17 @@ export function FlowSheetForm(props: Props) {
                 label="Save Vitals"
                 save={() => submitFlowSheetVitals(visitId, { vitals, bpSite, method })}
                 onClear={() => { setVitals(EMPTY_VITALS); setBpSite(""); setMethod(""); }}
+              />
+            )}
+          </Acc>
+
+          <Acc title="Pre-Treatment Vascular Access Assessment" color="#0D9488" done={vascularPreDone} isOpen={!!sections.vascularPre} onToggle={() => toggle("vascularPre")} colors={colors} isReadOnly={isReadOnly} filled={vascularPreFilled} total={vascularPreTotal}>
+            <VascularAccessPreForm value={vascularAccessPre} onChange={setVascularAccessPre} disabled={isReadOnly} />
+            {!isReadOnly && (
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_vascular_access_pre"
+                label="Save Vascular Access"
+                save={() => submitFlowSheetVascularAccessPre(visitId, { vascularAccessPre })}
+                onClear={() => setVascularAccessPre(EMPTY_VASCULAR_PRE)}
               />
             )}
           </Acc>
@@ -714,6 +759,17 @@ export function FlowSheetForm(props: Props) {
                   setPatientSignature({ signed: false });
                   setNurseSignature({ signed: false });
                 }}
+              />
+            )}
+          </Acc>
+
+          <Acc title="Post-Treatment Vascular Access Assessment" color="#0D9488" done={vascularPostDone} isOpen={!!sections.vascularPost} onToggle={() => toggle("vascularPost")} colors={colors} isReadOnly={isReadOnly} filled={vascularPostFilled} total={vascularPostTotal}>
+            <VascularAccessPostForm value={vascularAccessPost} onChange={setVascularAccessPost} colors={colors} disabled={isReadOnly} />
+            {!isReadOnly && (
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_vascular_access_post"
+                label="Save Vascular Access"
+                save={() => submitFlowSheetVascularAccessPost(visitId, { vascularAccessPost })}
+                onClear={() => setVascularAccessPost(EMPTY_VASCULAR_POST)}
               />
             )}
           </Acc>

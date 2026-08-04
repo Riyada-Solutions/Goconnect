@@ -318,6 +318,55 @@ export interface FlowSheetDialysateSectionInput {
 }
 
 /**
+ * Pre-treatment vascular access assessment. Saved to its own `vascular_access_pre`
+ * flow-sheet section — separate from the Alarms Test / Access radio — but returned
+ * from the same `GET /visits/{id}` payload as every other section.
+ */
+export interface FlowSheetVascularAccessPre {
+  accessType: string
+  accessSite: string
+  accessPatency: string
+  bruit: string
+  catheterCondition: string
+  exitSiteAppearance: string
+  dressingStatus: string
+  infectionSigns: string
+  painScore: string
+  edema: string
+  hematoma: string
+  cannulationSite: string
+  bloodFlowBeforeStart: string
+  readyForDialysis: string
+}
+
+/** Post-treatment vascular access assessment — saved to `vascular_access_post`. */
+export interface FlowSheetVascularAccessPost {
+  hemostasisTime: string
+  bleedingAfterNeedleRemoval: string
+  thrillAfter: string
+  bruitAfter: string
+  catheterLocked: string
+  lockingSolution: string
+  dressingApplied: string
+  exitSiteAfter: string
+  painAfter: string
+  complications: string
+  accessStatusDischarge: string
+  nurseComments: string
+  physicianNotification: string
+}
+
+export interface FlowSheetVascularAccessPreInput {
+  vascularAccessPre: FlowSheetVascularAccessPre
+  signature?: SavedSignature
+}
+
+export interface FlowSheetVascularAccessPostInput {
+  vascularAccessPost: FlowSheetVascularAccessPost
+  signature?: SavedSignature
+}
+
+/**
  * Combined "Alarms Test" form. The paper form bundles the alarms toggle,
  * intake/output, CAR, access and dialysate — all of which the backend stores
  * under the single `alarms_test` record — so they save together in one request.
@@ -471,6 +520,10 @@ export interface FlowSheet {
    *  `administration_type` — pre/during/post dialysis). */
   dialysisMedications?: FlowSheetDialysisMedication[]
   postAssessment?: FlowSheetPostAssessment
+  /** Pre-treatment vascular access assessment — from `vascular_access_pre`. */
+  vascularAccessPre?: FlowSheetVascularAccessPre
+  /** Post-treatment vascular access assessment — from `vascular_access_post`. */
+  vascularAccessPost?: FlowSheetVascularAccessPost
   patientSignature?: StoredSignature
   nurseSignature?: StoredSignature
   submittedAt?: string // ISO 8601

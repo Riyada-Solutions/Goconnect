@@ -27,7 +27,10 @@
         "NSLocationWhenInUseUsageDescription": "Goconnect needs your location to verify visit check-in.",
         "NSFaceIDUsageDescription": "Goconnect uses Face ID to sign you in securely.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -90,7 +93,9 @@
         }
       ],
       "expo-background-fetch",
-      "expo-task-manager"
+      "expo-task-manager",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ],
     "experiments": {
       "typedRoutes": true,

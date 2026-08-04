@@ -63,6 +63,8 @@ export type RuleAction =
   | 'submit_flow_sheet_anticoagulation'
   | 'submit_flow_sheet_medications'
   | 'submit_flow_sheet_post_treatment'
+  | 'submit_flow_sheet_vascular_access_pre'
+  | 'submit_flow_sheet_vascular_access_post'
   | 'view_nursing_progress_note'
   | 'submit_nursing_progress_note'
   | 'view_doctor_progress_note'
@@ -143,6 +145,8 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
   'submit_flow_sheet_anticoagulation',
   'submit_flow_sheet_medications',
   'submit_flow_sheet_post_treatment',
+  'submit_flow_sheet_vascular_access_pre',
+  'submit_flow_sheet_vascular_access_post',
   'view_nursing_progress_note',
   'submit_nursing_progress_note',
   'view_doctor_progress_note',
@@ -655,6 +659,8 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   submit_flow_sheet_anticoagulation:     BackendRule.Patient.FlowsheetEdit,
   submit_flow_sheet_medications:         [BackendRule.Patient.FlowsheetEdit, BackendRule.Patient.MedicationsEdit],
   submit_flow_sheet_post_treatment:      BackendRule.Patient.FlowsheetEdit,
+  submit_flow_sheet_vascular_access_pre: [BackendRule.Patient.FlowsheetEdit, BackendRule.Patient.VascularAccessAssessmentEdit],
+  submit_flow_sheet_vascular_access_post:[BackendRule.Patient.FlowsheetEdit, BackendRule.Patient.VascularAccessAssessmentEdit],
 
   // ── Progress notes / referrals / screenings ───────────────────────
   // Each note accepts EITHER its dedicated visit note rule (the ones the
