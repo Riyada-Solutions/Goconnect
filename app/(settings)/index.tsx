@@ -312,6 +312,16 @@ export default function ProfileMainScreen() {
               isDark={isDark}
               border={border}
               text={textColor}
+            />
+            <MenuItem
+              icon="settings"
+              label="Developer Tools"
+              iconColor="#FF6B35"
+              iconBg="#FFE5D9"
+              onPress={() => router.push("/(settings)/dev")}
+              isDark={isDark}
+              border={border}
+              text={textColor}
               isLast
             />
           </View>

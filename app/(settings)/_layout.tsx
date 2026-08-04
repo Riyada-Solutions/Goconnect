@@ -14,6 +14,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="about" />
       <Stack.Screen name="terms" />
       <Stack.Screen name="privacy" />
+      <Stack.Screen name="dev" />
     </Stack>
   );
 }
