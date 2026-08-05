@@ -1,8 +1,8 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import NetInfo from '@react-native-community/netinfo'
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Pressable,
   ScrollView,
@@ -98,6 +98,20 @@ export default function VisitsScreen() {
     })
     return unsubscribe
   }, [onTabRefresh, refetch])
+
+  // Refresh data when screen comes into focus (e.g., returning from visit detail)
+  useFocusEffect(
+    useCallback(() => {
+      const refreshOnFocus = async () => {
+        const state = await NetInfo.fetch()
+        const isOnline = !!state.isConnected && state.isInternetReachable !== false
+        if (isOnline) {
+          refetch()
+        }
+      }
+      refreshOnFocus()
+    }, [refetch])
+  )
 
   React.useEffect(() => {
     console.log('[VisitsScreen] State:', {

@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import { OfflineQueuedError } from "@/data/offline_api";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View } from "react-native";
@@ -95,6 +95,17 @@ function VisitDetailScreenInner() {
   const visitQuery = useVisit(!isSlot ? numId : 0);
   const activeQuery = isSlot ? slotQuery : visitQuery;
   const record = activeQuery.data;
+
+  // Refresh visit data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSlot) {
+        visitQuery.refetch();
+      } else {
+        slotQuery.refetch();
+      }
+    }, [isSlot, visitQuery, slotQuery])
+  );
 
   // Stable refusal prefill — parsed once per unique raw payload so that
   // user edits in RefusalForm aren't clobbered on every re-render by the
@@ -379,6 +390,7 @@ function VisitDetailScreenInner() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setVisitPhase("end_procedure");
+    setShowProcedureEdit(true);
     setProcedureEndTimeStr(DateTimeConverter.time(new Date()));
     setEditProcEnd(DateTimeConverter.time(new Date()));
     endVisitMutation.mutate();
@@ -796,19 +808,19 @@ function VisitDetailScreenInner() {
         </Animated.View>
 
         {/* ─── Medications (webview) ──────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(218).springify()} style={s.section}>
+        {/* <Animated.View entering={FadeInDown.delay(218).springify()} style={s.section}>
           <MedicationsForm visitId={numId} colors={colors} />
-        </Animated.View>
+        </Animated.View> */}
 
         {/* ─── Dialysis Order (webview) ───────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
+        {/* <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
           <DialysisOrderForm visitId={numId} colors={colors} />
-        </Animated.View>
+        </Animated.View> */}
 
         {/* ─── MAR (webview) ──────────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(221).springify()} style={s.section}>
+        {/* <Animated.View entering={FadeInDown.delay(221).springify()} style={s.section}>
           <MARForm visitId={numId} colors={colors} />
-        </Animated.View>
+        </Animated.View> */}
 
         {/* ─── Progress Note (Doctor / Nursing / Social Worker) ───────────── */}
         <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>
