@@ -11,7 +11,7 @@ import { Feather } from '@expo/vector-icons'
 export default function DevScreen() {
   const { t } = useApp()
   const { colors } = useTheme()
-  const { devOfflineMode, setDevOfflineMode, isOnline } = useNetwork()
+  const { devOfflineMode, setDevOfflineMode, isOnline, pendingCount } = useNetwork()
   const [firebaseToken, setFirebaseToken] = useState<string | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -83,19 +83,34 @@ export default function DevScreen() {
       <View style={{ gap: 20 }}>
         <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Developer Tools</Text>
 
+        {/* Offline Mode Status */}
+        <View style={{ backgroundColor: devOfflineMode ? '#fee2e2' : '#f0fdf4', borderRadius: 8, padding: 16, gap: 12, borderLeftWidth: 4, borderLeftColor: devOfflineMode ? '#dc2626' : '#16a34a' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name={devOfflineMode ? 'wifi-off' : 'wifi'} size={20} color={devOfflineMode ? '#dc2626' : '#16a34a'} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: devOfflineMode ? '#991b1b' : '#166534' }}>
+                {devOfflineMode ? 'OFFLINE MODE' : 'ONLINE MODE'}
+              </Text>
+              <Text style={{ fontSize: 13, color: devOfflineMode ? '#7f1d1d' : '#3f6319', marginTop: 2 }}>
+                Actual network: {isOnline && !devOfflineMode ? '✓ Connected' : '✗ Disconnected'}
+              </Text>
+              {pendingCount > 0 && (
+                <Text style={{ fontSize: 12, color: '#d97706', marginTop: 4, fontWeight: '600' }}>
+                  ⏳ {pendingCount} item{pendingCount !== 1 ? 's' : ''} queued for sync
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+
         {/* Offline Mode Toggle */}
         <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 16, gap: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <Feather name={devOfflineMode ? 'wifi-off' : 'wifi'} size={18} color={colors.text} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
-                  {devOfflineMode ? 'Offline Mode (Dev)' : 'Online Mode (Dev)'}
-                </Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 2 }}>
-                  Actual network: {isOnline ? 'Online' : 'Offline'}
-                </Text>
-              </View>
+              <Feather name="settings" size={18} color={colors.text} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>
+                Dev Offline Mode
+              </Text>
             </View>
             <Switch
               value={devOfflineMode ?? false}
@@ -107,7 +122,7 @@ export default function DevScreen() {
             />
           </View>
           <Text style={{ fontSize: 11, color: colors.textTertiary, fontStyle: 'italic' }}>
-            Toggle to manually test offline mode. This overrides actual network status.
+            Toggle to simulate offline mode. Overrides actual network for testing.
           </Text>
         </View>
 
