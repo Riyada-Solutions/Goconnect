@@ -32,12 +32,12 @@ eas build --platform android --profile production
 
 # (NO EAS)----------------------------------------------------------------
 # ── Build (APK) — direct install on device, no Play Store ──
-# Output: android/app/build/outputs/apk/release/app-release.apk
+# Output: D:\work\React\waleed\careconnect\nurse\v4\Goconnect\android/app/build/outputs/apk/release/app-release.apk
 cd android
 .\gradlew assembleRelease
 
 # ── Build (AAB) — upload to Google Play Store ───────────────
-# Output: android/app/build/outputs/bundle/release/app-release.aab
+# Output: D:\work\React\waleed\careconnect\nurse\v4\Goconnect\android/app/build/outputs/bundle/release
 cd android
 .\gradlew bundleRelease
 

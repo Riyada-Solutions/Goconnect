@@ -40,6 +40,10 @@ import type {
   FlowSheetPainSectionInput,
   FlowSheetPostAssessment,
   FlowSheetPostTreatmentInput,
+  FlowSheetVascularAccessPre,
+  FlowSheetVascularAccessPreInput,
+  FlowSheetVascularAccessPost,
+  FlowSheetVascularAccessPostInput,
   FlowSheetVitalsSectionInput,
 } from './models/flowSheet'
 import type { NursingProgressNoteInput } from './models/nursingProgressNote'
@@ -242,6 +246,8 @@ const FLOW_SHEET_SECTION_KEYS = [
   'intake_output',
   'nursing_action',
   'nursing_actions',
+  'vascular_access_pre',
+  'vascular_access_post',
 ] as const
 
 /** True when any section key is present directly on the visit body. */
@@ -510,6 +516,50 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
         }
       : undefined
 
+  // ── Vascular access assessment (pre / post) ───────────────────────────────
+  // Saved separately from the flowsheet's Access radio / Post Treatment form —
+  // own section keys, but returned inline in the same visit payload.
+  const vapRaw = v.vascular_access_pre ?? {}
+  const vascularAccessPre: FlowSheetVascularAccessPre | undefined =
+    Object.keys(vapRaw).length > 0
+      ? {
+          accessType:           String(vapRaw.access_type ?? ''),
+          accessSite:           String(vapRaw.access_site ?? ''),
+          accessPatency:        String(vapRaw.access_patency ?? ''),
+          bruit:                String(vapRaw.bruit ?? ''),
+          catheterCondition:    String(vapRaw.catheter_condition ?? ''),
+          exitSiteAppearance:   String(vapRaw.exit_site_appearance ?? ''),
+          dressingStatus:       String(vapRaw.dressing_status ?? ''),
+          infectionSigns:       String(vapRaw.infection_signs ?? ''),
+          painScore:            String(vapRaw.pain_score ?? ''),
+          edema:                String(vapRaw.edema ?? ''),
+          hematoma:             String(vapRaw.hematoma ?? ''),
+          cannulationSite:      String(vapRaw.cannulation_site ?? ''),
+          bloodFlowBeforeStart: String(vapRaw.blood_flow_before_start ?? ''),
+          readyForDialysis:     String(vapRaw.ready_for_dialysis ?? ''),
+        }
+      : undefined
+
+  const vapoRaw = v.vascular_access_post ?? {}
+  const vascularAccessPost: FlowSheetVascularAccessPost | undefined =
+    Object.keys(vapoRaw).length > 0
+      ? {
+          hemostasisTime:              String(vapoRaw.hemostasis_time ?? ''),
+          bleedingAfterNeedleRemoval:  String(vapoRaw.bleeding_after_needle_removal ?? ''),
+          thrillAfter:                 String(vapoRaw.thrill_after ?? ''),
+          bruitAfter:                  String(vapoRaw.bruit_after ?? ''),
+          catheterLocked:              String(vapoRaw.catheter_locked ?? ''),
+          lockingSolution:             String(vapoRaw.locking_solution ?? ''),
+          dressingApplied:             String(vapoRaw.dressing_applied ?? ''),
+          exitSiteAfter:               String(vapoRaw.exit_site_after ?? ''),
+          painAfter:                   String(vapoRaw.pain_after ?? ''),
+          complications:               String(vapoRaw.complications ?? ''),
+          accessStatusDischarge:       String(vapoRaw.access_status_discharge ?? ''),
+          nurseComments:               String(vapoRaw.nurse_comments ?? ''),
+          physicianNotification:       String(vapoRaw.physician_notification ?? ''),
+        }
+      : undefined
+
   // ── Prescribed dialysis medications ───────────────────────────────────────
   // Accept all three shapes seen from the backend:
   //   1. `raw.medications`             – top-level camelCase list (current)
@@ -617,6 +667,8 @@ function mapFlowSheetFromApi(raw: any): FlowSheet | undefined {
     dialysisMedications,
     nursingActions,
     postAssessment,
+    vascularAccessPre,
+    vascularAccessPost,
     patientSignature,
     nurseSignature,
   }
@@ -758,6 +810,8 @@ export type FlowSheetSection =
   | 'anticoagulation'
   | 'medications'
   | 'post-treatment'
+  | 'vascular-access-pre'
+  | 'vascular-access-post'
 
 const FLOWSHEET_SECTION_KEY: Record<FlowSheetSection, string> = {
   'outside-dialysis':    'outside_dialysis',
@@ -775,6 +829,8 @@ const FLOWSHEET_SECTION_KEY: Record<FlowSheetSection, string> = {
   'anticoagulation':     'anticoagulation',
   'medications':         'dialysis_medications',
   'post-treatment':      'post_assessment',
+  'vascular-access-pre': 'vascular_access_pre',
+  'vascular-access-post':'vascular_access_post',
 }
 
 /**
@@ -968,6 +1024,55 @@ export const submitFlowSheetDialysate = (
   hco3:    body.dialysate.hco3,
   glucose: body.dialysate.glucose,
 })
+
+function serializeVascularAccessPre(v: FlowSheetVascularAccessPre) {
+  return {
+    access_type:              v.accessType,
+    access_site:              v.accessSite,
+    access_patency:           v.accessPatency,
+    bruit:                    v.bruit,
+    catheter_condition:       v.catheterCondition,
+    exit_site_appearance:     v.exitSiteAppearance,
+    dressing_status:          v.dressingStatus,
+    infection_signs:          v.infectionSigns,
+    pain_score:               v.painScore,
+    edema:                    v.edema,
+    hematoma:                 v.hematoma,
+    cannulation_site:         v.cannulationSite,
+    blood_flow_before_start:  v.bloodFlowBeforeStart,
+    ready_for_dialysis:       v.readyForDialysis,
+  }
+}
+
+function serializeVascularAccessPost(v: FlowSheetVascularAccessPost) {
+  return {
+    hemostasis_time:                v.hemostasisTime,
+    bleeding_after_needle_removal:  v.bleedingAfterNeedleRemoval,
+    thrill_after:                   v.thrillAfter,
+    bruit_after:                    v.bruitAfter,
+    catheter_locked:                v.catheterLocked,
+    locking_solution:               v.lockingSolution,
+    dressing_applied:               v.dressingApplied,
+    exit_site_after:                v.exitSiteAfter,
+    pain_after:                     v.painAfter,
+    complications:                  v.complications,
+    access_status_discharge:        v.accessStatusDischarge,
+    nurse_comments:                 v.nurseComments,
+    physician_notification:         v.physicianNotification,
+  }
+}
+
+// Separate from the flowsheet Access radio and Post Treatment form — its own
+// section key (vascular_access_pre), fetched inline from the same visit payload.
+export const submitFlowSheetVascularAccessPre = (
+  visitId: number | string,
+  body: FlowSheetVascularAccessPreInput,
+) => submitFlowSheetSection(visitId, 'vascular-access-pre', serializeVascularAccessPre(body.vascularAccessPre))
+
+export const submitFlowSheetVascularAccessPost = (
+  visitId: number | string,
+  body: FlowSheetVascularAccessPostInput,
+) => submitFlowSheetSection(visitId, 'vascular-access-post', serializeVascularAccessPost(body.vascularAccessPost))
 
 /**
  * Combined "Alarms Test" form save. The alarms toggle, intake/output, CAR,
