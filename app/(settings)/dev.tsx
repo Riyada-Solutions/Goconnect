@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator, Share, Clipboard, Switch } from 'react-native'
+import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator, Share, Clipboard, Switch, Modal } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFocusEffect } from 'expo-router'
 import { useApp } from '@/context/AppContext'
@@ -17,6 +17,7 @@ export default function DevScreen() {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([])
+  const [selectedLog, setSelectedLog] = useState<NotificationLog | null>(null)
 
   useEffect(() => {
     loadTokens()
@@ -138,9 +139,27 @@ export default function DevScreen() {
     ])
   }
 
+  const handleCopyLog = async (log: NotificationLog) => {
+    const text = formatLogAsText(log)
+    await Clipboard.setString(text)
+    Alert.alert('Success', 'Log copied to clipboard')
+  }
+
+  const formatLogAsText = (log: NotificationLog): string => {
+    const time = new Date(log.timestamp).toLocaleTimeString()
+    const type = log.type.toUpperCase()
+    const title = log.title ? `Title: ${log.title}\n` : ''
+    const body = log.body ? `Body: ${log.body}\n` : ''
+    const msg = log.message ? `Message: ${log.message}\n` : ''
+    const data = log.data ? `Data: ${JSON.stringify(log.data, null, 2)}\n` : ''
+
+    return `[${time}] ${type}\n${title}${body}${msg}${data}`
+  }
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20 }}>
-      <View style={{ gap: 20 }}>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20 }}>
+        <View style={{ gap: 20 }}>
         <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Developer Tools</Text>
 
         {/* Offline Mode Status */}
@@ -302,36 +321,52 @@ export default function DevScreen() {
               <View style={{ backgroundColor: colors.background, borderRadius: 6, padding: 10, maxHeight: 200 }}>
                 <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled>
                   {notificationLogs.map((log) => (
-                    <View key={log.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <View>
-                          <Text style={{ fontSize: 10, color: colors.textTertiary }}>
-                            {new Date(log.timestamp).toLocaleTimeString()}
-                          </Text>
-                        </View>
+                    <Pressable
+                      key={log.id}
+                      onPress={() => setSelectedLog(log)}
+                      style={({ pressed }) => [
+                        {
+                          marginBottom: 8,
+                          paddingBottom: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          borderBottomWidth: 1,
+                          borderBottomColor: colors.borderLight,
+                          borderRadius: 4,
+                          backgroundColor: pressed ? colors.borderLight : 'transparent',
+                        },
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'space-between' }}>
                         <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontWeight: '600',
-                              color:
-                                log.type === 'error'
-                                  ? '#dc2626'
-                                  : log.type === 'token'
-                                    ? '#2563eb'
-                                    : log.type === 'tapped'
-                                      ? '#059669'
-                                      : '#7c3aed',
-                            }}
-                          >
-                            [{log.type.toUpperCase()}]
-                          </Text>
-                          {log.title && <Text style={{ fontSize: 11, color: colors.text, fontWeight: '500' }}>{log.title}</Text>}
-                          {log.body && <Text style={{ fontSize: 10, color: colors.textSecondary }}>{log.body}</Text>}
-                          {log.message && <Text style={{ fontSize: 10, color: colors.textTertiary, fontStyle: 'italic' }}>{log.message}</Text>}
+                          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                              {new Date(log.timestamp).toLocaleTimeString()}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: '600',
+                                color:
+                                  log.type === 'error'
+                                    ? '#dc2626'
+                                    : log.type === 'token'
+                                      ? '#2563eb'
+                                      : log.type === 'tapped'
+                                        ? '#059669'
+                                        : '#7c3aed',
+                              }}
+                            >
+                              [{log.type.toUpperCase()}]
+                            </Text>
+                          </View>
+                          {log.title && <Text style={{ fontSize: 11, color: colors.text, fontWeight: '500', marginTop: 2 }}>{log.title}</Text>}
+                          {log.body && <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 1 }} numberOfLines={1}>{log.body}</Text>}
+                          {log.message && <Text style={{ fontSize: 10, color: colors.textTertiary, fontStyle: 'italic', marginTop: 1 }} numberOfLines={1}>{log.message}</Text>}
                         </View>
+                        <Feather name="chevron-right" size={16} color={colors.textTertiary} style={{ marginTop: 4 }} />
                       </View>
-                    </View>
+                    </Pressable>
                   ))}
                 </ScrollView>
               </View>
@@ -388,7 +423,150 @@ export default function DevScreen() {
             </>
           )}
         </View>
+        </View>
+      </ScrollView>
+
+      {/* Log Detail Modal */}
+    <Modal visible={!!selectedLog} animationType="slide" transparent={false}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* Header */}
+        <View style={{ backgroundColor: colors.surface, paddingTop: 16, paddingBottom: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Log Details</Text>
+            <Pressable onPress={() => setSelectedLog(null)} hitSlop={10}>
+              <Feather name="x" size={24} color={colors.text} />
+            </Pressable>
+          </View>
+        </View>
+
+        {selectedLog && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }}>
+            {/* Type Badge */}
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              <View
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 6,
+                  backgroundColor:
+                    selectedLog.type === 'error'
+                      ? '#fee2e2'
+                      : selectedLog.type === 'token'
+                        ? '#dbeafe'
+                        : selectedLog.type === 'tapped'
+                          ? '#dcfce7'
+                          : '#f3e8ff',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color:
+                      selectedLog.type === 'error'
+                        ? '#dc2626'
+                        : selectedLog.type === 'token'
+                          ? '#2563eb'
+                          : selectedLog.type === 'tapped'
+                            ? '#059669'
+                            : '#7c3aed',
+                  }}
+                >
+                  {selectedLog.type.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>
+                {new Date(selectedLog.timestamp).toLocaleString()}
+              </Text>
+            </View>
+
+            {/* Title */}
+            {selectedLog.title && (
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>TITLE</Text>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12 }}>
+                  <Text style={{ fontSize: 14, color: colors.text }}>{selectedLog.title}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Body */}
+            {selectedLog.body && (
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>BODY</Text>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12 }}>
+                  <Text style={{ fontSize: 14, color: colors.text }}>{selectedLog.body}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Message */}
+            {selectedLog.message && (
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>MESSAGE</Text>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12 }}>
+                  <Text style={{ fontSize: 14, color: colors.text }}>{selectedLog.message}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Data */}
+            {selectedLog.data && Object.keys(selectedLog.data).length > 0 && (
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>DATA</Text>
+                <View style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12 }}>
+                  <Text style={{ fontSize: 12, color: colors.text, fontFamily: 'monospace' }}>
+                    {JSON.stringify(selectedLog.data, null, 2)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Timestamp */}
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>TIMESTAMP</Text>
+              <View style={{ backgroundColor: colors.surface, borderRadius: 8, padding: 12 }}>
+                <Text style={{ fontSize: 12, color: colors.text, fontFamily: 'monospace' }}>
+                  {selectedLog.timestamp}
+                </Text>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={{ gap: 8, marginTop: 8 }}>
+              <Pressable
+                onPress={() => handleCopyLog(selectedLog)}
+                style={{
+                  backgroundColor: '#3B82F6',
+                  padding: 14,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <Feather name="copy" size={16} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Copy Details</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setSelectedLog(null)}
+                style={{
+                  backgroundColor: colors.borderLight,
+                  padding: 14,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14 }}>Close</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        )}
       </View>
-    </ScrollView>
+    </Modal>
+    </View>
   )
 }
