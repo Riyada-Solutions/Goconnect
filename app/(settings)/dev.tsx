@@ -361,8 +361,8 @@ export default function DevScreen() {
                             </Text>
                           </View>
                           {log.title && <Text style={{ fontSize: 11, color: colors.text, fontWeight: '500', marginTop: 2 }}>{log.title}</Text>}
-                          {log.body && <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 1 }} numberOfLines={1}>{log.body}</Text>}
-                          {log.message && <Text style={{ fontSize: 10, color: colors.textTertiary, fontStyle: 'italic', marginTop: 1 }} numberOfLines={1}>{log.message}</Text>}
+                          {log.body && <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 1 }}>{log.body}</Text>}
+                          {log.message && <Text style={{ fontSize: 10, color: colors.textTertiary, fontStyle: 'italic', marginTop: 1 }}>{log.message}</Text>}
                         </View>
                         <Feather name="chevron-right" size={16} color={colors.textTertiary} style={{ marginTop: 4 }} />
                       </View>
