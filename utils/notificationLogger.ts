@@ -15,6 +15,7 @@ export interface NotificationLog {
 
 class NotificationLogger {
   private logs: NotificationLog[] = []
+  private listeners: Array<(logs: NotificationLog[]) => void> = []
 
   async initialize() {
     try {
@@ -42,6 +43,7 @@ class NotificationLogger {
     }
 
     await this.persist()
+    this.notifyListeners()
   }
 
   private async persist() {
@@ -49,6 +51,18 @@ class NotificationLogger {
       await AsyncStorage.setItem(NOTIFICATION_LOGS_KEY, JSON.stringify(this.logs))
     } catch (error) {
       console.error('Failed to persist notification logs:', error)
+    }
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach((listener) => listener([...this.logs]))
+  }
+
+  subscribe(listener: (logs: NotificationLog[]) => void): () => void {
+    this.listeners.push(listener)
+    // Return unsubscribe function
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener)
     }
   }
 
@@ -63,6 +77,7 @@ class NotificationLogger {
     } catch (error) {
       console.error('Failed to clear notification logs:', error)
     }
+    this.notifyListeners()
   }
 
   formatLogsAsText(): string {

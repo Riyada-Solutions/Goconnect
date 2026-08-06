@@ -22,6 +22,15 @@ export default function DevScreen() {
     loadTokens()
   }, [])
 
+  useEffect(() => {
+    // Subscribe to real-time log updates
+    const unsubscribe = notificationLogger.subscribe((logs) => {
+      setNotificationLogs(logs)
+    })
+
+    return unsubscribe
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
       setNotificationLogs(notificationLogger.getLogs())
