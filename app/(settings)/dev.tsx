@@ -1,24 +1,32 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator, Share, Clipboard, Switch } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFocusEffect } from 'expo-router'
 import { useApp } from '@/context/AppContext'
 import { useTheme } from '@/hooks/useTheme'
 import { useNetwork } from '@/context/NetworkContext'
 import { FCM_TOKEN_STORAGE_KEY, refreshPushToken } from '@/utils/pushNotifications'
+import { notificationLogger, type NotificationLog } from '@/utils/notificationLogger'
 import { ACCESS_TOKEN_KEY } from '@/data/auth_repository'
 import { Feather } from '@expo/vector-icons'
 
 export default function DevScreen() {
-  const { t } = useApp()
   const { colors } = useTheme()
   const { devOfflineMode, setDevOfflineMode, isOnline, pendingCount } = useNetwork()
   const [firebaseToken, setFirebaseToken] = useState<string | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([])
 
   useEffect(() => {
     loadTokens()
   }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      setNotificationLogs(notificationLogger.getLogs())
+    }, [])
+  )
 
   const loadTokens = async () => {
     try {
@@ -76,6 +84,49 @@ export default function DevScreen() {
     } finally {
       setIsRefreshing(false)
     }
+  }
+
+  const handleCopyLogs = async () => {
+    const text = notificationLogger.formatLogsAsText()
+    if (!text) {
+      Alert.alert('No logs', 'No notification logs to copy')
+      return
+    }
+    await Clipboard.setString(text)
+    Alert.alert('Success', 'Notification logs copied to clipboard')
+  }
+
+  const handleShareLogs = async () => {
+    const text = notificationLogger.formatLogsAsText()
+    if (!text) {
+      Alert.alert('No logs', 'No notification logs to share')
+      return
+    }
+    try {
+      await Share.share({
+        message: text,
+        title: 'Notification Logs',
+      })
+    } catch (error) {
+      if (error instanceof Error && error.message !== 'User did not share') {
+        Alert.alert('Error', 'Failed to share logs')
+      }
+    }
+  }
+
+  const handleClearLogs = async () => {
+    Alert.alert('Clear logs?', 'This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: async () => {
+          await notificationLogger.clearLogs()
+          setNotificationLogs([])
+          Alert.alert('Success', 'Notification logs cleared')
+        },
+      },
+    ])
   }
 
   return (
@@ -222,6 +273,111 @@ export default function DevScreen() {
             <Feather name="share-2" size={16} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Share</Text>
           </Pressable>
+        </View>
+
+        {/* Notification Logs Section */}
+        <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 16, gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <Feather name="bell" size={18} color={colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }}>
+              Notification Logs ({notificationLogs.length})
+            </Text>
+          </View>
+
+          {notificationLogs.length === 0 ? (
+            <Text style={{ fontSize: 12, color: colors.textTertiary, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 }}>
+              No notifications logged yet
+            </Text>
+          ) : (
+            <>
+              <View style={{ backgroundColor: colors.background, borderRadius: 6, padding: 10, maxHeight: 200 }}>
+                <ScrollView showsVerticalScrollIndicator={true} nestedScrollEnabled>
+                  {notificationLogs.map((log) => (
+                    <View key={log.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View>
+                          <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                            {new Date(log.timestamp).toLocaleTimeString()}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: '600',
+                              color:
+                                log.type === 'error'
+                                  ? '#dc2626'
+                                  : log.type === 'token'
+                                    ? '#2563eb'
+                                    : log.type === 'tapped'
+                                      ? '#059669'
+                                      : '#7c3aed',
+                            }}
+                          >
+                            [{log.type.toUpperCase()}]
+                          </Text>
+                          {log.title && <Text style={{ fontSize: 11, color: colors.text, fontWeight: '500' }}>{log.title}</Text>}
+                          {log.body && <Text style={{ fontSize: 10, color: colors.textSecondary }}>{log.body}</Text>}
+                          {log.message && <Text style={{ fontSize: 10, color: colors.textTertiary, fontStyle: 'italic' }}>{log.message}</Text>}
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                <Pressable
+                  onPress={handleCopyLogs}
+                  style={{
+                    backgroundColor: '#3B82F6',
+                    padding: 12,
+                    borderRadius: 6,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Feather name="copy" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Copy Logs</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleShareLogs}
+                  style={{
+                    backgroundColor: '#10B981',
+                    padding: 12,
+                    borderRadius: 6,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Feather name="share-2" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Share Logs</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleClearLogs}
+                  style={{
+                    backgroundColor: '#EF4444',
+                    padding: 12,
+                    borderRadius: 6,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Feather name="trash-2" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Clear Logs</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </View>
       </View>
     </ScrollView>

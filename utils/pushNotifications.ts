@@ -1,112 +1,445 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { getMessaging, getToken as getFcmToken, registerDeviceForRemoteMessages } from '@react-native-firebase/messaging'
-import * as Device from 'expo-device'
-import * as Notifications from 'expo-notifications'
-import { Platform } from 'react-native'
 import { router } from 'expo-router'
+import {
+  Linking,
+  NativeModules,
+  PermissionsAndroid,
+  Platform,
+  TurboModuleRegistry,
+} from 'react-native'
+import { notificationLogger } from './notificationLogger'
 
 export const FCM_TOKEN_STORAGE_KEY = '@goconnect/fcm_token'
 
+const RNFB_APP_TURBO_MODULE = 'NativeRNFBTurboApp'
+
 export type NotificationPayload = {
-  visitId?: string | number
-  patientId?: string | number
+  id?: string | number
   type?: string
-  [key: string]: any
+  priority?: string
+  deeplink?: string | { screen?: string; params?: Record<string, unknown>; url?: string }
+  metadata?: string | Record<string, unknown>
+  visitId?: string | number
+  visit_id?: string | number
+  patientId?: string | number
+  patient_id?: string | number
+  [key: string]: unknown
+}
+
+type Deeplink = {
+  screen?: string
+  params?: Record<string, unknown>
+  url?: string
+}
+
+type RemoteMessage = {
+  messageId?: string
+  data?: Record<string, unknown>
+  notification?: { title?: string; body?: string }
+}
+
+type MessagingModule = typeof import('@react-native-firebase/messaging')
+
+let messagingModule: MessagingModule | null | undefined
+let nativeFirebaseChecked = false
+let nativeFirebaseAvailable = false
+
+/**
+ * Probe for the RN Firebase App turbo module WITHOUT requiring the JS package.
+ * Requiring `@react-native-firebase/*` when NativeRNFBTurboApp is missing throws
+ * via TurboModuleRegistry.getEnforcing and LogBox still surfaces it as ERROR.
+ */
+export function isNativeFirebaseAvailable(): boolean {
+  if (nativeFirebaseChecked) return nativeFirebaseAvailable
+  nativeFirebaseChecked = true
+
+  if (Platform.OS === 'web') {
+    nativeFirebaseAvailable = false
+    return false
+  }
+
+  try {
+    const turbo = TurboModuleRegistry.get?.(RNFB_APP_TURBO_MODULE)
+    if (turbo) {
+      nativeFirebaseAvailable = true
+      return true
+    }
+  } catch {
+    // ignore
+  }
+
+  const modules = NativeModules as Record<string, unknown>
+  nativeFirebaseAvailable = !!(
+    modules[RNFB_APP_TURBO_MODULE] ||
+    modules.RNFBAppModule ||
+    modules.RNFBMessagingModule
+  )
+
+  if (!nativeFirebaseAvailable) {
+    console.warn(
+      '⚠️ Native Firebase not linked — push disabled. Rebuild with `npx expo run:ios` / `run:android` (Expo Go is not enough).',
+    )
+  }
+
+  return nativeFirebaseAvailable
+}
+
+function normalizeMessagingModule(raw: unknown): MessagingModule | null {
+  if (!raw || typeof raw !== 'object') return null
+  const mod = raw as MessagingModule & { default?: MessagingModule }
+  if (typeof mod.getMessaging === 'function') return mod
+  if (mod.default && typeof mod.default.getMessaging === 'function') return mod.default
+  return null
 }
 
 /**
- * Call this once from the root layout useEffect to configure foreground
- * notification display. Must run after native modules are initialized.
+ * Lazy-load RN Firebase Messaging only after the native turbo module is present.
  */
-export function configureNotificationHandler(): void {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  })
-}
+function getMessagingModule(): MessagingModule | null {
+  if (messagingModule !== undefined) return messagingModule
+  if (!isNativeFirebaseAvailable()) {
+    messagingModule = null
+    return null
+  }
 
-function handleNotificationResponse(response: Notifications.NotificationResponse): void {
-  const data = response.notification.request.content.data as NotificationPayload
-  console.log('👆 Notification tapped:', {
-    title: response.notification.request.content.title,
-    body: response.notification.request.content.body,
-    data,
-  })
-
-  if (data.visitId) {
-    router.push({ pathname: '/visits/[id]', params: { id: data.visitId } })
-  } else if (data.patientId) {
-    router.push({ pathname: '/patients/[id]', params: { id: data.patientId } })
-  } else if (data.type === 'notifications') {
-    router.push('/notifications')
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const raw = require('@react-native-firebase/messaging')
+    const mod = normalizeMessagingModule(raw)
+    if (!mod) {
+      messagingModule = null
+      return null
+    }
+    mod.getMessaging()
+    messagingModule = mod
+    return messagingModule
+  } catch (error) {
+    console.warn(
+      '⚠️ Firebase Messaging unavailable:',
+      error instanceof Error ? error.message : error,
+    )
+    messagingModule = null
+    return null
   }
 }
 
-export function registerNotificationListeners(): () => void {
+function parseJsonField<T>(value: unknown): T | null {
+  if (value == null) return null
+  if (typeof value === 'object') return value as T
+  if (typeof value !== 'string') return null
   try {
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      handleNotificationResponse
-    )
-    console.log('✅ Expo Notifications listener registered')
-    return () => responseSubscription.remove()
+    return JSON.parse(value) as T
+  } catch {
+    return null
+  }
+}
+
+function asId(value: unknown): string | undefined {
+  if (value == null || value === '') return undefined
+  return String(value)
+}
+
+function extractPayload(message: RemoteMessage | null | undefined): NotificationPayload {
+  return (message?.data ?? {}) as NotificationPayload
+}
+
+function resolveDeeplink(data: NotificationPayload): Deeplink | null {
+  const parsed = parseJsonField<Deeplink>(data.deeplink)
+  if (parsed?.screen || parsed?.url) return parsed
+
+  const visitId = asId(data.visitId ?? data.visit_id)
+  if (visitId) return { screen: 'visit_detail', params: { id: visitId } }
+
+  const patientId = asId(data.patientId ?? data.patient_id)
+  if (patientId) return { screen: 'patient_detail', params: { id: patientId } }
+
+  if (data.type === 'notifications') return { screen: 'notifications' }
+
+  const metadata = parseJsonField<Record<string, unknown>>(data.metadata)
+  const metaVisitId = asId(metadata?.visit_id ?? metadata?.visitId)
+  if (metaVisitId) return { screen: 'visit_detail', params: { id: metaVisitId } }
+
+  const metaPatientId = asId(metadata?.patient_id ?? metadata?.patientId)
+  if (metaPatientId) return { screen: 'patient_detail', params: { id: metaPatientId } }
+
+  return null
+}
+
+/**
+ * Navigate from a push payload using the backend deeplink contract
+ * (see docs/Backend API - Notifications.md §5), with flat-field fallbacks.
+ */
+export function navigateFromNotificationPayload(data: NotificationPayload): void {
+  const deeplink = resolveDeeplink(data)
+
+  console.log('👆 Notification navigation:', {
+    type: data.type,
+    deeplink,
+    raw: data,
+  })
+
+  if (!deeplink) {
+    router.push('/notifications')
+    return
+  }
+
+  if (deeplink.url) {
+    void Linking.openURL(String(deeplink.url)).catch((error) => {
+      console.warn('⚠️ Failed to open notification URL:', error)
+      router.push('/notifications')
+    })
+    return
+  }
+
+  const screen = deeplink.screen
+  const params = deeplink.params ?? {}
+  const id = asId(params.id)
+  const patientId = asId(params.patient_id ?? params.patientId)
+
+  switch (screen) {
+    case 'home':
+      router.push('/(tabs)/home')
+      break
+    case 'visits_list':
+      router.push('/(tabs)/visits')
+      break
+    case 'visit_detail':
+      if (id) router.push({ pathname: '/visits/[id]', params: { id } })
+      else router.push('/(tabs)/visits')
+      break
+    case 'appointments_list':
+    case 'schedule':
+      router.push('/(tabs)/scheduler')
+      break
+    case 'appointment_detail':
+      if (id) router.push({ pathname: '/appointments/[id]', params: { id } })
+      else router.push('/(tabs)/scheduler')
+      break
+    case 'patients_list':
+      router.push('/(tabs)/patients')
+      break
+    case 'patient_detail':
+      if (id) router.push({ pathname: '/patients/[id]', params: { id } })
+      else router.push('/(tabs)/patients')
+      break
+    case 'patient_inventory':
+      if (patientId) {
+        router.push({
+          pathname: '/patients/[id]',
+          params: { id: patientId, tab: 'inventory' },
+        })
+      } else {
+        router.push('/(tabs)/patients')
+      }
+      break
+    case 'lab_results':
+      if (patientId) {
+        router.push({ pathname: '/lab-results/[patientId]', params: { patientId } })
+      } else {
+        router.push('/notifications')
+      }
+      break
+    case 'settings':
+      router.push('/(settings)')
+      break
+    case 'notifications':
+      router.push('/notifications')
+      break
+    case 'message_thread':
+      router.push('/notifications')
+      break
+    default:
+      router.push('/notifications')
+      break
+  }
+}
+
+function handleOpenedMessage(message: RemoteMessage | null | undefined): void {
+  if (!message) return
+  notificationLogger.addLog({
+    type: 'tapped',
+    title: message.notification?.title,
+    body: message.notification?.body,
+    data: message.data as Record<string, unknown>,
+  })
+  navigateFromNotificationPayload(extractPayload(message))
+}
+
+/**
+ * Must run once at app startup.
+ * No-ops when native Firebase is not linked (Expo Go / stale binary).
+ */
+export function configureNotificationHandler(): void {
+  const fb = getMessagingModule()
+  if (!fb) return
+
+  try {
+    const messaging = fb.getMessaging()
+    fb.setBackgroundMessageHandler(messaging, async (message) => {
+      console.log('📩 Background FCM message:', {
+        messageId: message.messageId,
+        data: message.data,
+        notification: message.notification,
+      })
+    })
+    console.log('✅ FCM background handler registered')
   } catch (error) {
-    console.warn('⚠️ Failed to register notifications listener:', error)
+    console.warn('⚠️ Failed to register FCM background handler:', error)
+  }
+}
+
+/**
+ * Foreground receive + background/quit tap navigation.
+ * Call once from the root layout useEffect.
+ */
+export function registerNotificationListeners(): () => void {
+  const fb = getMessagingModule()
+  if (!fb) return () => {}
+
+  try {
+    const messaging = fb.getMessaging()
+    const unsubscribers: Array<() => void> = []
+
+    unsubscribers.push(
+      fb.onMessage(messaging, async (message) => {
+        console.log('📩 Foreground FCM message:', {
+          messageId: message.messageId,
+          title: message.notification?.title,
+          body: message.notification?.body,
+          data: message.data,
+        })
+        notificationLogger.addLog({
+          type: 'received',
+          title: message.notification?.title,
+          body: message.notification?.body,
+          data: message.data as Record<string, unknown>,
+        })
+      }),
+    )
+
+    unsubscribers.push(
+      fb.onNotificationOpenedApp(messaging, (message) => {
+        console.log('👆 Opened from background notification')
+        handleOpenedMessage(message as RemoteMessage)
+      }),
+    )
+
+    unsubscribers.push(
+      fb.onTokenRefresh(messaging, async (token) => {
+        console.log('🔄 FCM token refreshed')
+        try {
+          await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
+        } catch (error) {
+          console.warn('⚠️ Failed to persist refreshed FCM token:', error)
+        }
+      }),
+    )
+
+    void fb
+      .getInitialNotification(messaging)
+      .then((message) => {
+        if (!message) return
+        console.log('👆 Opened from quit-state notification')
+        setTimeout(() => handleOpenedMessage(message as RemoteMessage), 400)
+      })
+      .catch((error) => {
+        console.warn('⚠️ getInitialNotification failed:', error)
+      })
+
+    console.log('✅ FCM notification listeners registered')
+    return () => {
+      for (const unsub of unsubscribers) unsub()
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to register FCM listeners:', error)
     return () => {}
   }
 }
 
+async function ensureAndroidPostNotificationsPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true
+  if (typeof Platform.Version === 'number' && Platform.Version < 33) return true
+
+  const result = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+  )
+  return result === PermissionsAndroid.RESULTS.GRANTED
+}
+
 /**
- * Request permission and fetch an FCM registration token (native FCM token
- * on Android; on iOS, native Firebase Messaging exchanges the APNs device
- * token for an FCM token). Saves the token to AsyncStorage so subsequent
- * calls can read it without re-requesting permission.
- *
- * Returns the token string on success, null if permission is denied or the
- * device is a simulator.
+ * Request permission and fetch a native FCM registration token.
+ * Returns null when native Firebase is unavailable or permission is denied.
  */
 export async function requestAndSavePushToken(): Promise<string | null> {
   if (Platform.OS === 'web') return null
-  if (!Device.isDevice) return null // simulators can't receive push notifications
+
+  const fb = getMessagingModule()
+  if (!fb) return null
 
   try {
-    const { status: current } = await Notifications.getPermissionsAsync()
-    let finalStatus = current
+    const messaging = fb.getMessaging()
+    const { AuthorizationStatus } = fb
 
-    if (current !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync()
-      finalStatus = status
+    const androidOk = await ensureAndroidPostNotificationsPermission()
+    if (!androidOk) {
+      console.warn('⚠️ Android POST_NOTIFICATIONS denied')
+      return null
     }
 
-    if (finalStatus !== 'granted') {
+    let status = await fb.hasPermission(messaging)
+    if (
+      status === AuthorizationStatus.DENIED ||
+      status === AuthorizationStatus.NOT_DETERMINED
+    ) {
+      status = await fb.requestPermission(messaging)
+    }
+
+    const allowed =
+      status === AuthorizationStatus.AUTHORIZED ||
+      status === AuthorizationStatus.PROVISIONAL ||
+      status === AuthorizationStatus.EPHEMERAL
+
+    if (!allowed) {
       console.warn('⚠️ Notification permission denied')
       return null
     }
 
-    let token: string
-    if (Platform.OS === 'ios') {
-      // expo-notifications' getDevicePushTokenAsync() only returns the raw
-      // APNs device token on iOS, not an FCM token — the backend expects a
-      // real FCM registration token. Native Firebase Messaging registers
-      // that APNs token with FCM and hands back the matching FCM token.
-      const messagingInstance = getMessaging()
-      await registerDeviceForRemoteMessages(messagingInstance)
-      token = await getFcmToken(messagingInstance)
-    } else {
-      // getDevicePushTokenAsync returns the raw FCM token on Android —
-      // exactly what the backend expects.
-      const result = await Notifications.getDevicePushTokenAsync()
-      token = result.data as string
-    }
+    await fb.registerDeviceForRemoteMessages(messaging)
+    const token = await fb.getToken(messaging)
 
     await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
+    console.log('✅ FCM token saved')
+    notificationLogger.addLog({
+      type: 'token',
+      message: `Token received: ${token.substring(0, 20)}...`,
+    })
     return token
   } catch (error) {
-    console.error('❌ Error getting push token:', error)
+    console.error('❌ Error getting FCM token:', error)
+    notificationLogger.addLog({
+      type: 'error',
+      message: `Failed to get token: ${error instanceof Error ? error.message : String(error)}`,
+    })
     return null
   }
+}
+
+/** Clear stored token + ask FCM for a fresh one (dev tools). */
+export async function refreshPushToken(): Promise<string | null> {
+  await AsyncStorage.removeItem(FCM_TOKEN_STORAGE_KEY)
+
+  const fb = getMessagingModule()
+  if (fb) {
+    try {
+      await fb.deleteToken(fb.getMessaging())
+      console.log('🔄 FCM token deleted, requesting new token...')
+    } catch (error) {
+      console.warn(
+        '⚠️ Could not delete FCM token before refresh:',
+        error instanceof Error ? error.message : error,
+      )
+    }
+  }
+
+  return requestAndSavePushToken()
 }

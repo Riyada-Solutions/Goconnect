@@ -14,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { initDb } from "@/data/db";
 import { configureNotificationHandler, registerNotificationListeners } from "@/utils/pushNotifications";
+import { notificationLogger } from "@/utils/notificationLogger";
 import { NetworkProvider } from "@/context/NetworkContext";
 import { flushQueue, registerVisitInvalidator } from "@/services/SyncService";
 import { registerBackgroundSync } from "@/services/BackgroundSyncTask";
@@ -188,6 +189,7 @@ export default function RootLayout() {
 
     configureNotificationHandler();
     const unsubscribeNotifications = registerNotificationListeners();
+    void notificationLogger.initialize();
     initDb();
     void registerBackgroundSync();
 
