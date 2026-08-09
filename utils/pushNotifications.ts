@@ -8,6 +8,8 @@ import {
   TurboModuleRegistry,
 } from 'react-native'
 import { notificationLogger } from './notificationLogger'
+import { playNotificationSound, type NotificationType } from './notificationSounds'
+import { notificationDisplay } from './notificationDisplay'
 
 export const FCM_TOKEN_STORAGE_KEY = '@goconnect/fcm_token'
 
@@ -147,13 +149,56 @@ function resolveDeeplink(data: NotificationPayload): Deeplink | null {
   const parsed = parseJsonField<Deeplink>(data.deeplink)
   if (parsed?.screen || parsed?.url) return parsed
 
+  const type = data.type as NotificationType | undefined
+
+  // Extract ID from various sources
+  const id = asId(data.id ?? data.visitId ?? data.visit_id)
   const visitId = asId(data.visitId ?? data.visit_id)
-  if (visitId) return { screen: 'visit_detail', params: { id: visitId } }
-
   const patientId = asId(data.patientId ?? data.patient_id)
-  if (patientId) return { screen: 'patient_detail', params: { id: patientId } }
 
-  if (data.type === 'notifications') return { screen: 'notifications' }
+  // Route based on notification type
+  switch (type) {
+    case 'appointment':
+    case 'appointment_rescheduled':
+      if (id) return { screen: 'appointment_detail', params: { id } }
+      return { screen: 'appointments_list' }
+
+    case 'lab_result':
+    case 'lab_order':
+      if (patientId) return { screen: 'lab_results', params: { patientId } }
+      return { screen: 'patients_list' }
+
+    case 'medication':
+    case 'dialysis_order':
+    case 'holiday_treatment':
+      if (patientId) return { screen: 'patient_detail', params: { id: patientId } }
+      return { screen: 'patients_list' }
+
+    case 'emergency_referral':
+    case 'incident':
+    case 'isolation':
+      if (visitId) return { screen: 'visit_detail', params: { id: visitId } }
+      return { screen: 'visits_list' }
+
+    case 'vaccine_overdue':
+    case 'vaccine_due_soon':
+      if (patientId) return { screen: 'patient_detail', params: { id: patientId, tab: 'vaccinations' } }
+      return { screen: 'patients_list' }
+
+    case 'patient_document_reminder':
+    case 'employee_document_reminder':
+      if (patientId) return { screen: 'patient_detail', params: { id: patientId, tab: 'documents' } }
+      return { screen: 'patients_list' }
+
+    case 'task':
+      // Task routing — if available
+      if (id) return { screen: 'task_detail', params: { id } }
+      return { screen: 'home' }
+  }
+
+  // Fallback logic for backward compatibility
+  if (visitId) return { screen: 'visit_detail', params: { id: visitId } }
+  if (patientId) return { screen: 'patient_detail', params: { id: patientId } }
 
   const metadata = parseJsonField<Record<string, unknown>>(data.metadata)
   const metaVisitId = asId(metadata?.visit_id ?? metadata?.visitId)
@@ -265,6 +310,30 @@ function handleOpenedMessage(message: RemoteMessage | null | undefined): void {
   navigateFromNotificationPayload(extractPayload(message))
 }
 
+async function handleForegroundMessage(message: RemoteMessage | null | undefined): Promise<void> {
+  if (!message) return
+
+  const payload = extractPayload(message)
+  const type = payload.type as NotificationType | undefined
+  const title = message.notification?.title || 'Notification'
+  const body = message.notification?.body || 'You have a new notification'
+
+  // Play notification sound
+  if (type) {
+    await playNotificationSound(type)
+  }
+
+  notificationLogger.addLog({
+    type: 'received',
+    title,
+    body,
+    data: message.data as Record<string, unknown>,
+  })
+
+  // Show visual notification banner when app is open
+  notificationDisplay.show(title, body, type, payload)
+}
+
 /**
  * Must run once at app startup.
  * No-ops when native Firebase is not linked (Expo Go / stale binary).
@@ -308,12 +377,7 @@ export function registerNotificationListeners(): () => void {
           body: message.notification?.body,
           data: message.data,
         })
-        notificationLogger.addLog({
-          type: 'received',
-          title: message.notification?.title,
-          body: message.notification?.body,
-          data: message.data as Record<string, unknown>,
-        })
+        await handleForegroundMessage(message as RemoteMessage)
       }),
     )
 

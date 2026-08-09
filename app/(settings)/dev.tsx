@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator, Share, Clipboard, Switch, Modal } from 'react-native'
+import { View, Text, Pressable, ScrollView, Alert, ActivityIndicator, Share, Clipboard, Switch, Modal, TextInput } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFocusEffect } from 'expo-router'
 import { useApp } from '@/context/AppContext'
@@ -9,6 +9,9 @@ import { FCM_TOKEN_STORAGE_KEY, refreshPushToken } from '@/utils/pushNotificatio
 import { notificationLogger, type NotificationLog } from '@/utils/notificationLogger'
 import { ACCESS_TOKEN_KEY } from '@/data/auth_repository'
 import { Feather } from '@expo/vector-icons'
+import { fetchNotificationTypes, sendTestNotification } from '@/utils/notificationAPI'
+import type { NotificationType } from '@/utils/notificationSounds'
+import { ENV } from '@/constants/env'
 
 export default function DevScreen() {
   const { colors } = useTheme()
@@ -18,6 +21,14 @@ export default function DevScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([])
   const [selectedLog, setSelectedLog] = useState<NotificationLog | null>(null)
+  const [notificationTypes, setNotificationTypes] = useState<NotificationType[]>([])
+  const [isFetchingTypes, setIsFetchingTypes] = useState(false)
+  const [selectedType, setSelectedType] = useState<NotificationType | null>(null)
+  const [testTitle, setTestTitle] = useState('Test Notification')
+  const [testBody, setTestBody] = useState('This is a test notification')
+  const [testId, setTestId] = useState('123')
+  const [isSendingTest, setIsSendingTest] = useState(false)
+  const [showTypeSelector, setShowTypeSelector] = useState(false)
 
   useEffect(() => {
     loadTokens()
@@ -139,6 +150,55 @@ export default function DevScreen() {
     ])
   }
 
+  const handleFetchNotificationTypes = async () => {
+    try {
+      setIsFetchingTypes(true)
+      const types = await fetchNotificationTypes()
+      setNotificationTypes(types)
+      if (types.length > 0 && !selectedType) {
+        setSelectedType(types[0])
+      }
+      Alert.alert('Success', `Fetched ${types.length} notification types`)
+    } catch (error) {
+      Alert.alert('Error', `Failed to fetch notification types: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsFetchingTypes(false)
+    }
+  }
+
+  const handleSendTestNotification = async () => {
+    if (!firebaseToken) {
+      Alert.alert('Error', 'Firebase token not available')
+      return
+    }
+
+    if (!selectedType) {
+      Alert.alert('Error', 'Please select a notification type')
+      return
+    }
+
+    try {
+      setIsSendingTest(true)
+      const response = await sendTestNotification({
+        token: firebaseToken,
+        title: testTitle || 'Test Notification',
+        body: testBody || 'This is a test',
+        type: selectedType,
+        id: parseInt(testId) || 123,
+      })
+
+      if (response.data.success) {
+        Alert.alert('Success', 'Test notification sent successfully')
+      } else {
+        Alert.alert('Error', `Failed to send notification: ${response.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      Alert.alert('Error', `Failed to send test notification: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSendingTest(false)
+    }
+  }
+
   const handleCopyLog = async (log: NotificationLog) => {
     const text = formatLogAsText(log)
     await Clipboard.setString(text)
@@ -158,12 +218,11 @@ export default function DevScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20 }}>
-        <View style={{ gap: 20 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, gap: 16 }}>
         <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Developer Tools</Text>
 
-        {/* Offline Mode Status */}
-        <View style={{ backgroundColor: devOfflineMode ? '#fee2e2' : '#f0fdf4', borderRadius: 8, padding: 16, gap: 12, borderLeftWidth: 4, borderLeftColor: devOfflineMode ? '#dc2626' : '#16a34a' }}>
+        {/* Offline Mode Status Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, borderLeftWidth: 4, borderLeftColor: devOfflineMode ? '#dc2626' : '#16a34a', shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Feather name={devOfflineMode ? 'wifi-off' : 'wifi'} size={20} color={devOfflineMode ? '#dc2626' : '#16a34a'} />
             <View style={{ flex: 1 }}>
@@ -182,8 +241,8 @@ export default function DevScreen() {
           </View>
         </View>
 
-        {/* Offline Mode Toggle */}
-        <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 16, gap: 12 }}>
+        {/* Offline Mode Toggle Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
               <Feather name="settings" size={18} color={colors.text} />
@@ -205,8 +264,8 @@ export default function DevScreen() {
           </Text>
         </View>
 
-        {/* Firebase Token Section */}
-        <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 16, gap: 12 }}>
+        {/* Firebase Token Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Feather name="send" size={18} color={colors.text} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }}>Firebase Token</Text>
@@ -275,8 +334,8 @@ export default function DevScreen() {
           </View>
         </View>
 
-        {/* Access Token Section */}
-        <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 16, gap: 12 }}>
+        {/* Access Token Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Feather name="key" size={18} color={colors.text} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }}>Access Token</Text>
@@ -303,8 +362,204 @@ export default function DevScreen() {
           </Pressable>
         </View>
 
-        {/* Notification Logs Section */}
-        <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 16, gap: 12 }}>
+        {/* API Domain Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name="globe" size={18} color={colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }}>API Domain</Text>
+          </View>
+          <View style={{ backgroundColor: colors.borderLight, borderRadius: 8, padding: 12 }}>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>Current Domain (WebView & Notifications):</Text>
+            <Text style={{ fontSize: 13, color: colors.text, fontFamily: 'monospace', fontWeight: '600' }}>
+              {ENV.API_BASE_URL || 'Not configured'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Send Test Notification Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name="send" size={18} color={colors.text} />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }}>Send Test Notification</Text>
+          </View>
+
+          {/* Fetch Types Button */}
+          <Pressable
+            onPress={handleFetchNotificationTypes}
+            disabled={isFetchingTypes}
+            style={{
+              backgroundColor: '#6366F1',
+              padding: 12,
+              borderRadius: 6,
+              alignItems: 'center',
+              opacity: isFetchingTypes ? 0.6 : 1,
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            {isFetchingTypes ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="list" size={16} color="#fff" />
+            )}
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+              {isFetchingTypes ? 'Fetching...' : 'Fetch Notification Types'}
+            </Text>
+          </Pressable>
+
+          {/* Type Selector */}
+          {notificationTypes.length > 0 && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>Notification Type</Text>
+              <Pressable
+                onPress={() => setShowTypeSelector(!showTypeSelector)}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.borderLight,
+                  borderRadius: 6,
+                  padding: 12,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ color: colors.text, fontWeight: '500' }}>
+                  {selectedType || 'Select a type'}
+                </Text>
+                <Feather name={showTypeSelector ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+              </Pressable>
+
+              {showTypeSelector && (
+                <View style={{ backgroundColor: colors.surface, borderRadius: 6, maxHeight: 200 }}>
+                  <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    {notificationTypes.map((type) => (
+                      <Pressable
+                        key={type}
+                        onPress={() => {
+                          setSelectedType(type)
+                          setShowTypeSelector(false)
+                        }}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: colors.borderLight,
+                          backgroundColor: selectedType === type ? colors.borderLight : 'transparent',
+                        }}
+                      >
+                        <Text style={{ color: colors.text, fontWeight: selectedType === type ? '600' : '400' }}>
+                          {type}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Title Input */}
+          {notificationTypes.length > 0 && (
+            <>
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>Title</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.borderLight,
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    color: colors.text,
+                    fontWeight: '500',
+                  }}
+                  placeholder="Test Notification"
+                  placeholderTextColor={colors.textSecondary}
+                  value={testTitle}
+                  onChangeText={setTestTitle}
+                />
+              </View>
+
+              {/* Body Input */}
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>Body</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.borderLight,
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    color: colors.text,
+                    fontWeight: '500',
+                    height: 80,
+                    textAlignVertical: 'top',
+                  }}
+                  placeholder="This is a test notification"
+                  placeholderTextColor={colors.textSecondary}
+                  value={testBody}
+                  onChangeText={setTestBody}
+                  multiline
+                />
+              </View>
+
+              {/* ID Input */}
+              <View style={{ gap: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>ID</Text>
+                <TextInput
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.borderLight,
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    color: colors.text,
+                    fontWeight: '500',
+                  }}
+                  placeholder="123"
+                  placeholderTextColor={colors.textSecondary}
+                  value={testId}
+                  onChangeText={setTestId}
+                  keyboardType="number-pad"
+                />
+              </View>
+
+              {/* Send Button */}
+              <Pressable
+                onPress={handleSendTestNotification}
+                disabled={isSendingTest || !selectedType}
+                style={{
+                  backgroundColor: '#EC4899',
+                  padding: 12,
+                  borderRadius: 6,
+                  alignItems: 'center',
+                  opacity: isSendingTest || !selectedType ? 0.6 : 1,
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginTop: 4,
+                }}
+              >
+                {isSendingTest ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="send" size={16} color="#fff" />
+                )}
+                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                  {isSendingTest ? 'Sending...' : 'Send Test Notification'}
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        {/* Notification Logs Card */}
+        <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, gap: 12, shadowColor: "rgba(0,0,0,0.06)", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 8, elevation: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Feather name="bell" size={18} color={colors.text} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }}>
@@ -422,7 +677,6 @@ export default function DevScreen() {
               </View>
             </>
           )}
-        </View>
         </View>
       </ScrollView>
 

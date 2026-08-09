@@ -626,9 +626,9 @@ export const translations = {
     socialAssessmentForm: "Social Worker Assessment",
     incidentsForm: "Incidents",
     visualTriageChecklist: "Visual Triage Checklist",
-    consentFormTitle: "Consent Form",
+    consentFormTitle: "Travel Consent Form",
     patientResponsibilityTitle: "Patient Responsibility",
-    consentForHemodialysisTitle: "Consent for Hemodialysis",
+    consentForHemodialysisTitle: "General Consent for Hemodialysis",
     patientAssessmentTitle: "Patient Assessment",
     enrollmentsChecklistTitle: "Enrollments Checklist",
 

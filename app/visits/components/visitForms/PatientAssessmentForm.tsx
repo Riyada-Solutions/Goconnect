@@ -698,7 +698,7 @@ export function PatientAssessmentForm({
         </Acc>
 
         {/* ─── Physical Assessment ─────────────────────────────────────── */}
-        <Acc title="Physical Assessment" color="#7C3AED" done={false} isOpen={!!sections.physical} onToggle={() => toggleSection("physical")} colors={colors} isReadOnly={isReadOnly} filled={physicalFilled} total={physicalTotal} style={{ marginBottom: 0 }}>
+        {/* <Acc title="Physical Assessment" color="#7C3AED" done={false} isOpen={!!sections.physical} onToggle={() => toggleSection("physical")} colors={colors} isReadOnly={isReadOnly} filled={physicalFilled} total={physicalTotal} style={{ marginBottom: 0 }}>
           <View style={{ gap: 12 }}>
             <View style={{ gap: 10 }}>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
@@ -746,7 +746,7 @@ export function PatientAssessmentForm({
               ))}
             </View>
           </View>
-        </Acc>
+        </Acc> */}
 
         {/* ─── Medical History ─────────────────────────────────────────── */}
         <Acc title="Medical History" color="#0EA5E9" done={false} isOpen={!!sections.medicalHistory} onToggle={() => toggleSection("medicalHistory")} colors={colors} isReadOnly={isReadOnly} filled={medicalHistoryFilled} total={medicalHistoryTotal} style={{ marginBottom: 0 }}>
@@ -847,17 +847,17 @@ export function PatientAssessmentForm({
         </Acc>
 
         {/* ─── Activities of Daily Living ──────────────────────────────── */}
-        <Acc title="Activities of Daily Living" color="#DB2777" done={false} isOpen={!!sections.adl} onToggle={() => toggleSection("adl")} colors={colors} isReadOnly={isReadOnly} filled={adlFilled} total={adlTotal} style={{ marginBottom: 0 }}>
+        {/* <Acc title="Activities of Daily Living" color="#DB2777" done={false} isOpen={!!sections.adl} onToggle={() => toggleSection("adl")} colors={colors} isReadOnly={isReadOnly} filled={adlFilled} total={adlTotal} style={{ marginBottom: 0 }}>
           <SelectGrid fields={ADL_FIELDS.map((f) => ({ ...f, options: ADL }))} values={data.flat} onChange={updateFlat} />
-        </Acc>
+        </Acc> */}
 
         {/* ─── Environmental Hazards / Safety Checklist ───────────────── */}
-        <Acc title="Environmental Hazards / Safety Checklist" color="#EA580C" done={false} isOpen={!!sections.environmental} onToggle={() => toggleSection("environmental")} colors={colors} isReadOnly={isReadOnly} filled={environmentalFilled} total={environmentalTotal} style={{ marginBottom: 0 }}>
+        {/* <Acc title="Environmental Hazards / Safety Checklist" color="#EA580C" done={false} isOpen={!!sections.environmental} onToggle={() => toggleSection("environmental")} colors={colors} isReadOnly={isReadOnly} filled={environmentalFilled} total={environmentalTotal} style={{ marginBottom: 0 }}>
           <View style={{ gap: 12 }}>
             <SelectGrid fields={ENVIRONMENTAL_FIELDS.map((f) => ({ ...f, options: YES_NO }))} values={data.flat} onChange={updateFlat} />
             <TextField fkey={ACTION_PLANNED_FIELD.key} label={ACTION_PLANNED_FIELD.label} value={String(data.flat[ACTION_PLANNED_FIELD.key] ?? "")} onChangeText={(v) => updateFlat(ACTION_PLANNED_FIELD.key, v)} colors={colors} multiline />
           </View>
-        </Acc>
+        </Acc> */}
 
         {/* ─── Referral ────────────────────────────────────────────────── */}
         <Acc title="Referral" color="#3B82F6" done={false} isOpen={!!sections.referral} onToggle={() => toggleSection("referral")} colors={colors} isReadOnly={isReadOnly} filled={referralFilled} total={referralTotal} hasError={errors.assessment_signature} style={{ marginBottom: 0 }}>

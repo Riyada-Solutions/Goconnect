@@ -22,8 +22,11 @@ import type {
   VerifyFaceRequest,
 } from './models/auth'
 import { clearFaceToken } from './secure_storage'
+import { FCM_TOKEN_STORAGE_KEY } from '@/utils/pushNotifications'
 
 export const ACCESS_TOKEN_KEY = 'access_token'
+
+// Device push uses native FCM via @react-native-firebase/messaging
 
 export async function login(body: LoginRequest): Promise<LoginResponse> {
   if (ENV.USE_MOCK_DATA) {
@@ -99,6 +102,7 @@ export async function changePassword(body: ChangePasswordRequest, accessToken?: 
 
 export async function logout(): Promise<void> {
   await AsyncStorage.removeItem(ACCESS_TOKEN_KEY)
+  await AsyncStorage.removeItem(FCM_TOKEN_STORAGE_KEY)
   if (ENV.USE_MOCK_DATA) return
   await apiClient.post('/auth/logout').catch(() => {})
 }

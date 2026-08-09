@@ -21,7 +21,7 @@ export function CheckOutConfirmModal({ visible, onConfirm, onCancel, loading }: 
             <Text style={s.checkoutIconText}>!</Text>
           </View>
           <Text style={s.checkoutTitle}>
-            Are you sure you want to check out this appointment?
+            Are you sure you want to check out this Visit?
           </Text>
           <View style={s.checkoutBtns}>
             <Pressable

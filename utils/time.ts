@@ -25,12 +25,14 @@ export function calculateDuration(startTime: string, endTime: string): string {
     let startMin = startH * 60 + startM
     let endMin = endH * 60 + endM
 
-    // Handle case where end time is on next day (e.g., 11 PM to 1 AM)
-    if (endMin < startMin) {
-      endMin += 24 * 60
+    let diffMin = endMin - startMin
+    // If end < start, it could be midnight crossing or wrong order
+    // Use the smaller of the two possible durations (usually the intended one)
+    if (diffMin < 0) {
+      const forwardDiff = Math.abs(diffMin)
+      const backwardDiff = 24 * 60 + diffMin
+      diffMin = Math.min(forwardDiff, backwardDiff)
     }
-
-    const diffMin = endMin - startMin
     const h = Math.floor(diffMin / 60)
     const m = diffMin % 60
 

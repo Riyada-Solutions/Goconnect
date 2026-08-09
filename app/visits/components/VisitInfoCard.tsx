@@ -75,10 +75,8 @@ export function VisitInfoCard(p: Props) {
                 {
                   backgroundColor: colors.borderLight,
                   borderColor: colors.border,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  flexWrap: "wrap",
+                  flexDirection: "column",
+                  gap: 6,
                 },
               ]}
               onPress={() => {
@@ -89,12 +87,19 @@ export function VisitInfoCard(p: Props) {
                 {p.procedureStartTimeStr !== "--:-- --" ? p.procedureStartTimeStr : (p.procedureTime || "—")}
                 {p.procedureEndTimeStr !== "--:-- --" ? ` – ${p.procedureEndTimeStr}` : ""}
               </Text>
-              {p.procedureStartTimeStr !== "--:-- --" && p.procedureEndTimeStr !== "--:-- --" && (
-                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
-                  ({calculateDuration(p.procedureStartTimeStr, p.procedureEndTimeStr)})
-                </Text>
-              )}
-              {showProcedureEditIcon && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                {visitPhase === "start_procedure" && p.procedureElapsed > 0 && (
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
+                    {formatElapsed(p.procedureElapsed)}
+                  </Text>
+                )}
+                {p.procedureStartTimeStr !== "--:-- --" && p.procedureEndTimeStr !== "--:-- --" && (visitPhase === "end_procedure" || visitPhase === "completed") && (
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
+                    ({calculateDuration(p.procedureStartTimeStr, p.procedureEndTimeStr)})
+                  </Text>
+                )}
+                {showProcedureEditIcon && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
+              </View>
             </Pressable>
           </View>
           <View style={s.visitInfoCell}>
@@ -115,7 +120,12 @@ export function VisitInfoCard(p: Props) {
                 {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" ? p.visitStartTimeStr : (p.visitTime || "—")}
                 {p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" ? ` – ${p.visitEndTimeStr}` : ""}
               </Text>
-              {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" && p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" && (
+              {visitPhase !== "completed" && p.visitElapsed > 0 && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
+                  {formatElapsed(p.visitElapsed)}
+                </Text>
+              )}
+              {p.visitStartTimeStr && p.visitStartTimeStr !== "--:-- --" && p.visitEndTimeStr && p.visitEndTimeStr !== "--:-- --" && visitPhase === "completed" && (
                 <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#EF4444" }}>
                   ({calculateDuration(p.visitStartTimeStr, p.visitEndTimeStr)})
                 </Text>

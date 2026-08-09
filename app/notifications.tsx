@@ -33,6 +33,7 @@ import {
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
+import { navigateFromNotificationPayload } from "@/utils/pushNotifications";
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
 
@@ -271,9 +272,29 @@ function NotificationsContent() {
     return result;
   }, [items]);
 
-  const handleMarkRead = useCallback((id: number) => {
+  const handleOpenNotification = useCallback((notif: ApiNotification) => {
     Haptics.selectionAsync();
-    markReadMutation.mutate(id);
+    if (!notif.read) markReadMutation.mutate(notif.id);
+
+    const linkType = notif.link?.type?.toLowerCase();
+    const linkId = notif.link?.id;
+    if (linkType === "visit" && linkId) {
+      navigateFromNotificationPayload({ visitId: linkId, type: notif.type });
+      return;
+    }
+    if (linkType === "patient" && linkId) {
+      navigateFromNotificationPayload({ patientId: linkId, type: notif.type });
+      return;
+    }
+    if (linkType === "appointment" && linkId) {
+      navigateFromNotificationPayload({
+        deeplink: { screen: "appointment_detail", params: { id: linkId } },
+        type: notif.type,
+      });
+      return;
+    }
+
+    navigateFromNotificationPayload({ type: notif.type });
   }, [markReadMutation]);
 
   const handleDismiss = useCallback((id: number) => {
@@ -479,7 +500,7 @@ function NotificationsContent() {
                   colors={colors}
                   isDark={isDark}
                   isLast={item.isLast}
-                  onPress={() => handleMarkRead(item.notif.id)}
+                  onPress={() => handleOpenNotification(item.notif)}
                   onDismiss={() => handleDismiss(item.notif.id)}
                 />
               </View>

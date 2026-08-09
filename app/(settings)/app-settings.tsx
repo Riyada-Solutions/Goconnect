@@ -10,6 +10,8 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
+  TextInput,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -112,6 +114,10 @@ export default function AppSettingsScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<"face" | "fingerprint" | "generic">("generic");
+  const [versionTaps, setVersionTaps] = useState(0);
+  const [showCodeDialog, setShowCodeDialog] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+
 
   useEffect(() => {
     (async () => {
@@ -175,9 +181,63 @@ export default function AppSettingsScreen() {
     setTheme(isDark ? "light" : "dark");
   };
 
-  const toggleLang = (lang: Language) => {
+
+  const handleVersionPress = () => {
+    const newTaps = versionTaps + 1;
+    setVersionTaps(newTaps);
+
+    if (newTaps === 7) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setShowCodeDialog(true);
+      setVersionTaps(0);
+      setCodeInput("");
+    } else if (newTaps < 7) {
+      Haptics.selectionAsync();
+    }
+  };
+
+  const handleCodeSubmit = () => {
+    if (codeInput === "100200") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowCodeDialog(false);
+      setCodeInput("");
+      router.push("/(settings)/dev");
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Invalid Code", "The code you entered is incorrect.");
+    }
+  };
+
+    const toggleLang = (lang: Language) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLanguage(lang);
+
+  const handleVersionPress = () => {
+    const newTaps = versionTaps + 1;
+    setVersionTaps(newTaps);
+    
+    if (newTaps === 7) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setShowCodeDialog(true);
+      setVersionTaps(0);
+      setCodeInput("");
+    } else if (newTaps < 7) {
+      Haptics.selectionAsync();
+    }
+  };
+
+  const handleCodeSubmit = () => {
+    if (codeInput === "100200") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowCodeDialog(false);
+      setCodeInput("");
+      router.push("/(settings)/dev");
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Invalid Code", "The code you entered is incorrect.");
+    }
+  };
+
   };
 
   return (
@@ -362,7 +422,14 @@ export default function AppSettingsScreen() {
 
         {/* ── App version ── */}
         <Animated.View entering={FadeInDown.delay(260).springify()}>
-          <View style={[styles.versionCard, { backgroundColor: colors.surface }]}>
+          <Pressable
+            onPress={handleVersionPress}
+            style={({ pressed }) => [
+              styles.versionCard,
+              { backgroundColor: colors.surface },
+              pressed && { opacity: 0.65 },
+            ]}
+          >
             <View style={[styles.iconBox, { backgroundColor: Colors.pastel.teal }]}>
               <Feather name="layers" size={17} color={Colors.primary} />
             </View>
@@ -377,10 +444,48 @@ export default function AppSettingsScreen() {
                 {t("upToDate")}
               </Text>
             </View>
-          </View>
+          </Pressable>
         </Animated.View>
 
       </ScrollView>
+
+      {showCodeDialog && (
+        <View style={styles.dialogOverlay}>
+          <View style={[styles.dialogContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.dialogTitle, { color: colors.text }]}>Developer Tools</Text>
+            <Text style={[styles.dialogMessage, { color: colors.textSecondary }]}>
+              Enter the access code to unlock Developer Tools
+            </Text>
+            <TextInput
+              style={[styles.codeInput, { borderColor: colors.border, color: colors.text }]}
+              placeholder="Enter code"
+              placeholderTextColor={colors.textSecondary}
+              value={codeInput}
+              onChangeText={setCodeInput}
+              keyboardType="numeric"
+              secureTextEntry
+              autoFocus
+            />
+            <View style={styles.dialogButtonRow}>
+              <Pressable
+                style={[styles.dialogButton, { backgroundColor: colors.borderLight }]}
+                onPress={() => {
+                  setShowCodeDialog(false);
+                  setCodeInput("");
+                }}
+              >
+                <Text style={[styles.dialogButtonText, { color: colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.dialogButton, { backgroundColor: Colors.primary }]}
+                onPress={handleCodeSubmit}
+              >
+                <Text style={[styles.dialogButtonText, { color: "#fff" }]}>Unlock</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -479,6 +584,62 @@ const styles = StyleSheet.create({
   },
   versionBadgeText: {
     fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
+
+  dialogOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  dialogContent: {
+    borderRadius: 16,
+    padding: 20,
+    width: "80%",
+    maxWidth: 320,
+    gap: 16,
+    shadowColor: "rgba(0,0,0,0.1)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  dialogMessage: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
+  codeInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+  },
+  dialogButtonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  dialogButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  dialogButtonText: {
+    fontSize: 15,
     fontFamily: "Inter_600SemiBold",
   },
 });

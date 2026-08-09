@@ -31,6 +31,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { SplashView } from "@/components/common/SplashView";
 import { AppProvider } from "@/context/AppContext";
 import { RefreshProvider } from "@/context/RefreshContext";
+import { NotificationBanner } from "@/components/NotificationBanner";
 
 // ─── Suppress fontfaceobserver "timeout exceeded" errors on web ───────────────
 if (Platform.OS === "web" && typeof window !== "undefined") {
@@ -154,6 +155,7 @@ function RootLayoutNav() {
   return (
     <NetworkProvider onReconnect={handleReconnect}>
       <OfflineBanner />
+      <NotificationBanner />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index"              options={{ headerShown: false }} />
         <Stack.Screen name="biometric-unlock"  options={{ headerShown: false, gestureEnabled: false }} />

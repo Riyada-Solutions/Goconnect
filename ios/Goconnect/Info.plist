@@ -17,9 +17,11 @@
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
     <key>CFBundlePackageType</key>
-    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <string>APPL</string>
+
+    <!-- <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string> -->
     <key>CFBundleShortVersionString</key>
-    <string>1.0.8</string>
+	  <string>$(MARKETING_VERSION)</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -32,8 +34,8 @@
         </array>
       </dict>
     </array>
-    <key>CFBundleVersion</key>
-    <string>7</string>
+	<key>CFBundleVersion</key>
+		<string>$(CURRENT_PROJECT_VERSION)</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -57,6 +59,13 @@
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Goconnect needs your location to verify visit check-in.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Goconnect needs local network access to connect to the Metro bundler during development.</string>
+    <key>NSBonjourServices</key>
+    <array>
+      <string>_http._tcp</string>
+      <string>_expo._tcp</string>
+    </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>Goconnect needs microphone access to record patient videos.</string>
     <key>NSPhotoLibraryUsageDescription</key>
