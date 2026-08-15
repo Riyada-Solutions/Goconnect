@@ -57,8 +57,8 @@ function stripAlphaNode(filePath) {
     const src = PNG.sync.read(buf);
     const { width, height } = src;
 
-    // Brand background colour
-    const BR = 0x2D, BG = 0xAA, BB = 0xAE;
+    // Match assets/images/logo.png dark background (not the teal splash color)
+    const BR = 0x16, BG = 0x18, BB = 0x1A;
 
     const dst = new PNG({ width, height, colorType: 2 }); // colorType 2 = RGB
     for (let y = 0; y < height; y++) {

@@ -15,11 +15,14 @@ const {
 } = require('./utils/pushNotifications')
 
 if (isNativeFirebaseAvailable()) {
-  const messaging = require('@react-native-firebase/messaging').default
+  const raw = require('@react-native-firebase/messaging')
+  const fbModule = typeof raw === 'function' ? raw : raw.default
 
-  messaging().setBackgroundMessageHandler(async (message) => {
-    await displayFcmNotification(message)
-  })
+  if (typeof fbModule === 'function') {
+    fbModule().setBackgroundMessageHandler(async (message) => {
+      await displayFcmNotification(message)
+    })
+  }
 }
 
 notifee.onBackgroundEvent(async ({ type, detail }) => {

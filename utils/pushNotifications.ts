@@ -94,10 +94,11 @@ export function isNativeFirebaseAvailable(): boolean {
 }
 
 function normalizeMessagingModule(raw: unknown): MessagingModule | null {
-  if (!raw || typeof raw !== 'object') return null
+  if (!raw) return null
   const mod = raw as MessagingModule & { default?: MessagingModule }
-  if (typeof mod.getMessaging === 'function') return mod
-  if (mod.default && typeof mod.default.getMessaging === 'function') return mod.default
+  if (typeof mod === 'function') return mod as MessagingModule
+  if (mod.default && typeof mod.default === 'function') return mod.default as MessagingModule
+  if (typeof (mod as any)?.getMessaging === 'function') return mod
   return null
 }
 
@@ -119,7 +120,11 @@ function getMessagingModule(): MessagingModule | null {
       messagingModule = null
       return null
     }
-    mod.getMessaging()
+    if (typeof mod === 'function') {
+      (mod as any)() // Verify it can be called
+    } else if (typeof (mod as any).getMessaging === 'function') {
+      (mod as any).getMessaging()
+    }
     messagingModule = mod
     return messagingModule
   } catch (error) {
@@ -440,10 +445,18 @@ export function registerNotificationListeners(): () => void {
   }
 
   try {
-    const messaging = fb.getMessaging()
+    const fbAny = fb as any
+    const messaging = typeof fbAny === 'function' ? fbAny() : fbAny.getMessaging?.()
+
+    if (!messaging) {
+      console.warn('⚠️ Could not initialize Firebase messaging')
+      return () => {
+        for (const unsub of unsubscribers) unsub()
+      }
+    }
 
     unsubscribers.push(
-      fb.onMessage(messaging, async (message) => {
+      messaging.onMessage(async (message: any) => {
         console.log('📩 Foreground FCM message:', {
           messageId: message.messageId,
           title: message.notification?.title,
@@ -458,14 +471,14 @@ export function registerNotificationListeners(): () => void {
     // (e.g. a payload with a top-level `notification` block). Harmless to
     // keep alongside the notifee-driven paths above.
     unsubscribers.push(
-      fb.onNotificationOpenedApp(messaging, (message) => {
+      messaging.onNotificationOpenedApp((message: any) => {
         console.log('👆 Opened from background notification')
         handleOpenedMessage(message as RemoteMessage)
       }),
     )
 
     unsubscribers.push(
-      fb.onTokenRefresh(messaging, async (token) => {
+      messaging.onTokenRefresh(async (token: string) => {
         console.log('🔄 FCM token refreshed')
         try {
           await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
@@ -475,14 +488,14 @@ export function registerNotificationListeners(): () => void {
       }),
     )
 
-    void fb
-      .getInitialNotification(messaging)
-      .then((message) => {
+    void messaging
+      .getInitialNotification()
+      .then((message: any) => {
         if (!message) return
         console.log('👆 Opened from quit-state notification')
         setTimeout(() => handleOpenedMessage(message as RemoteMessage), 400)
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.warn('⚠️ getInitialNotification failed:', error)
       })
 
@@ -517,8 +530,15 @@ export async function requestAndSavePushToken(): Promise<string | null> {
   if (!fb) return null
 
   try {
-    const messaging = fb.getMessaging()
-    const { AuthorizationStatus } = fb
+    const fbAny = fb as any
+    const messaging = typeof fbAny === 'function' ? fbAny() : fbAny.getMessaging?.()
+
+    if (!messaging) {
+      console.warn('⚠️ Could not initialize Firebase messaging')
+      return null
+    }
+
+    const { AuthorizationStatus } = fbAny
 
     const androidOk = await ensureAndroidPostNotificationsPermission()
     if (!androidOk) {
@@ -526,12 +546,12 @@ export async function requestAndSavePushToken(): Promise<string | null> {
       return null
     }
 
-    let status = await fb.hasPermission(messaging)
+    let status = await messaging.hasPermission()
     if (
       status === AuthorizationStatus.DENIED ||
       status === AuthorizationStatus.NOT_DETERMINED
     ) {
-      status = await fb.requestPermission(messaging)
+      status = await messaging.requestPermission()
     }
 
     const allowed =
@@ -544,8 +564,8 @@ export async function requestAndSavePushToken(): Promise<string | null> {
       return null
     }
 
-    await fb.registerDeviceForRemoteMessages(messaging)
-    const token = await fb.getToken(messaging)
+    await messaging.registerDeviceForRemoteMessages()
+    const token = await messaging.getToken()
 
     await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
     console.log('✅ FCM token saved')
@@ -571,8 +591,12 @@ export async function refreshPushToken(): Promise<string | null> {
   const fb = getMessagingModule()
   if (fb) {
     try {
-      await fb.deleteToken(fb.getMessaging())
-      console.log('🔄 FCM token deleted, requesting new token...')
+      const fbAny = fb as any
+      const messaging = typeof fbAny === 'function' ? fbAny() : fbAny.getMessaging?.()
+      if (messaging) {
+        await messaging.deleteToken()
+        console.log('🔄 FCM token deleted, requesting new token...')
+      }
     } catch (error) {
       console.warn(
         '⚠️ Could not delete FCM token before refresh:',
