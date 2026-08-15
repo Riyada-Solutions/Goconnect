@@ -23,6 +23,8 @@ const RNFB_APP_TURBO_MODULE = 'NativeRNFBTurboApp'
 export type NotificationPayload = {
   id?: string | number
   type?: string
+  action_type?: string
+  action_id?: string
   priority?: string
   deeplink?: string | { screen?: string; params?: Record<string, unknown>; url?: string }
   metadata?: string | Record<string, unknown>
@@ -154,10 +156,10 @@ function resolveDeeplink(data: NotificationPayload): Deeplink | null {
   const parsed = parseJsonField<Deeplink>(data.deeplink)
   if (parsed?.screen || parsed?.url) return parsed
 
-  const type = data.type as NotificationType | undefined
+  const type = (data.action_type??data.type) as NotificationType | undefined
 
   // Extract ID from various sources
-  const id = asId(data.id ?? data.visitId ?? data.visit_id)
+  const id = asId(data.action_id ?? data.id ?? data.visitId ?? data.visit_id)
   const visitId = asId(data.visitId ?? data.visit_id)
   const patientId = asId(data.patientId ?? data.patient_id)
 
