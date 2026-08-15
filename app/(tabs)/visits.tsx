@@ -1,7 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
-import NetInfo from '@react-native-community/netinfo'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Pressable,
@@ -90,8 +90,7 @@ export default function VisitsScreen() {
   // Tap-to-refresh: refresh when visits tab is tapped
   useEffect(() => {
     const unsubscribe = onTabRefresh(async () => {
-      const state = await NetInfo.fetch()
-      const isOnline = !!state.isConnected && state.isInternetReachable !== false
+      const isOnline = await isEffectivelyOnline()
       if (isOnline) {
         refetch()
       }
@@ -103,8 +102,7 @@ export default function VisitsScreen() {
   useFocusEffect(
     useCallback(() => {
       const refreshOnFocus = async () => {
-        const state = await NetInfo.fetch()
-        const isOnline = !!state.isConnected && state.isInternetReachable !== false
+        const isOnline = await isEffectivelyOnline()
         if (isOnline) {
           refetch()
         }

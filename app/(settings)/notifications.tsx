@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HRSwitch } from "@/components/common/HRSwitch";
 import { Shimmer } from "@/components/ui/Shimmer";
+import { OfflineQueuedError } from "@/data/offline_api";
 import type { NotificationPreferenceKey } from "@/data/models/notificationPreferences";
 import { useApp } from "@/context/AppContext";
 import {
@@ -175,7 +176,11 @@ export default function NotificationsScreen() {
     updateMutation.mutate(
       { [key]: value },
       {
-        onError: () => setLocal((s) => ({ ...s, [key]: prev })),
+        // Queued offline — keep the optimistic toggle; it'll sync once reconnected.
+        onError: (err) => {
+          if (err instanceof OfflineQueuedError) return;
+          setLocal((s) => ({ ...s, [key]: prev }));
+        },
       },
     );
   };

@@ -18,6 +18,7 @@ import {
   registerDevice,
   updateMe,
 } from "@/data/auth_repository";
+import { OfflineQueuedError } from "@/data/offline_api";
 import { clearFaceToken, getFaceToken } from "@/data/secure_storage";
 import { clearQueue } from "@/data/offline_queue";
 import { requestAndSavePushToken } from "@/utils/pushNotifications";
@@ -305,13 +306,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateProfile = useCallback(
     async (data: Partial<User>) => {
       if (!user) return;
-      const updated = await updateMe({
-        name: data.name ?? user.name,
-        phone: data.phone ?? user.phone ?? "",
-      });
-      setUser(updated);
-      queryClient.setQueryData(["me"], updated);
-      void cacheUser(updated);
+      const patch = { name: data.name ?? user.name, phone: data.phone ?? user.phone ?? "" };
+      try {
+        const updated = await updateMe(patch);
+        setUser(updated);
+        queryClient.setQueryData(["me"], updated);
+        void cacheUser(updated);
+      } catch (err) {
+        if (err instanceof OfflineQueuedError) {
+          // Apply optimistically — the real save will replay once reconnected.
+          const updated = { ...user, ...patch };
+          setUser(updated);
+          queryClient.setQueryData(["me"], updated);
+          void cacheUser(updated);
+        }
+        throw err;
+      }
     },
     [user, queryClient],
   );

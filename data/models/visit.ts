@@ -62,6 +62,7 @@ export interface Visit {
     | 'start_procedure'
     | 'end_procedure'
     | 'reopened'
+    | 'in_active'
     | 'waiting'
     | 'new'
   provider?: string

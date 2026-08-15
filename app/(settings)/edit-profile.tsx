@@ -21,6 +21,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { GuestWall } from "@/components/ui/GuestWall";
 import { useApp } from "@/context/AppContext";
+import { OfflineQueuedError } from "@/data/offline_api";
 import { uploadAvatar } from "@/data/settings_repository";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
@@ -59,6 +60,11 @@ export default function EditProfileScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err) {
+      if (err instanceof OfflineQueuedError) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+        return;
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showDialog({
         variant: "error",

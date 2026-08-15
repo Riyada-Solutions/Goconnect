@@ -97,7 +97,7 @@ export function DialysisMedsForm({ medications, medAdmin, onAction, colors, busy
               <ReadOnlyField label="Duration" value={med.duration} colors={colors} style={s.visitInfoCell} />
               <ReadOnlyField label="Duration Period" value={med.durationPeriod} colors={colors} style={s.visitInfoCell} />
               <ReadOnlyField label="Admin Type" value={med.administrationType} colors={colors} style={s.visitInfoCell} />
-              <ReadOnlyField label="Last Dose" value={med.lastDose || formatAdminWhen(serverAdmin?.created_at)} colors={colors} style={s.visitInfoCell} />
+              <ReadOnlyField label="Last Dose" value={med.lastDose} colors={colors} style={s.visitInfoCell} />
               <ReadOnlyField label="Instructions" value={med.instructions} colors={colors} style={{ width: "100%" }} />
             </View>
 

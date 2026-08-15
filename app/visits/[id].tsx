@@ -97,14 +97,16 @@ function VisitDetailScreenInner() {
   const record = activeQuery.data;
 
   // Refresh visit data when screen comes into focus
+  const { refetch: refetchVisit } = visitQuery;
+  const { refetch: refetchSlot } = slotQuery;
   useFocusEffect(
     useCallback(() => {
       if (!isSlot) {
-        visitQuery.refetch();
+        refetchVisit();
       } else {
-        slotQuery.refetch();
+        refetchSlot();
       }
-    }, [isSlot, visitQuery, slotQuery])
+    }, [isSlot, refetchVisit, refetchSlot])
   );
 
   // Stable refusal prefill — parsed once per unique raw payload so that
@@ -311,7 +313,10 @@ function VisitDetailScreenInner() {
   type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
   const recordStatus = record?.status as string | undefined;
   const initialPhase: VisitPhase =
-    recordStatus === "completed" || recordStatus === "close" || recordStatus === "closed"
+    recordStatus === "completed" ||
+    recordStatus === "close" ||
+    recordStatus === "closed" ||
+    recordStatus === "in_active"
       ? "completed"
       : recordStatus === "reopened"
         ? "reopened"
@@ -370,7 +375,7 @@ function VisitDetailScreenInner() {
   const handleStartProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setVisitPhase("start_procedure");
-    const now = Date.now();
+    const now = DateTimeConverter.nowAsWallClock();
     setProcedureStartTimeStr(DateTimeConverter.time(now));
     setEditProcStart(DateTimeConverter.time(now));
     startVisitMutation.mutate();
@@ -391,8 +396,9 @@ function VisitDetailScreenInner() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setVisitPhase("end_procedure");
     setShowProcedureEdit(true);
-    setProcedureEndTimeStr(DateTimeConverter.time(new Date()));
-    setEditProcEnd(DateTimeConverter.time(new Date()));
+    const now = DateTimeConverter.nowAsWallClock();
+    setProcedureEndTimeStr(DateTimeConverter.time(now));
+    setEditProcEnd(DateTimeConverter.time(now));
     endVisitMutation.mutate();
   }, [endVisitMutation, record, showDialog, t]);
 
@@ -571,12 +577,32 @@ function VisitDetailScreenInner() {
   };
   const rawNursing      = (progressNotes?.nursing       ?? []).map(normalizeNote);
   const rawDoctorBucket = (progressNotes?.doctor        ?? []).map(normalizeNote);
-  const rawSocialBucket = (progressNotes?.socialWorker  ?? []).map(normalizeNote);
+  // Social worker rows carry location two different ways depending on when
+  // they were saved: legacy rows use `type: "on_call"`, newer ones use
+  // separate `on_call`/`in_center` booleans. Neither sets `location`, which
+  // is what the form actually reads — derive it here so old and new rows
+  // both display their real location instead of always falling back to
+  // "in Center".
+  const normalizeSocialNote = (n: any) => {
+    const normalized = normalizeNote(n);
+    if (!normalized || typeof normalized !== 'object') return normalized;
+    const location =
+      normalized.location ??
+      (normalized.on_call === true
+        ? 'on_call'
+        : normalized.in_center === true
+          ? 'in_center'
+          : normalized.type === 'on_call'
+            ? 'on_call'
+            : 'in_center');
+    return { ...normalized, location };
+  };
+  const rawSocialBucket = (progressNotes?.socialWorker  ?? []).map(normalizeSocialNote);
   const nursingProgressNotes      = rawNursing;
   const doctorProgressNotes       = rawDoctorBucket.filter((n: any) => n?.type !== 'social_worker');
   const socialWorkerProgressNotes = [
     ...rawSocialBucket,
-    ...rawDoctorBucket.filter((n: any) => n?.type === 'social_worker'),
+    ...rawDoctorBucket.filter((n: any) => n?.type === 'social_worker').map(normalizeSocialNote),
   ];
   const submitNursingProgressNote = useSubmitNursingProgressNote(numId);
   const submitSocialWorkerProgressNote = useSubmitSocialWorkerProgressNote(numId);
@@ -1146,7 +1172,7 @@ function VisitDetailScreenInner() {
         {/* {patientName && ( */}
           <WorkflowActionButtons
             phase={visitPhase}
-            canReopen={can("visits.ReopenMyVisit") || can("visits.ReopenAllVisit")}
+            canReopen={(can("visits.ReopenMyVisit") || can("visits.ReopenAllVisit")) && recordStatus !== "in_active"}
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}
             onCheckOut={() => setShowCheckoutModal(true)}

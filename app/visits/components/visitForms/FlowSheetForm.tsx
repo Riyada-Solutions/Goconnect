@@ -733,7 +733,19 @@ export function FlowSheetForm(props: Props) {
             <DialysisMedsForm medications={props.medications} medAdmin={props.medAdmin} busyIds={props.medBusyIds} onAction={props.onMedAction} colors={colors} />
           </Acc>
 
-          <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly} filled={postFilled} total={postTotal}>
+  
+          <Acc title="Post-Treatment Vascular Access Assessment" color="#0D9488" done={vascularPostDone} isOpen={!!sections.vascularPost} onToggle={() => toggle("vascularPost")} colors={colors} isReadOnly={isReadOnly} filled={vascularPostFilled} total={vascularPostTotal}>
+            <VascularAccessPostForm value={vascularAccessPost} onChange={setVascularAccessPost} colors={colors} disabled={isReadOnly} />
+            {!isReadOnly && (
+              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_vascular_access_post"
+                label="Save Vascular Access"
+                save={() => submitFlowSheetVascularAccessPost(visitId, { vascularAccessPost })}
+                onClear={() => setVascularAccessPost(EMPTY_VASCULAR_POST)}
+              />
+            )}
+          </Acc>
+
+                  <Acc title="Post Treatment Assessment" color="#6366F1" done={postDone} isOpen={!!sections.post} onToggle={() => toggle("post")} colors={colors} isReadOnly={isReadOnly} filled={postFilled} total={postTotal}>
             <PostTreatmentForm
               postTx={postTx}
               ufGoal={vitals.ufGoal}
@@ -763,16 +775,6 @@ export function FlowSheetForm(props: Props) {
             )}
           </Acc>
 
-          <Acc title="Post-Treatment Vascular Access Assessment" color="#0D9488" done={vascularPostDone} isOpen={!!sections.vascularPost} onToggle={() => toggle("vascularPost")} colors={colors} isReadOnly={isReadOnly} filled={vascularPostFilled} total={vascularPostTotal}>
-            <VascularAccessPostForm value={vascularAccessPost} onChange={setVascularAccessPost} colors={colors} disabled={isReadOnly} />
-            {!isReadOnly && (
-              <SectionSaveBar visitId={visitId} rule="submit_flow_sheet_vascular_access_post"
-                label="Save Vascular Access"
-                save={() => submitFlowSheetVascularAccessPost(visitId, { vascularAccessPost })}
-                onClear={() => setVascularAccessPost(EMPTY_VASCULAR_POST)}
-              />
-            )}
-          </Acc>
       </CollapsibleBody>
     </Card>
   );

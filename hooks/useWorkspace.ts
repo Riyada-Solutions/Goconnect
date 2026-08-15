@@ -1,5 +1,6 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 
+import { useOfflineQuery } from './useOfflineQuery'
 import {
   getWorkspace,
   setSelectedBranch,
@@ -10,11 +11,11 @@ export const WORKSPACE_QUERY_KEY = ['workspace'] as const
 
 /** Fetch the branches + systems the user can switch between. */
 export function useWorkspace(enabled = true) {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: WORKSPACE_QUERY_KEY,
     queryFn: getWorkspace,
+    cacheTtl: 5 * 60 * 1000,
     enabled,
-    staleTime: 5 * 60 * 1000,
   })
 }
 

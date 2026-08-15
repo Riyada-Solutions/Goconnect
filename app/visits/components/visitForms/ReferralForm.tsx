@@ -81,7 +81,8 @@ export function ReferralForm({
   onSave,
   t,
 }: Props) {
-  const { data: hospitals = [] } = useHospitals();
+  const { data: hospitalsData } = useHospitals();
+  const hospitals = hospitalsData ?? [];
 
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [referralDate, setReferralDate] = useState(todayIso());

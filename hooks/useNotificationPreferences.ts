@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { useOfflineQuery } from './useOfflineQuery'
 import type { NotificationPreferencesPatch } from '@/data/models/notificationPreferences'
 import {
   getNotificationPreferences,
@@ -12,10 +13,10 @@ export const NOTIFICATION_PREFERENCES_QUERY_KEY = [
 ] as const
 
 export function useNotificationPreferences() {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY,
     queryFn: getNotificationPreferences,
-    staleTime: 60_000,
+    cacheTtl: 60_000,
   })
 }
 

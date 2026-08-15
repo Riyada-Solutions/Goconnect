@@ -1,7 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query'
 
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
+import { OfflineQueuedError } from './offline_api'
+import { enqueue } from './offline_queue'
 import { mockGetSlots, mockGetSlotById } from './mock/scheduler_mock'
 import type { Slot } from './models/scheduler'
 
@@ -67,18 +70,40 @@ async function patchMockSlot(id: number, status: string): Promise<Slot> {
  * same Slot shape as `GET /scheduler/slots/{id}` when they succeed. When the
  * response is missing, malformed, or doesn't include an `id`, we fall back to
  * a fresh GET so the caller always receives a fully-populated Slot.
+ *
+ * Offline: enqueues the transition to SQLite (replayed by SyncService, same
+ * as visit form saves) and throws OfflineQueuedError instead of attempting
+ * the request. A genuine network failure while apparently online (no
+ * `.response` at all — the `validateStatus: () => true` below means normal
+ * HTTP error statuses never throw) also falls back to queuing.
  */
 async function postSlotTransition(
   slotId: number | string,
   path: 'confirm' | 'check-in' | 'cancel',
   body?: unknown,
 ): Promise<Slot> {
-  const res = await apiClient.post(
-    `/scheduler/slots/${slotId}/${path}`,
-    body,
-    // Don't throw on non-2xx — we'll fall back to GET instead.
-    { validateStatus: () => true },
-  )
+  const url = `/scheduler/slots/${slotId}/${path}`
+  const queueBody = (body as Record<string, unknown>) ?? {}
+
+  if (!(await isEffectivelyOnline())) {
+    enqueue({ method: 'POST', url, body: queueBody })
+    throw new OfflineQueuedError()
+  }
+
+  let res
+  try {
+    res = await apiClient.post(
+      url,
+      body,
+      // Don't throw on non-2xx — we'll fall back to GET instead.
+      { validateStatus: () => true },
+    )
+  } catch (e: any) {
+    if (e?.response) throw e
+    enqueue({ method: 'POST', url, body: queueBody })
+    throw new OfflineQueuedError()
+  }
+
   const ok = res.status >= 200 && res.status < 300
   const candidate = ok ? unwrap(res.data) : undefined
   if (candidate && (candidate as any).id != null) return candidate
@@ -100,11 +125,22 @@ export async function confirmAppointmentForNurse(
   nurseId: number | string,
 ): Promise<Slot> {
   if (ENV.USE_MOCK_DATA) return patchMockSlot(Number(slotId), 'confirmed')
-  const res = await apiClient.post(
-    `/scheduler/slots/${slotId}/confirm/${nurseId}`,
-    undefined,
-    { validateStatus: () => true },
-  )
+  const url = `/scheduler/slots/${slotId}/confirm/${nurseId}`
+
+  if (!(await isEffectivelyOnline())) {
+    enqueue({ method: 'POST', url, body: {} })
+    throw new OfflineQueuedError()
+  }
+
+  let res
+  try {
+    res = await apiClient.post(url, undefined, { validateStatus: () => true })
+  } catch (e: any) {
+    if (e?.response) throw e
+    enqueue({ method: 'POST', url, body: {} })
+    throw new OfflineQueuedError()
+  }
+
   const ok = res.status >= 200 && res.status < 300
   const candidate = ok ? unwrap(res.data) : undefined
   if (candidate && (candidate as any).id != null) return candidate

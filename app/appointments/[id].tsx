@@ -1,7 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { OfflineQueuedError } from "@/data/offline_api";
+import { cacheService } from "@/data/cache_service";
+import { isEffectivelyOnline } from "@/context/NetworkContext";
+import React, { useCallback, useState } from "react";
 import {
   Modal,
   Platform,
@@ -35,6 +39,7 @@ import {
   useConfirmAppointmentForNurse,
   useSlot,
 } from "@/hooks/useScheduler";
+import { primeVisitCacheFromSlot } from "@/data/scheduler_repository";
 import { AppointmentStatus, appointmentStatusLabel, normalizeAppointmentStatus } from "@/data/models/scheduler";
 import { BackendRule } from "@/data/models/rules";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -52,6 +57,7 @@ export default function AppointmentDetailScreen() {
   });
   const { dialogProps, show: showDialog } = useFeedbackDialog();
 
+  const qc = useQueryClient();
   const { data: record, isLoading, isFetching, isError, refetch } = useSlot(Number(id));
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   // Patient hero card data rides on the slot response (single source of truth).
@@ -68,13 +74,62 @@ export default function AppointmentDetailScreen() {
   const confirmForNurseMutation = useConfirmAppointmentForNurse();
   const canConfirmForOthers = can(BackendRule.Appointment.ConfirmForOthers);
 
+  const handleMutationError = useCallback((err: unknown) => {
+    if (err instanceof OfflineQueuedError) {
+      showDialog({ variant: "success", title: "Saved Offline", message: "Your changes will sync automatically when you reconnect." });
+      return;
+    }
+    showDialog({ variant: "error", title: t("error"), message: err instanceof Error ? err.message : t("error") });
+  }, [showDialog, t]);
+
+  const handleViewVisit = useCallback(async () => {
+    const rawVisitId = (record as any)?.visit_id ?? (record as any)?.visit?.id ?? null;
+    const embeddedVisit = (record as any)?.visit ?? null;
+
+    if (rawVisitId == null) {
+      showDialog({
+        variant: "error",
+        title: t("error"),
+        message: "Can't open this visit now in offline mode. Try again when you're online.",
+      });
+      return;
+    }
+
+    // Fresh response already embeds the full visit (just checked in online) —
+    // prime the cache so the detail screen opens instantly, offline included.
+    if (embeddedVisit) {
+      primeVisitCacheFromSlot(qc, record as any);
+      router.push({ pathname: "/visits/[id]", params: { id: String(rawVisitId) } });
+      return;
+    }
+
+    if (await isEffectivelyOnline()) {
+      router.push({ pathname: "/visits/[id]", params: { id: String(rawVisitId) } });
+      return;
+    }
+
+    // Offline with no embedded visit — only open if it's already cached
+    // locally (in-memory this session, or persisted from a previous session).
+    const cacheKey = `query:${JSON.stringify(["visits", Number(rawVisitId)])}`;
+    const cached = qc.getQueryData(["visits", Number(rawVisitId)]) ?? (await cacheService.get(cacheKey));
+    if (cached) {
+      router.push({ pathname: "/visits/[id]", params: { id: String(rawVisitId) } });
+      return;
+    }
+
+    showDialog({
+      variant: "error",
+      title: t("error"),
+      message: "Can't open this visit now in offline mode. Try again when you're online.",
+    });
+  }, [record, qc, showDialog, t]);
+
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     confirmMutation.mutate(Number(id), {
       onSuccess: () =>
         showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") }),
-      onError: (err) =>
-        showDialog({ variant: "error", title: t("error"), message: err.message }),
+      onError: handleMutationError,
     });
   };
 
@@ -83,8 +138,7 @@ export default function AppointmentDetailScreen() {
     checkInMutation.mutate(Number(id), {
       onSuccess: () =>
         showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") }),
-      onError: (err) =>
-        showDialog({ variant: "error", title: t("error"), message: err.message }),
+      onError: handleMutationError,
     });
   };
 
@@ -115,7 +169,7 @@ export default function AppointmentDetailScreen() {
         },
         onError: (err) => {
           setCancelOpen(false);
-          showDialog({ variant: "error", title: t("error"), message: err.message });
+          handleMutationError(err);
         },
       },
     );
@@ -332,8 +386,7 @@ export default function AppointmentDetailScreen() {
                       {
                         onSuccess: () =>
                           showDialog({ variant: "success", title: t("confirmed"), message: t("appointmentConfirmedMessage") }),
-                        onError: (err) =>
-                          showDialog({ variant: "error", title: t("error"), message: err.message }),
+                        onError: handleMutationError,
                       },
                     );
                   }
@@ -405,23 +458,13 @@ export default function AppointmentDetailScreen() {
             />
           </RuleGate>
         )}
-        {status === AppointmentStatus.CheckedIn || status === AppointmentStatus.Completed && (() => {
-          const rawVisitId =
-            (record as any)?.visit_id ?? (record as any)?.visitId ?? null;
-          if (rawVisitId == null) return null;
-          return (
-            <CustomButton
-              onPress={() => {
-                router.push({
-                  pathname: "/visits/[id]",
-                  params: { id: String(rawVisitId) },
-                });
-              }}
-              title={t("viewVisit")}
-              icon="external-link"
-            />
-          );
-        })()}
+        {(status === AppointmentStatus.CheckedIn || status === AppointmentStatus.Completed) && (
+          <CustomButton
+            onPress={handleViewVisit}
+            title={t("viewVisit")}
+            icon="external-link"
+          />
+        )}
         {status === AppointmentStatus.NoShow && (
           <CustomButton
             onPress={() => {}}

@@ -1,6 +1,6 @@
-import NetInfo from '@react-native-community/netinfo'
 import { apiClient } from './api_client'
 import { enqueue } from './offline_queue'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 
 export class OfflineQueuedError extends Error {
   readonly queued = true as const
@@ -38,7 +38,7 @@ export function buildMultipartFormData(
 }
 
 /**
- * Drop-in wrapper for apiClient.post.
+ * Drop-in wrapper for apiClient({ method, url, data }) — POST/PATCH/PUT/DELETE.
  * - When online: calls the API directly and returns the response.
  * - When offline: enqueues the request to SQLite and throws OfflineQueuedError
  *   so callers can distinguish "queued offline" from a real error.
@@ -48,30 +48,39 @@ export function buildMultipartFormData(
  *   A real API error (validation 4xx, server 5xx) still throws normally,
  *   since retrying a queued copy wouldn't fix it.
  */
+export async function offlineMutate(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  url: string,
+  body: Record<string, unknown> = {},
+  visitId?: string,
+): Promise<any> {
+  // isInternetReachable is a probe that often comes back `null` (not yet
+  // resolved) or a false negative on networks that block the probe target
+  // even though real API traffic goes through fine. Only treat it as
+  // offline when the probe explicitly reports `false` (see isEffectivelyOnline).
+  const online = await isEffectivelyOnline()
+
+  if (!online) {
+    enqueue({ method, url, body, visitId })
+    throw new OfflineQueuedError()
+  }
+
+  try {
+    return await apiClient({ method, url, data: body })
+  } catch (e: any) {
+    if (e?.response) throw e // real API error — don't queue, let it surface
+    enqueue({ method, url, body, visitId })
+    throw new OfflineQueuedError()
+  }
+}
+
+/** POST-only convenience wrapper around {@link offlineMutate}. */
 export async function offlinePost(
   url: string,
   body: Record<string, unknown>,
   visitId?: string,
 ): Promise<any> {
-  const state = await NetInfo.fetch()
-  // isInternetReachable is a probe that often comes back `null` (not yet
-  // resolved) or a false negative on networks that block the probe target
-  // even though real API traffic goes through fine. Only treat it as
-  // offline when the probe explicitly reports `false`.
-  const online = !!state.isConnected && state.isInternetReachable !== false
-
-  if (!online) {
-    enqueue({ method: 'POST', url, body, visitId })
-    throw new OfflineQueuedError()
-  }
-
-  try {
-    return await apiClient.post(url, body)
-  } catch (e: any) {
-    if (e?.response) throw e // real API error — don't queue, let it surface
-    enqueue({ method: 'POST', url, body, visitId })
-    throw new OfflineQueuedError()
-  }
+  return offlineMutate('POST', url, body, visitId)
 }
 
 /**
@@ -94,8 +103,7 @@ export async function offlinePostMultipart(
   visitId?: string,
 ): Promise<any> {
   const { jsonBody, fields = {}, files } = parts
-  const state = await NetInfo.fetch()
-  const online = !!state.isConnected && state.isInternetReachable !== false
+  const online = await isEffectivelyOnline()
 
   const queueBody: Record<string, unknown> = { __multipart: true, jsonBody, fields, files }
 

@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import NetInfo from '@react-native-community/netinfo'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 import React, { useMemo, useState, useEffect } from "react";
 import {
   Pressable,
@@ -77,8 +77,7 @@ export default function PatientsScreen() {
   // Tap-to-refresh: refresh when patients tab is tapped
   useEffect(() => {
     const unsubscribe = onTabRefresh(async () => {
-      const state = await NetInfo.fetch()
-      const isOnline = !!state.isConnected && state.isInternetReachable !== false
+      const isOnline = await isEffectivelyOnline()
       if (isOnline) {
         refetch()
       }

@@ -79,7 +79,6 @@ export function useVisit(id: number) {
       return getVisitById(id)
     },
     cacheTtl: 2 * 60 * 1000,
-    refetchOnMount: 'always',
     enabled: !!id,
   })
 }

@@ -1,5 +1,6 @@
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
+import { offlineMutate } from './offline_api'
 import {
   mockDeleteNotification,
   mockFetchNotifications,
@@ -58,21 +59,22 @@ export async function fetchUnreadCount(): Promise<{ count: number }> {
   }
 }
 
-/** `POST /api/notifications/:id/read` — 204 No Content */
+/** `POST /api/notifications/:id/read` — 204 No Content. Queues offline (UI already
+ *  patches read-state optimistically via onMutate, so a queued sync is invisible). */
 export async function markNotificationRead(id: number): Promise<void> {
   if (ENV.USE_MOCK_DATA) return mockMarkNotificationRead(id)
-  await apiClient.post(`/notifications/${id}/read`)
+  await offlineMutate('POST', `/notifications/${id}/read`)
 }
 
-/** `POST /api/notifications/read-all` → `{ markedCount: number }` */
+/** `POST /api/notifications/read-all` → `{ markedCount: number }`. Queues offline. */
 export async function markAllNotificationsRead(): Promise<{ markedCount: number }> {
   if (ENV.USE_MOCK_DATA) return mockMarkAllRead()
-  const res = await apiClient.post('/notifications/read-all')
+  const res = await offlineMutate('POST', '/notifications/read-all')
   return unwrap<{ markedCount: number }>(res.data)
 }
 
-/** `DELETE /api/notifications/:id` — 204 No Content */
+/** `DELETE /api/notifications/:id` — 204 No Content. Queues offline. */
 export async function deleteNotification(id: number): Promise<void> {
   if (ENV.USE_MOCK_DATA) return mockDeleteNotification(id)
-  await apiClient.delete(`/notifications/${id}`)
+  await offlineMutate('DELETE', `/notifications/${id}`)
 }

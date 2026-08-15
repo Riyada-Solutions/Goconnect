@@ -1,6 +1,6 @@
-import NetInfo from '@react-native-community/netinfo'
 import { useInfiniteQuery, type UseInfiniteQueryOptions, type UseInfiniteQueryResult } from '@tanstack/react-query'
 import { cacheService } from '@/data/cache_service'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 
 interface PagedResponse<T> {
   data?: T[]
@@ -50,10 +50,9 @@ export function useOfflineInfiniteQuery<T, K>({
     retry: 0,
     queryFn: async ({ pageParam }) => {
       console.log(`[useOfflineInfiniteQuery] Starting queryFn for ${qkString}, page: ${pageParam}`)
+      const pageCacheKey = `${baseCacheKey}:page:${pageParam}`
       try {
-        const state = await NetInfo.fetch()
-        const online = !!state.isConnected && state.isInternetReachable !== false
-        const pageCacheKey = `${baseCacheKey}:page:${pageParam}`
+        const online = await isEffectivelyOnline()
 
         if (!online) {
           console.log(`[useOfflineInfiniteQuery] Device offline for ${qkString}`)

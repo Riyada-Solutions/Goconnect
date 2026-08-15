@@ -1,5 +1,6 @@
 import { apiClient } from './api_client'
 import { ENV } from '../constants/env'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 
 export interface AttachmentUploadResult {
   /** Server-stored file name (e.g. `hf_20260602_120737_…png`).
@@ -44,6 +45,11 @@ function inferMime(name: string): string {
  * Response shape:
  *   { data: { id, name, file_name, file_url, file_size, mime_type, uploaded_at },
  *     status, message }
+ *
+ * Not queued offline — this is a pre-upload step; the caller's form-save
+ * falls back to submitting the attachment inline as multipart (which *does*
+ * queue). Failing fast here with a clear "offline" error, instead of letting
+ * the request time out, skips straight to that fallback.
  */
 export async function uploadVisitAttachment(params: {
   visitId: number | string
@@ -61,6 +67,10 @@ export async function uploadVisitAttachment(params: {
       fileUrl: params.file.uri,
       mimeType: mime,
     }
+  }
+
+  if (!(await isEffectivelyOnline())) {
+    throw new Error('Offline — attachment will be uploaded when the form is saved.')
   }
 
   const fd = new FormData()

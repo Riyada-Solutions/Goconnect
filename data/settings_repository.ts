@@ -1,5 +1,7 @@
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 import { ENV } from '../constants/env'
 import { apiClient } from './api_client'
+import { offlineMutate } from './offline_api'
 import {
   mockGetNotificationPreferences,
   mockGetWorkspace,
@@ -27,11 +29,12 @@ export async function getNotificationPreferences(): Promise<NotificationPreferen
   return unwrapData<NotificationPreferences>(res.data)
 }
 
+/** Queues offline (patch is a plain object body, replayed as a PATCH on sync). */
 export async function updateNotificationPreferences(
   patch: NotificationPreferencesPatch,
 ): Promise<NotificationPreferences> {
   if (ENV.USE_MOCK_DATA) return mockUpdateNotificationPreferences(patch)
-  const res = await apiClient.patch('/me/notification-preferences', patch)
+  const res = await offlineMutate('PATCH', '/me/notification-preferences', patch as Record<string, unknown>)
   return unwrapData<NotificationPreferences>(res.data)
 }
 
@@ -41,10 +44,16 @@ export interface UploadAvatarParams {
   fileName?: string
 }
 
+/** Not queued offline (multipart avatar upload doesn't fit the JSON queue
+ *  shape cleanly) — fails fast with a clear message so the user can retry
+ *  once reconnected, rather than silently disappearing into a stuck queue item. */
 export async function uploadAvatar(
   params: UploadAvatarParams,
 ): Promise<{ avatarUrl: string }> {
   if (ENV.USE_MOCK_DATA) return mockUploadAvatar(params.uri)
+  if (!(await isEffectivelyOnline())) {
+    throw new Error('You are offline. Connect to the internet to update your avatar.')
+  }
 
   const formData = new FormData()
   const name = params.fileName ?? `avatar.${params.mimeType?.split('/')[1] ?? 'jpg'}`
@@ -71,14 +80,14 @@ export async function getWorkspace(): Promise<Workspace> {
   return unwrapData<Workspace>(res.data)
 }
 
-/** Persist the user's selected system (e.g. "center" | "home"). */
+/** Persist the user's selected system (e.g. "center" | "home"). Queues offline. */
 export async function setSelectedSystem(system: string): Promise<void> {
   if (ENV.USE_MOCK_DATA) return mockSetSelectedSystem(system)
-  await apiClient.post('/settings/selected-system', { system })
+  await offlineMutate('POST', '/settings/selected-system', { system })
 }
 
-/** Persist the user's selected branch by id. */
+/** Persist the user's selected branch by id. Queues offline. */
 export async function setSelectedBranch(branchId: number): Promise<void> {
   if (ENV.USE_MOCK_DATA) return mockSetSelectedBranch(branchId)
-  await apiClient.post('/settings/selected-branch', { branch_id: branchId })
+  await offlineMutate('POST', '/settings/selected-branch', { branch_id: branchId })
 }

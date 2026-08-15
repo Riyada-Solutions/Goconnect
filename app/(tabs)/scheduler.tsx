@@ -96,11 +96,12 @@ export default function SchedulerScreen() {
     : undefined
 
   const {
-    data: slots = [],
+    data: slotsData,
     isLoading: slotsLoading,
     isError: slotsError,
     refetch: refetchSlots,
   } = useSlots({ date: selectedDateStr });
+  const slots = slotsData ?? [];
   const { refreshing, onRefresh } = usePullToRefresh(refetchSlots);
   const showSkeleton = slotsLoading || refreshing;
 

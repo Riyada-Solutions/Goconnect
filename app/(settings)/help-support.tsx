@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { useApp } from "@/context/AppContext";
+import { OfflineQueuedError } from "@/data/offline_api";
 import { useSubmitSupportMessage } from "@/hooks/useSupport";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
@@ -131,6 +132,19 @@ export default function HelpSupportScreen() {
           });
         },
         onError: (err) => {
+          if (err instanceof OfflineQueuedError) {
+            setName("");
+            setEmail("");
+            setSubject("");
+            setMessage("");
+            setErrors({});
+            showDialog({
+              variant: "success",
+              title: "Saved Offline",
+              message: "Your message will send automatically when you reconnect.",
+            });
+            return;
+          }
           showDialog({
             variant: "error",
             title: t("error"),

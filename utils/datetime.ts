@@ -75,6 +75,17 @@ export class DateTimeConverter {
     return d ? d.getTime() - this.KSA_OFFSET_MS : null
   }
 
+  /**
+   * The current instant, relabelled as KSA wall-clock-as-UTC so it can be fed
+   * straight into {@link time}/{@link dateTime}/{@link date} alongside server
+   * timestamps. A raw `Date.now()`/`new Date()` is true UTC, so formatting it
+   * directly with `time()` reads 3h behind the KSA wall clock — this is the
+   * inverse of {@link instant}.
+   */
+  static nowAsWallClock(): number {
+    return Date.now() + this.KSA_OFFSET_MS
+  }
+
   /** `2026-05-31T22:53:00Z` → `"10:53 PM"` (12-hour, UTC wall-clock). */
   static time(input: DateInput): string {
     const d = this.parse(input)

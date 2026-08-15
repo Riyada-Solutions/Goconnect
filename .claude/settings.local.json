@@ -15,7 +15,13 @@
       "PowerShell(Select-String -Path \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\\\\app\\\\.cxx\\\\RelWithDebInfo\\\\622e1u23\\\\arm64-v8a\\\\build.ninja\" -Pattern \"async.storage\" -CaseSensitive:$false)",
       "PowerShell(cd \"D:\\\\work\\\\React\\\\waleed\\\\careconnect\\\\nurse\\\\v4\\\\Goconnect\\\\android\"; ./gradlew assembleRelease 2>&1 | Where-Object { $_ -match \"\\(error:|FAILED|BUILD|Patched|ninja|longer than|\\\\.apk|apk\\)\" } | Select-Object -Last 30)",
       "Read(//d/Android/Sdk/cmake//**)",
-      "Bash(/d/Android/Sdk/cmake/3.22.1/bin/ninja.exe --version)"
+      "Bash(/d/Android/Sdk/cmake/3.22.1/bin/ninja.exe --version)",
+      "Bash(sed -n '20,40p' /x/android/settings.gradle)",
+      "Read(//x/android/**)",
+      "Bash(./gradlew.bat assembleRelease --console=plain --stacktrace)",
+      "Bash(cd /x)",
+      "Bash(node -e \"console.log\\(process.cwd\\(\\)\\)\")",
+      "Bash(npx expo *)"
     ]
   }
 }

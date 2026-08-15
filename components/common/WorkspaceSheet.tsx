@@ -12,6 +12,7 @@ import {
 
 import { BottomSheet } from "@/components/common/BottomSheet";
 import { useApp } from "@/context/AppContext";
+import { OfflineQueuedError } from "@/data/offline_api";
 import type { Branch } from "@/data/models/workspace";
 import {
   useSetSelectedBranch,
@@ -48,7 +49,9 @@ export function WorkspaceSheet({ visible, onClose }: Props) {
       await systemMutation.mutateAsync(system);
       clearWorkspaceCaches();
       void refreshUser();
-    } catch {
+    } catch (err) {
+      // Queued offline — keep the optimistic selection; it'll sync once reconnected.
+      if (err instanceof OfflineQueuedError) return;
       updateWorkspaceSelection({ selected_system: previous });
     }
   };
@@ -66,7 +69,8 @@ export function WorkspaceSheet({ visible, onClose }: Props) {
       await branchMutation.mutateAsync(branch.id);
       clearWorkspaceCaches();
       void refreshUser();
-    } catch {
+    } catch (err) {
+      if (err instanceof OfflineQueuedError) return;
       updateWorkspaceSelection({
         selected_branch_id: prevId,
         selected_branch: prevBranch,

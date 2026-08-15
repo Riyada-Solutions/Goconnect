@@ -1,6 +1,6 @@
-import NetInfo from '@react-native-community/netinfo'
 import { useQuery, type UseQueryOptions, type UseQueryResult } from '@tanstack/react-query'
 import { cacheService } from '@/data/cache_service'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 
 interface OfflineQueryOptions<T> extends Omit<UseQueryOptions<T>, 'queryFn'> {
   /** API call that fetches the data. */
@@ -42,8 +42,7 @@ export function useOfflineQuery<T>({
     retry: 0,
     queryFn: async () => {
       try {
-        const state = await NetInfo.fetch()
-        const online = !!state.isConnected && state.isInternetReachable !== false
+        const online = await isEffectivelyOnline()
 
         if (!online) {
           // Offline: try cache first

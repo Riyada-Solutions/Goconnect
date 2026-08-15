@@ -1,5 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
-
+import { useOfflineQuery } from './useOfflineQuery'
 import { getMachines } from '@/data/machines_repository'
 import type { Machine } from '@/data/models/machine'
 
@@ -10,10 +9,10 @@ export const MACHINES_QUERY_KEY = ['settings', 'machines'] as const
  * The catalog changes rarely, so we keep results fresh for 10 minutes.
  */
 export function useMachines() {
-  return useQuery({
+  return useOfflineQuery({
     queryKey: MACHINES_QUERY_KEY,
     queryFn: getMachines,
-    staleTime: 10 * 60_000,
+    cacheTtl: 10 * 60_000,
   })
 }
 

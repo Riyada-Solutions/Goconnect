@@ -2,6 +2,7 @@ import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { ENV } from '@/constants/env'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 
 // Dedicated axios client for signature uploads. Mirrors the auth-token +
 // language headers used by apiClient, but with its own longer timeout for
@@ -67,10 +68,19 @@ function inferMime(name: string): string {
  *
  * Response shape from the server:
  *   { data: { signature_url, full_url, full_path }, status, message }
+ *
+ * Not queued offline — this is a pre-upload step; the caller's form-save
+ * falls back to submitting the signature inline as multipart (which *does*
+ * queue). Failing fast here with a clear "offline" error, instead of letting
+ * the request time out, skips straight to that fallback.
  */
 export async function uploadSignature(
   file: SignatureFileLike,
 ): Promise<SignatureUploadResult> {
+  if (!(await isEffectivelyOnline())) {
+    throw new Error('Offline — signature will be attached when the form is saved.')
+  }
+
   const name = file.name ?? `signature_${Date.now()}.png`
   const type = file.type ?? inferMime(name)
 

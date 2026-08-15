@@ -1,4 +1,4 @@
-import NetInfo from '@react-native-community/netinfo'
+import { isEffectivelyOnline } from '@/context/NetworkContext'
 import { apiClient } from '@/data/api_client'
 import { buildMultipartFormData } from '@/data/offline_api'
 import { getItem, peekAll, markDone, markFailed, type QueuedMutation } from '@/data/offline_queue'
@@ -87,11 +87,12 @@ export async function flushQueue(): Promise<{ synced: number; failed: number }> 
   const pending = peekAll()
   if (pending.length === 0) return { synced: 0, failed: 0 }
 
-  const state = await NetInfo.fetch()
   // See data/offline_api.ts: isInternetReachable can be a stale/false
   // negative `null`/`false` probe result even while genuinely online, so
-  // only an explicit `false` counts as offline.
-  if (!state.isConnected || state.isInternetReachable === false) {
+  // only an explicit `false` counts as offline. Also honors the dev offline
+  // override so a simulated offline session doesn't silently flush the queue.
+  const online = await isEffectivelyOnline()
+  if (!online) {
     return { synced: 0, failed: 0 }
   }
 

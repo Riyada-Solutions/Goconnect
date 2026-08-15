@@ -94,3 +94,16 @@ export function NetworkProvider({ children, onReconnect }: {
 export function useNetwork() {
   return useContext(NetworkContext)
 }
+
+/**
+ * Non-hook connectivity check for use outside components (query fns, services,
+ * offline_api). Honors the dev offline override so simulating "no internet"
+ * from dev settings actually blocks API calls, not just the UI banner.
+ */
+export async function isEffectivelyOnline(): Promise<boolean> {
+  const override = await AsyncStorage.getItem(DEV_OFFLINE_OVERRIDE_KEY)
+  if (override === 'true') return false
+
+  const state = await NetInfo.fetch()
+  return !!state.isConnected && state.isInternetReachable !== false
+}
