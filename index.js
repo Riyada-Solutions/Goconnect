@@ -1,8 +1,31 @@
-import { registerRootComponent } from 'expo';
+// Registers the FCM background message handler and notifee's background tap
+// handler at true top level, before the app's component tree mounts. RNFB
+// and notifee both require this for reliable background/quit delivery — see
+// utils/pushNotifications.ts for the foreground/channel-setup counterparts.
+//
+// Metro compiles `require`/`import` to run in file order (not spec ES module
+// hoisting), so the ordering below — handlers registered, THEN the app entry
+// required — is guaranteed.
+const notifee = require('@notifee/react-native').default
+const { EventType } = require('@notifee/react-native')
+const {
+  displayFcmNotification,
+  isNativeFirebaseAvailable,
+  navigateFromNotificationPayload,
+} = require('./utils/pushNotifications')
 
-import App from './App';
+if (isNativeFirebaseAvailable()) {
+  const messaging = require('@react-native-firebase/messaging').default
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+  messaging().setBackgroundMessageHandler(async (message) => {
+    await displayFcmNotification(message)
+  })
+}
+
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  if (type === EventType.PRESS) {
+    navigateFromNotificationPayload(detail.notification?.data ?? {})
+  }
+})
+
+require('expo-router/entry')

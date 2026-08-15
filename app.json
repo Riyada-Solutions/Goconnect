@@ -63,6 +63,7 @@
     },
     "plugins": [
       "./plugins/withOpaqueIosIcon",
+      "./plugins/withNotificationSound",
       [
         "expo-router",
         {

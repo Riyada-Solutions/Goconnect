@@ -7,11 +7,16 @@ import {
   Platform,
   TurboModuleRegistry,
 } from 'react-native'
+import notifee, { AndroidImportance, EventType } from '@notifee/react-native'
 import { notificationLogger } from './notificationLogger'
-import { playNotificationSound, type NotificationType } from './notificationSounds'
+import { type NotificationType } from './notificationSounds'
 import { notificationDisplay } from './notificationDisplay'
 
 export const FCM_TOKEN_STORAGE_KEY = '@goconnect/fcm_token'
+
+/** Must match the sound file bundled by plugins/withNotificationSound.js (assets/sound/notification_sounbd.wav). */
+const NOTIFICATION_SOUND = 'notification_sounbd'
+const NOTIFICATION_CHANNEL_ID = 'default'
 
 const RNFB_APP_TURBO_MODULE = 'NativeRNFBTurboApp'
 
@@ -310,6 +315,59 @@ function handleOpenedMessage(message: RemoteMessage | null | undefined): void {
   navigateFromNotificationPayload(extractPayload(message))
 }
 
+/**
+ * Creates (or updates, on Android) the notification channel carrying the
+ * custom sound bundled by plugins/withNotificationSound.js. No-op on iOS,
+ * where the sound is set per-notification instead.
+ */
+export async function ensureNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return
+  try {
+    await notifee.createChannel({
+      id: NOTIFICATION_CHANNEL_ID,
+      name: 'Default',
+      importance: AndroidImportance.HIGH,
+      sound: NOTIFICATION_SOUND,
+    })
+  } catch (error) {
+    console.warn('⚠️ Failed to create notifee notification channel:', error)
+  }
+}
+
+/**
+ * Displays a real OS notification (Android shade / iOS Notification Center)
+ * for an FCM message, with the custom sound. Called from both the foreground
+ * (`onMessage`) and background/quit (`setBackgroundMessageHandler`) paths so
+ * behaviour is identical no matter the app's state.
+ */
+export async function displayFcmNotification(message: RemoteMessage | null | undefined): Promise<void> {
+  if (!message) return
+
+  const payload = extractPayload(message)
+  const title = message.notification?.title || (payload.title as string) || 'Notification'
+  const body = message.notification?.body || (payload.body as string) || 'You have a new notification'
+
+  try {
+    await notifee.displayNotification({
+      title,
+      body,
+      data: message.data as Record<string, string | number | object>,
+      android: {
+        channelId: NOTIFICATION_CHANNEL_ID,
+        smallIcon: 'notification_icon',
+        sound: NOTIFICATION_SOUND,
+        pressAction: { id: 'default' },
+      },
+      ios: {
+        sound: `${NOTIFICATION_SOUND}.wav`,
+        foregroundPresentationOptions: { alert: true, sound: true, badge: false },
+      },
+    })
+  } catch (error) {
+    console.warn('⚠️ Failed to display notifee notification:', error)
+  }
+}
+
 async function handleForegroundMessage(message: RemoteMessage | null | undefined): Promise<void> {
   if (!message) return
 
@@ -318,11 +376,6 @@ async function handleForegroundMessage(message: RemoteMessage | null | undefined
   const title = message.notification?.title || 'Notification'
   const body = message.notification?.body || 'You have a new notification'
 
-  // Play notification sound
-  if (type) {
-    await playNotificationSound(type)
-  }
-
   notificationLogger.addLog({
     type: 'received',
     title,
@@ -330,44 +383,62 @@ async function handleForegroundMessage(message: RemoteMessage | null | undefined
     data: message.data as Record<string, unknown>,
   })
 
-  // Show visual notification banner when app is open
+  // System notification (tray/Notification Center) with custom sound.
+  await displayFcmNotification(message)
+
+  // In-app banner while the app is open.
   notificationDisplay.show(title, body, type, payload)
 }
 
 /**
  * Must run once at app startup.
  * No-ops when native Firebase is not linked (Expo Go / stale binary).
+ *
+ * The FCM background message handler itself must be registered at true
+ * top-level (see index.js) rather than here — RNFB requires it be set up
+ * before the app's component tree mounts for reliable background delivery.
  */
 export function configureNotificationHandler(): void {
-  const fb = getMessagingModule()
-  if (!fb) return
-
-  try {
-    const messaging = fb.getMessaging()
-    fb.setBackgroundMessageHandler(messaging, async (message) => {
-      console.log('📩 Background FCM message:', {
-        messageId: message.messageId,
-        data: message.data,
-        notification: message.notification,
-      })
-    })
-    console.log('✅ FCM background handler registered')
-  } catch (error) {
-    console.warn('⚠️ Failed to register FCM background handler:', error)
-  }
+  void ensureNotificationChannel()
 }
 
 /**
- * Foreground receive + background/quit tap navigation.
+ * Foreground receive/tap + background/quit tap navigation.
  * Call once from the root layout useEffect.
  */
 export function registerNotificationListeners(): () => void {
   const fb = getMessagingModule()
-  if (!fb) return () => {}
+  const unsubscribers: Array<() => void> = []
+
+  unsubscribers.push(
+    notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS) {
+        console.log('👆 Notifee foreground press')
+        navigateFromNotificationPayload((detail.notification?.data ?? {}) as NotificationPayload)
+      }
+    }),
+  )
+
+  void notifee
+    .getInitialNotification()
+    .then((initial) => {
+      if (!initial) return
+      console.log('👆 Opened from notifee quit-state notification')
+      setTimeout(
+        () => navigateFromNotificationPayload((initial.notification.data ?? {}) as NotificationPayload),
+        400,
+      )
+    })
+    .catch((error) => {
+      console.warn('⚠️ notifee getInitialNotification failed:', error)
+    })
+
+  if (!fb) return () => {
+    for (const unsub of unsubscribers) unsub()
+  }
 
   try {
     const messaging = fb.getMessaging()
-    const unsubscribers: Array<() => void> = []
 
     unsubscribers.push(
       fb.onMessage(messaging, async (message) => {
@@ -381,6 +452,9 @@ export function registerNotificationListeners(): () => void {
       }),
     )
 
+    // Fallback: only fires if FCM itself ever auto-displays a notification
+    // (e.g. a payload with a top-level `notification` block). Harmless to
+    // keep alongside the notifee-driven paths above.
     unsubscribers.push(
       fb.onNotificationOpenedApp(messaging, (message) => {
         console.log('👆 Opened from background notification')
@@ -411,12 +485,12 @@ export function registerNotificationListeners(): () => void {
       })
 
     console.log('✅ FCM notification listeners registered')
-    return () => {
-      for (const unsub of unsubscribers) unsub()
-    }
   } catch (error) {
     console.warn('⚠️ Failed to register FCM listeners:', error)
-    return () => {}
+  }
+
+  return () => {
+    for (const unsub of unsubscribers) unsub()
   }
 }
 
