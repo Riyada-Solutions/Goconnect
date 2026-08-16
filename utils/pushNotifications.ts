@@ -7,10 +7,27 @@ import {
   Platform,
   TurboModuleRegistry,
 } from 'react-native'
-import notifee, { AndroidImportance, EventType } from '@notifee/react-native'
 import { notificationLogger } from './notificationLogger'
 import { type NotificationType } from './notificationSounds'
 import { notificationDisplay } from './notificationDisplay'
+
+let notifee: typeof import('@notifee/react-native').default | null = null
+let EventType: typeof import('@notifee/react-native').EventType | null = null
+let AndroidImportance: typeof import('@notifee/react-native').AndroidImportance | null = null
+
+function getNotifee() {
+  if (notifee === null) {
+    try {
+      notifee = require('@notifee/react-native').default
+      EventType = require('@notifee/react-native').EventType
+      AndroidImportance = require('@notifee/react-native').AndroidImportance
+    } catch (error) {
+      console.warn('⚠️ Notifee not available')
+      return null
+    }
+  }
+  return notifee
+}
 
 export const FCM_TOKEN_STORAGE_KEY = '@goconnect/fcm_token'
 
@@ -334,11 +351,13 @@ function handleOpenedMessage(message: RemoteMessage | null | undefined): void {
  */
 export async function ensureNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return
+  const n = getNotifee()
+  if (!n) return
   try {
-    await notifee.createChannel({
+    await n.createChannel({
       id: NOTIFICATION_CHANNEL_ID,
       name: 'Default',
-      importance: AndroidImportance.HIGH,
+      importance: AndroidImportance?.HIGH || 5,
       sound: NOTIFICATION_SOUND,
     })
   } catch (error) {
@@ -355,12 +374,15 @@ export async function ensureNotificationChannel(): Promise<void> {
 export async function displayFcmNotification(message: RemoteMessage | null | undefined): Promise<void> {
   if (!message) return
 
+  const n = getNotifee()
+  if (!n) return
+
   const payload = extractPayload(message)
   const title = message.notification?.title || (payload.title as string) || 'Notification'
   const body = message.notification?.body || (payload.body as string) || 'You have a new notification'
 
   try {
-    await notifee.displayNotification({
+    await n.displayNotification({
       title,
       body,
       data: message.data as Record<string, string | number | object>,
@@ -422,28 +444,31 @@ export function registerNotificationListeners(): () => void {
   const fb = getMessagingModule()
   const unsubscribers: Array<() => void> = []
 
-  unsubscribers.push(
-    notifee.onForegroundEvent(({ type, detail }) => {
-      if (type === EventType.PRESS) {
-        console.log('👆 Notifee foreground press')
-        navigateFromNotificationPayload((detail.notification?.data ?? {}) as NotificationPayload)
-      }
-    }),
-  )
+  const n = getNotifee()
+  if (n && EventType) {
+    unsubscribers.push(
+      n.onForegroundEvent(({ type, detail }) => {
+        if (type === EventType!.PRESS) {
+          console.log('👆 Notifee foreground press')
+          navigateFromNotificationPayload((detail.notification?.data ?? {}) as NotificationPayload)
+        }
+      }),
+    )
 
-  void notifee
-    .getInitialNotification()
-    .then((initial) => {
-      if (!initial) return
-      console.log('👆 Opened from notifee quit-state notification')
-      setTimeout(
-        () => navigateFromNotificationPayload((initial.notification.data ?? {}) as NotificationPayload),
-        400,
-      )
-    })
-    .catch((error) => {
-      console.warn('⚠️ notifee getInitialNotification failed:', error)
-    })
+    void n
+      .getInitialNotification()
+      .then((initial) => {
+        if (!initial) return
+        console.log('👆 Opened from notifee quit-state notification')
+        setTimeout(
+          () => navigateFromNotificationPayload((initial.notification.data ?? {}) as NotificationPayload),
+          400,
+        )
+      })
+      .catch((error) => {
+        console.warn('⚠️ notifee getInitialNotification failed:', error)
+      })
+  }
 
   if (!fb) return () => {
     for (const unsub of unsubscribers) unsub()
