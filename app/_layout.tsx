@@ -11,7 +11,6 @@ import { LogBox, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import type notifeeModule from "@notifee/react-native";
 
 import { initDb } from "@/data/db";
 import { configureNotificationHandler, registerNotificationListeners } from "@/utils/pushNotifications";
