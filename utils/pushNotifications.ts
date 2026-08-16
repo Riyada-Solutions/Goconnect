@@ -22,7 +22,7 @@ function getNotifee() {
       EventType = require('@notifee/react-native').EventType
       AndroidImportance = require('@notifee/react-native').AndroidImportance
     } catch (error) {
-      console.warn('⚠️ Notifee not available')
+      // Notifee requires native modules — not available in Expo Go. Silently skip.
       return null
     }
   }
