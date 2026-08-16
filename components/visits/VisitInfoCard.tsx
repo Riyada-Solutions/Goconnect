@@ -156,7 +156,7 @@ export function VisitInfoCard(p: Props) {
         </View>
       </Card>
 
-      {p.showProcedureEdit && (
+      {p.showProcedureEdit && procedureEditable && (
         <Card style={[s.sectionCard, { marginTop: 12 }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
             <Feather name="clock" size={16} color={Colors.primary} />
