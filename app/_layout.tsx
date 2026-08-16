@@ -189,11 +189,36 @@ export default function RootLayout() {
       }
     }, 3000);
 
-    configureNotificationHandler();
-    const unsubscribeNotifications = registerNotificationListeners();
-    void notificationLogger.initialize();
-    initDb();
-    void registerBackgroundSync();
+    try {
+      configureNotificationHandler();
+    } catch (error) {
+      console.warn('⚠️ Failed to configure notification handler:', error);
+    }
+
+    let unsubscribeNotifications: (() => void) | undefined;
+    try {
+      unsubscribeNotifications = registerNotificationListeners();
+    } catch (error) {
+      console.warn('⚠️ Failed to register notification listeners:', error);
+    }
+
+    try {
+      void notificationLogger.initialize();
+    } catch (error) {
+      console.warn('⚠️ Failed to initialize notification logger:', error);
+    }
+
+    try {
+      initDb();
+    } catch (error) {
+      console.warn('⚠️ Failed to initialize database:', error);
+    }
+
+    try {
+      void registerBackgroundSync();
+    } catch (error) {
+      console.warn('⚠️ Failed to register background sync:', error);
+    }
 
     loadFonts().finally(() => {
       clearTimeout(timer);
