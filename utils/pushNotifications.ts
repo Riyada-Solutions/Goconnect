@@ -73,16 +73,21 @@ export function isNativeFirebaseAvailable(): boolean {
       nativeFirebaseAvailable = true
       return true
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    console.debug('⚠️ TurboModuleRegistry check failed:', error instanceof Error ? error.message : error)
   }
 
-  const modules = NativeModules as Record<string, unknown>
-  nativeFirebaseAvailable = !!(
-    modules[RNFB_APP_TURBO_MODULE] ||
-    modules.RNFBAppModule ||
-    modules.RNFBMessagingModule
-  )
+  try {
+    const modules = NativeModules as Record<string, unknown>
+    nativeFirebaseAvailable = !!(
+      modules[RNFB_APP_TURBO_MODULE] ||
+      modules.RNFBAppModule ||
+      modules.RNFBMessagingModule
+    )
+  } catch (error) {
+    console.debug('⚠️ NativeModules check failed:', error instanceof Error ? error.message : error)
+    nativeFirebaseAvailable = false
+  }
 
   if (!nativeFirebaseAvailable) {
     console.warn(
