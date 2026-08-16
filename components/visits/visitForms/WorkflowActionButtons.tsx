@@ -12,6 +12,7 @@ export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "
 interface Props {
   phase: VisitPhase;
   canReopen: boolean;
+  canEditProcedure?: boolean;
   onStartProcedure: () => void;
   onEndProcedure: () => void;
   onCheckOut: () => void;
@@ -29,6 +30,7 @@ interface Props {
 export function WorkflowActionButtons({
   phase,
   canReopen,
+  canEditProcedure = true,
   onStartProcedure,
   onEndProcedure,
   onCheckOut,
@@ -44,7 +46,7 @@ export function WorkflowActionButtons({
 }: Props) {
   return (
     <Animated.View entering={FadeInDown.delay(270).springify()} style={s.actionsRow}>
-      {phase === "in_progress" && (
+      {phase === "in_progress" && canEditProcedure && (
         <Pressable
           style={[s.mainBtn, { backgroundColor: Colors.primary, opacity: startProcedureLoading ? 0.7 : 1 }]}
           onPress={onStartProcedure}
@@ -60,7 +62,7 @@ export function WorkflowActionButtons({
           )}
         </Pressable>
       )}
-      {phase === "start_procedure" && (
+      {phase === "start_procedure" && canEditProcedure && (
         <Pressable
           style={[s.mainBtn, { backgroundColor: "#EF4444", opacity: endProcedureLoading ? 0.7 : 1 }]}
           onPress={onEndProcedure}

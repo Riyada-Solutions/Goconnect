@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import { Modal, Platform, Pressable, Text, View } from "react-native";
 
-import { visitDetailStyles as s } from "@/app/visits/visit-detail.styles";
+import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
 import { Colors } from "@/theme/colors";
 
 export type DateTimeMode = "date" | "time" | "datetime";

@@ -1,7 +1,7 @@
 import React from "react";
 import { Text, TextInput, View } from "react-native";
 
-import { visitDetailStyles as s } from "../visit-detail.styles";
+import { visitDetailStyles as s } from "./visit-detail.styles";
 
 interface Props {
   label: string;

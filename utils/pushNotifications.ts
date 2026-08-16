@@ -15,12 +15,21 @@ let notifee: typeof import('@notifee/react-native').default | null = null
 let EventType: typeof import('@notifee/react-native').EventType | null = null
 let AndroidImportance: typeof import('@notifee/react-native').AndroidImportance | null = null
 
+// Queue to store notification payloads tapped during login
+let pendingNotificationPayload: NotificationPayload | null = null
+
 function getNotifee() {
   if (notifee === null) {
     try {
-      notifee = require('@notifee/react-native').default
-      EventType = require('@notifee/react-native').EventType
-      AndroidImportance = require('@notifee/react-native').AndroidImportance
+      const originalError = console.error
+      console.error = () => {} // Suppress error logs during Notifee load
+      try {
+        notifee = require('@notifee/react-native').default
+        EventType = require('@notifee/react-native').EventType
+        AndroidImportance = require('@notifee/react-native').AndroidImportance
+      } finally {
+        console.error = originalError
+      }
     } catch (error) {
       // Notifee requires native modules — not available in Expo Go. Silently skip.
       return null
@@ -245,6 +254,27 @@ function resolveDeeplink(data: NotificationPayload): Deeplink | null {
 }
 
 /**
+ * Queue a notification to be navigated to after login completes.
+ * Called when notification is tapped during unauthenticated state.
+ */
+export function queuePendingNotification(data: NotificationPayload): void {
+  pendingNotificationPayload = data
+  console.log('📋 Notification queued (pending auth):', { type: data.action_type ?? data.type, id: data.action_id ?? data.id })
+}
+
+/**
+ * Process any pending notification from login flow.
+ * Call this after user successfully authenticates.
+ */
+export function processPendingNotification(): void {
+  if (!pendingNotificationPayload) return
+  const payload = pendingNotificationPayload
+  pendingNotificationPayload = null
+  console.log('⏳ Processing pending notification after auth')
+  navigateFromNotificationPayload(payload)
+}
+
+/**
  * Navigate from a push payload using the backend deeplink contract
  * (see docs/Backend API - Notifications.md §5), with flat-field fallbacks.
  */
@@ -357,7 +387,7 @@ export async function ensureNotificationChannel(): Promise<void> {
     await n.createChannel({
       id: NOTIFICATION_CHANNEL_ID,
       name: 'Default',
-      importance: AndroidImportance?.HIGH || 5,
+      importance: AndroidImportance?.HIGH,
       sound: NOTIFICATION_SOUND,
     })
   } catch (error) {

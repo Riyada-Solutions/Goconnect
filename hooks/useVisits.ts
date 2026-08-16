@@ -33,11 +33,11 @@ import {
   submitSocialWorkerProgressNote,
   submitVisualTriageChecklist,
 } from '../data/visit_repository'
-import type { ConsentFormData } from '@/app/visits/components/visitForms/ConsentFormForm'
-import type { PatientResponsibilityData } from '@/app/visits/components/visitForms/PatientResponsibilityForm'
-import type { ConsentForHemodialysisData } from '@/app/visits/components/visitForms/ConsentForHemodialysisForm'
-import type { EnrollmentsChecklistData } from '@/app/visits/components/visitForms/EnrollmentsChecklistForm'
-import type { PatientAssessmentData } from '@/app/visits/components/visitForms/PatientAssessmentForm'
+import type { ConsentFormData } from '@/components/visits/visitForms/ConsentFormForm'
+import type { PatientResponsibilityData } from '@/components/visits/visitForms/PatientResponsibilityForm'
+import type { ConsentForHemodialysisData } from '@/components/visits/visitForms/ConsentForHemodialysisForm'
+import type { EnrollmentsChecklistData } from '@/components/visits/visitForms/EnrollmentsChecklistForm'
+import type { PatientAssessmentData } from '@/components/visits/visitForms/PatientAssessmentForm'
 import type { InventoryUsageInput, InventoryUsageMultipleInput, Visit } from '../data/models/visit'
 import type { DoctorProgressNoteInput } from '../data/models/doctorProgressNote'
 import type { MorseFallsRiskAssessmentInput } from '../data/models/morseFallsRisk'

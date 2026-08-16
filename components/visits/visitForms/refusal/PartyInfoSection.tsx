@@ -8,7 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { translations } from "@/config/i18n";
 import { RELATIONSHIP_OPTIONS, type PartyInfo } from "@/data/models/refusal";
 
-import { visitDetailStyles as s } from "../../../visit-detail.styles";
+import { visitDetailStyles as s } from "../../visit-detail.styles";
 
 const RELATIONSHIP_KEYS: Record<(typeof RELATIONSHIP_OPTIONS)[number], string> = {
   Father:      "relationshipFather",

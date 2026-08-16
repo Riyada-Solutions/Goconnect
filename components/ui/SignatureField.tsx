@@ -6,7 +6,7 @@ import { ActivityIndicator, Image, Pressable, Text, View } from "react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useNetwork } from "@/context/NetworkContext";
 import { uploadSignature } from "@/data/signature_repository";
-import { SignatureConfirmSheet } from "@/app/visits/components/visitForms/refusal/SignatureConfirmSheet";
+import { SignatureConfirmSheet } from "@/components/visits/visitForms/refusal/SignatureConfirmSheet";
 
 export interface SignatureValue {
   signed: boolean;

@@ -781,6 +781,7 @@ function VisitDetailScreenInner() {
           procedureEndTimeStr={procedureEndTimeStr}
           showProcedureEdit={showProcedureEdit}
           enableProcedureEdit={appSettings.enableToggleProcedureButton}
+          canEditProcedure={can("visits.StartEndMyProcedure") || can("visits.StartEndAllProcedure")}
           editProcStart={editProcStart}
           editProcEnd={editProcEnd}
           isReadOnly={isReadOnly}
@@ -1172,6 +1173,7 @@ function VisitDetailScreenInner() {
         {/* {patientName && ( */}
           <WorkflowActionButtons
             phase={visitPhase}
+            canEditProcedure={can("visits.StartEndMyProcedure") || can("visits.StartEndAllProcedure")}
             canReopen={(can("visits.ReopenMyVisit") || can("visits.ReopenAllVisit")) && recordStatus !== "in_active"}
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}

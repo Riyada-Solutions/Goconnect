@@ -12,7 +12,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { mobileFlowStyles as ms } from "../visit-detail.styles";
+import { mobileFlowStyles as ms } from "./visit-detail.styles";
 
 interface Props {
   title: string;

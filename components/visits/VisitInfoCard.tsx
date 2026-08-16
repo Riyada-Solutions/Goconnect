@@ -11,7 +11,7 @@ import { useApp } from "@/context/AppContext";
 import { Colors } from "@/theme/colors";
 import { clock12hTo24h, clock24hTo12h, calculateDuration, formatElapsed } from "@/utils/time";
 
-import { visitDetailStyles as s } from "../visit-detail.styles";
+import { visitDetailStyles as s } from "./visit-detail.styles";
 import { ReadOnlyField } from "./ReadOnlyField";
 
 export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
@@ -37,6 +37,8 @@ interface Props {
   showProcedureEdit: boolean;
   /** When false, hides the procedure time edit affordance entirely (app_settings: enable_toggle_procedure_button). */
   enableProcedureEdit?: boolean;
+  /** User permission to edit procedure times. */
+  canEditProcedure?: boolean;
   editProcStart: string;
   editProcEnd: string;
   isReadOnly: boolean;
@@ -58,7 +60,8 @@ function statusLabel(phase: VisitPhase): string {
 export function VisitInfoCard(p: Props) {
   const { t } = useApp();
   const { colors, visitPhase, rawStatus } = p;
-  const procedureEditable = visitPhase === "start_procedure" || visitPhase === "end_procedure";
+  // Only allow editing during procedure (not after it ends), and only if user has permission
+  const procedureEditable = visitPhase === "start_procedure" && (p.canEditProcedure ?? true);
   const showProcedureEditIcon = (p.enableProcedureEdit ?? true) && procedureEditable;
 
   return (

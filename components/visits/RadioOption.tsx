@@ -3,7 +3,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Colors } from "@/theme/colors";
-import { visitDetailStyles as s } from "../visit-detail.styles";
+import { visitDetailStyles as s } from "./visit-detail.styles";
 
 interface Props {
   label: string;

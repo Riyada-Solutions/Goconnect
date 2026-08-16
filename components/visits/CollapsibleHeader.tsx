@@ -4,7 +4,7 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
-import { visitDetailStyles as s } from "../visit-detail.styles";
+import { visitDetailStyles as s } from "./visit-detail.styles";
 
 export interface CollapsibleBadge {
   text: string;

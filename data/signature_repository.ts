@@ -74,7 +74,9 @@ export async function uploadSignature(
 
   // Get uploadMediaUrl from settings (saved by AppContext when settings load)
   const uploadMediaUrl = await AsyncStorage.getItem(UPLOAD_MEDIA_URL_KEY)
-  const baseUrl = uploadMediaUrl || ENV.API_BASE_URL
+  let baseUrl = uploadMediaUrl || ENV.API_BASE_URL
+  // Remove trailing slash to avoid double slashes when appending /api
+  baseUrl = baseUrl.replace(/\/$/, '')
 
   // Create client with the correct base URL
   const client = axios.create({
@@ -100,7 +102,7 @@ export async function uploadSignature(
   } as unknown as Blob)
 
   console.log(`[Signature Upload] Starting upload for ${name}`)
-  console.log(`[Signature Upload] Using URL: ${baseUrl}/api/signatures/upload`)
+  console.log(`[Signature Upload] Using URL: ${baseUrl}api/signatures/upload`)
   const res = await client.post('/signatures/upload', fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
