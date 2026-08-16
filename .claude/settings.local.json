@@ -21,7 +21,10 @@
       "Bash(./gradlew.bat assembleRelease --console=plain --stacktrace)",
       "Bash(cd /x)",
       "Bash(node -e \"console.log\\(process.cwd\\(\\)\\)\")",
-      "Bash(npx expo *)"
+      "Bash(npx expo *)",
+      "Bash(pnpm install *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Read(//tmp/**)"
     ]
   }
 }

@@ -1,0 +1,45 @@
+Scope: all 6 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +1043 -113
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+Progress: resolved 0, reused 1, downloaded 0, added 0
+Progress: resolved 0, reused 214, downloaded 0, added 0
+Progress: resolved 0, reused 657, downloaded 0, added 0
+Progress: resolved 0, reused 987, downloaded 1, added 35
+Progress: resolved 0, reused 987, downloaded 1, added 38
+Progress: resolved 0, reused 987, downloaded 1, added 77
+Progress: resolved 0, reused 987, downloaded 1, added 174
+Progress: resolved 0, reused 987, downloaded 1, added 207
+Progress: resolved 0, reused 987, downloaded 1, added 271
+Progress: resolved 0, reused 987, downloaded 1, added 316
+Progress: resolved 0, reused 987, downloaded 1, added 395
+Progress: resolved 0, reused 987, downloaded 1, added 420
+Progress: resolved 0, reused 987, downloaded 1, added 540
+Progress: resolved 0, reused 987, downloaded 1, added 550
+Progress: resolved 0, reused 987, downloaded 3, added 553
+Progress: resolved 0, reused 987, downloaded 3, added 554
+Progress: resolved 0, reused 987, downloaded 3, added 617
+Progress: resolved 0, reused 987, downloaded 3, added 720
+Progress: resolved 0, reused 987, downloaded 3, added 791
+Progress: resolved 0, reused 987, downloaded 3, added 794
+Progress: resolved 0, reused 987, downloaded 3, added 913
+Progress: resolved 0, reused 987, downloaded 3, added 933
+Progress: resolved 0, reused 987, downloaded 5, added 973
+Progress: resolved 0, reused 987, downloaded 5, added 1043, done
+.../drizzle-kit/node_modules/esbuild postinstall$ node install.js
+node_modules/esbuild postinstall$ node install.js
+.../core-utils/node_modules/esbuild postinstall$ node install.js
+scripts/node_modules/esbuild postinstall$ node install.js
+.../drizzle-kit/node_modules/esbuild postinstall: Done
+node_modules/esbuild postinstall: Done
+.../core-utils/node_modules/esbuild postinstall: Done
+scripts/node_modules/esbuild postinstall: Done
+
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: @firebase/util@1.15.2, protobufjs@7.5.5.            │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 29.2s using pnpm v10.33.0
