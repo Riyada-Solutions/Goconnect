@@ -1,0 +1,369 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+
+import { Card } from "@/components/common/Card";
+import { Colors } from "@/theme/colors";
+import { translations, type Language } from "@/config/i18n";
+import {
+  EMPTY_PARTY,
+  EMPTY_RISKS,
+  type PartyInfo,
+  type RefusalRisks,
+  type RefusalType,
+} from "@/data/models/refusal";
+
+import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
+import { CollapsibleBody } from "../CollapsibleBody";
+import { CollapsibleHeader } from "../CollapsibleHeader";
+import { PartyInfoSection } from "./refusal/PartyInfoSection";
+import { RefusalMainSection } from "./refusal/RefusalMainSection";
+
+export interface RefusalFormSideData {
+  types: RefusalType[];
+  reason: string;
+  risks: RefusalRisks;
+  witness: PartyInfo;
+  unableToSignReason: string;
+  relative: PartyInfo;
+  doctor: PartyInfo;
+  interpreter: PartyInfo;
+}
+
+export interface RefusalFormData {
+  en: RefusalFormSideData;
+  ar: RefusalFormSideData;
+}
+
+interface Props {
+  colors: any;
+  isReadOnly: boolean;
+  initialExpanded?: boolean;
+  /** Prefill from the server — parsed via `parseDisOfHemodialysis`. */
+  initial?: RefusalFormData | null;
+  isSaving?: boolean;
+  onSave: (data: RefusalFormData) => void;
+  t: (key: any) => string;
+}
+
+const emptySide = (): RefusalFormSideData => ({
+  types: [],
+  reason: "",
+  risks: { ...EMPTY_RISKS },
+  witness: { ...EMPTY_PARTY },
+  unableToSignReason: "",
+  relative: { ...EMPTY_PARTY },
+  doctor: { ...EMPTY_PARTY, relationship: undefined, address: undefined },
+  interpreter: { ...EMPTY_PARTY, relationship: undefined, address: undefined },
+});
+
+const tFor = (lang: Language) => (key: keyof typeof translations.en): string => {
+  const dict = translations[lang] as Record<string, string>;
+  return dict[key] ?? translations.en[key] ?? String(key);
+};
+
+interface SideProps {
+  lang: Language;
+  data: RefusalFormSideData;
+  setData: React.Dispatch<React.SetStateAction<RefusalFormSideData>>;
+  colors: any;
+}
+
+function RefusalFormSide({ lang, data, setData, colors }: SideProps) {
+  const t = tFor(lang);
+  const isRtl = lang === "ar";
+  const align = isRtl ? ("right" as const) : ("left" as const);
+  const writingDirection = isRtl ? ("rtl" as const) : ("ltr" as const);
+
+  const update = <K extends keyof RefusalFormSideData>(key: K, value: RefusalFormSideData[K]) =>
+    setData((prev) => ({ ...prev, [key]: value }));
+
+  return (
+    <View style={{ gap: 16 }}>
+      <Text
+        style={{
+          fontFamily: "Inter_700Bold",
+          fontSize: 15,
+          color: colors.text,
+          textAlign: align,
+          writingDirection,
+        }}
+      >
+        {t("refusalTitle")}
+      </Text>
+
+      <RefusalMainSection
+        types={data.types}
+        reason={data.reason}
+        risks={data.risks}
+        onTypesChange={(v) => update("types", v)}
+        onReasonChange={(v) => update("reason", v)}
+        onRisksChange={(v) => update("risks", v)}
+        colors={colors}
+        t={t}
+        isRtl={isRtl}
+      />
+
+      <PartyInfoSection
+        title={t("witnessInformation")}
+        value={data.witness}
+        onChange={(v) => update("witness", v)}
+        showAddress
+        signatureStatement={t("refusalWitnessStatement")}
+        nameLabel={t("nameOfWitness")}
+        relationshipLabel={t("relationship")}
+        signatureLabel={t("signatureLabel")}
+        dateTimeLabel={t("dateAndTime")}
+        addressLabel={t("address")}
+        selectRelationship={t("selectRelationship")}
+        clickToSign={t("clickToSign")}
+        signed={t("signedLabel")}
+        colors={colors}
+        isRtl={isRtl}
+        lang={lang}
+      />
+
+      <View style={{ gap: 8 }}>
+        <Text
+          style={{
+            fontFamily: "Inter_700Bold",
+            fontSize: 14,
+            color: "#0891B2",
+            textAlign: align,
+            writingDirection,
+          }}
+        >
+          {t("reasonUnableToSign")}
+        </Text>
+        <Text style={[s.formLabel, { color: colors.text, textAlign: align, writingDirection }]}>
+          {t("reasonLabel")}
+        </Text>
+        <TextInput
+          style={[
+            s.formInput,
+            {
+              color: colors.text,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              minHeight: 60,
+              textAlignVertical: "top",
+              textAlign: align,
+              writingDirection,
+            },
+          ]}
+          value={data.unableToSignReason}
+          onChangeText={(v) => update("unableToSignReason", v)}
+          multiline
+        />
+      </View>
+
+      <PartyInfoSection
+        title={t("relativeInformation")}
+        value={data.relative}
+        onChange={(v) => update("relative", v)}
+        nameLabel={t("nameOfRelative")}
+        relationshipLabel={t("relationship")}
+        signatureLabel={t("signatureLabel")}
+        dateTimeLabel={t("dateAndTime")}
+        addressLabel={t("address")}
+        selectRelationship={t("selectRelationship")}
+        clickToSign={t("clickToSign")}
+        signed={t("signedLabel")}
+        colors={colors}
+        isRtl={isRtl}
+        lang={lang}
+      />
+
+      <PartyInfoSection
+        title={t("doctorInformation")}
+        value={data.doctor}
+        onChange={(v) => update("doctor", v)}
+        showRelationship={false}
+        nameLabel={t("nameOfDoctor")}
+        relationshipLabel={t("relationship")}
+        signatureLabel={t("signatureLabel")}
+        dateTimeLabel={t("dateAndTime")}
+        addressLabel={t("address")}
+        selectRelationship={t("selectRelationship")}
+        clickToSign={t("clickToSign")}
+        signed={t("signedLabel")}
+        colors={colors}
+        isRtl={isRtl}
+        lang={lang}
+      />
+
+      <View style={{ gap: 8 }}>
+        <Text
+          style={{
+            fontFamily: "Inter_700Bold",
+            fontSize: 14,
+            color: "#0891B2",
+            textAlign: align,
+            writingDirection,
+          }}
+        >
+          {t("interpreterInformation")}
+        </Text>
+        <Text
+          style={{
+            fontFamily: "Inter_400Regular",
+            fontSize: 12,
+            color: colors.textSecondary,
+            lineHeight: 18,
+            textAlign: align,
+            writingDirection,
+          }}
+        >
+          {t("interpreterStatement")}
+        </Text>
+      </View>
+      <PartyInfoSection
+        title={t("interpreterInformation")}
+        value={data.interpreter}
+        onChange={(v) => update("interpreter", v)}
+        showRelationship={false}
+        nameLabel={t("nameOfInterpreter")}
+        relationshipLabel={t("relationship")}
+        signatureLabel={t("signatureLabel")}
+        dateTimeLabel={t("dateAndTime")}
+        addressLabel={t("address")}
+        selectRelationship={t("selectRelationship")}
+        clickToSign={t("clickToSign")}
+        signed={t("signedLabel")}
+        colors={colors}
+        isRtl={isRtl}
+        lang={lang}
+      />
+    </View>
+  );
+}
+
+export function RefusalForm({ colors, isReadOnly, initialExpanded, initial, isSaving = false, onSave, t }: Props) {
+  void isReadOnly;
+  const [open, setOpen] = useState(initialExpanded ?? false);
+  const [enData, setEnData] = useState<RefusalFormSideData>(() => initial?.en ?? emptySide());
+  const [arData, setArData] = useState<RefusalFormSideData>(() => initial?.ar ?? emptySide());
+
+  // Repopulate when the prefill arrives after first mount (the visit query
+  // resolves async, so `initial` is often `null` on the first render).
+  useEffect(() => {
+    if (initial?.en) setEnData(initial.en);
+    if (initial?.ar) setArData(initial.ar);
+  }, [initial]);
+
+  // The serializer mirrors non-empty values EN↔AR, so a field counts as filled
+  // when it's present on *either* language side. The server validates these as
+  // required (a 422 lists patient_address, witness relationship, relative
+  // relation), so gate the save button on all of them.
+  const nonEmpty = (v?: string | null) => !!(v && v.trim() !== "");
+  const eitherSide = (pick: (d: RefusalFormSideData) => string | undefined) =>
+    nonEmpty(pick(enData)) || nonEmpty(pick(arData));
+  const relationFilled = (pick: (d: RefusalFormSideData) => PartyInfo) =>
+    eitherSide((d) => pick(d).relationship) || eitherSide((d) => pick(d).customRelationship);
+  // A party "has a signature" when it was drawn (signed/url/data) or, for the
+  // doctor, typed (the name IS the signature).
+  const signedEither = (pick: (d: RefusalFormSideData) => PartyInfo) => {
+    const en = pick(enData);
+    const ar = pick(arData);
+    return (
+      en.signed || ar.signed ||
+      nonEmpty(en.signatureUrl) || nonEmpty(ar.signatureUrl) ||
+      nonEmpty(en.signatureData) || nonEmpty(ar.signatureData)
+    );
+  };
+
+  const typesOk = enData.types.length > 0 || arData.types.length > 0;
+  const reasonOk = eitherSide((d) => d.reason);
+  // Witness — relationship, address, name and a signature.
+  const witnessRelationOk = relationFilled((d) => d.witness);
+  const witnessAddressOk = eitherSide((d) => d.witness.address);
+  const witnessNameOk = eitherSide((d) => d.witness.name);
+  const witnessSignedOk = signedEither((d) => d.witness);
+  // Relative — relationship, name and a signature.
+  const relativeRelationOk = relationFilled((d) => d.relative);
+  const relativeNameOk = eitherSide((d) => d.relative.name);
+  const relativeSignedOk = signedEither((d) => d.relative);
+  // Doctor — typed signature: the name itself satisfies the server's signature.
+  const doctorOk = eitherSide((d) => d.doctor.name) || signedEither((d) => d.doctor);
+
+  const canSave =
+    typesOk &&
+    reasonOk &&
+    witnessRelationOk &&
+    witnessAddressOk &&
+    witnessNameOk &&
+    witnessSignedOk &&
+    relativeRelationOk &&
+    relativeNameOk &&
+    relativeSignedOk &&
+    doctorOk;
+
+  const handleSave = () => {
+    if (!canSave || isSaving) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSave({ en: enData, ar: arData });
+  };
+
+  const handleClear = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEnData(emptySide());
+    setArData(emptySide());
+  };
+
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <CollapsibleHeader
+        title={t("refusalTitle")}
+        icon="alert-octagon"
+        iconColor="#DC2626"
+        badges={isReadOnly ? [{ text: t("readOnly"), bg: colors.borderLight, fg: colors.textSecondary }] : undefined}
+        expanded={open}
+        fontSize={14}
+        onToggle={() => setOpen(!open)}
+        colors={colors}
+      />
+      <CollapsibleBody open={open} style={{ padding: 14, gap: 20 }} pointerEvents={isReadOnly ? "none" : "auto"}>
+          <RefusalFormSide lang="en" data={enData} setData={setEnData} colors={colors} />
+
+          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+
+          <RefusalFormSide lang="ar" data={arData} setData={setArData} colors={colors} />
+
+          {!isReadOnly && (
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                style={[
+                  s.saveFlowBtn,
+                  {
+                    backgroundColor: canSave && !isSaving ? Colors.primary : colors.border,
+                    flex: 1,
+                    opacity: isSaving ? 0.7 : 1,
+                  },
+                ]}
+                onPress={handleSave}
+                disabled={!canSave || isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="save" size={16} color="#fff" />
+                )}
+                <Text style={s.mainBtnText}>{isSaving ? t("saving") : t("save")}</Text>
+              </Pressable>
+              <Pressable style={[s.saveFlowBtn, { backgroundColor: "#EF4444", flex: 1 }]} onPress={handleClear}>
+                <Feather name="trash-2" size={16} color="#fff" />
+                <Text style={s.mainBtnText}>{t("clear")}</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {!canSave && !isReadOnly && (
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#DC2626", lineHeight: 18 }}>
+              {t("refusalCompleteRequired")}
+            </Text>
+          )}
+      </CollapsibleBody>
+    </Card>
+  );
+}

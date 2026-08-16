@@ -124,6 +124,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 const STORAGE_KEYS = {
   LANGUAGE: "@goconnect/language",
   THEME: "@goconnect/theme",
+  UPLOAD_MEDIA_URL: "@goconnect/upload_media_url",
 };
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -207,6 +208,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const settings = await fetchAppSettings();
         setAppSettings(settings);
         setWebDomain(settings.uploadMediaUrl);
+        await AsyncStorage.setItem(STORAGE_KEYS.UPLOAD_MEDIA_URL, settings.uploadMediaUrl);
         console.log('✅ Settings API success:', { uploadMediaUrl: settings.uploadMediaUrl });
       } catch (err) {
         console.log('❌ Settings API failed:', err);
@@ -338,6 +340,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const settings = await fetchAppSettings();
       setAppSettings(settings);
       setWebDomain(settings.uploadMediaUrl);
+      await AsyncStorage.setItem(STORAGE_KEYS.UPLOAD_MEDIA_URL, settings.uploadMediaUrl);
     } catch {
       // ignore — keep current settings
     }

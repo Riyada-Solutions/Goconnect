@@ -4,23 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ENV } from '@/constants/env'
 import { isEffectivelyOnline } from '@/context/NetworkContext'
 
-// Dedicated axios client for signature uploads. Mirrors the auth-token +
-// language headers used by apiClient, but with its own longer timeout for
-// multipart uploads.
-const signatureClient = axios.create({
-  baseURL: `${ENV.API_BASE_URL}/api`,
+const UPLOAD_MEDIA_URL_KEY = '@goconnect/upload_media_url'
+
+// Create axios client — baseURL will be set dynamically before each request
+let signatureClient = axios.create({
   timeout: 60000,
 })
 
-signatureClient.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('access_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  const lang = (await AsyncStorage.getItem('@goconnect/language')) || 'en'
-  config.headers['Accept-Language'] = lang
-  config.headers['X-Lang'] = lang
-  return config
-})
-
+// Response error handler
 signatureClient.interceptors.response.use(
   (r) => r,
   (error) => {
@@ -81,6 +72,23 @@ export async function uploadSignature(
     throw new Error('Offline — signature will be attached when the form is saved.')
   }
 
+  // Get uploadMediaUrl from settings (saved by AppContext when settings load)
+  const uploadMediaUrl = await AsyncStorage.getItem(UPLOAD_MEDIA_URL_KEY)
+  const baseUrl = uploadMediaUrl || ENV.API_BASE_URL
+
+  // Create client with the correct base URL
+  const client = axios.create({
+    baseURL: `${baseUrl}/api`,
+    timeout: 60000,
+  })
+
+  // Add auth headers
+  const token = await AsyncStorage.getItem('access_token')
+  if (token) client.defaults.headers.common.Authorization = `Bearer ${token}`
+  const lang = (await AsyncStorage.getItem('@goconnect/language')) || 'en'
+  client.defaults.headers.common['Accept-Language'] = lang
+  client.defaults.headers.common['X-Lang'] = lang
+
   const name = file.name ?? `signature_${Date.now()}.png`
   const type = file.type ?? inferMime(name)
 
@@ -91,14 +99,18 @@ export async function uploadSignature(
     type,
   } as unknown as Blob)
 
-  const res = await signatureClient.post('/signatures/upload', fd, {
+  console.log(`[Signature Upload] Starting upload for ${name}`)
+  console.log(`[Signature Upload] Using URL: ${baseUrl}/api/signatures/upload`)
+  const res = await client.post('/signatures/upload', fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 
   const data = res.data?.data ?? res.data ?? {}
-  return {
+  const result = {
     signatureUrl: data.signature_url ?? data.signatureUrl ?? '',
     fullUrl:      data.full_url      ?? data.fullUrl      ?? '',
     fullPath:     data.full_path     ?? data.fullPath,
   }
+  console.log(`[Signature Upload] Success - URL: ${result.signatureUrl}`)
+  return result
 }
