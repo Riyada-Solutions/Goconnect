@@ -1,6 +1,8 @@
 import * as Haptics from "expo-haptics";
+import { useFocusEffect } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { isEffectivelyOnline } from '@/context/NetworkContext'
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -73,6 +75,21 @@ export default function PatientsScreen() {
 
   // If we have data, never show error even if isError is true (fallback/cache recovery)
   const shouldShowError = isError && !filtered.length;
+
+  // Invalidate cache and refetch when screen comes into focus (when online)
+  const queryClient = useQueryClient();
+  useFocusEffect(
+    useCallback(() => {
+      const invalidateAndRefresh = async () => {
+        const isOnline = await isEffectivelyOnline();
+        if (isOnline) {
+          queryClient.invalidateQueries({ queryKey: ["patients"] });
+          await refetch();
+        }
+      };
+      void invalidateAndRefresh();
+    }, [queryClient, refetch])
+  );
 
   // Tap-to-refresh: refresh when patients tab is tapped
   useEffect(() => {

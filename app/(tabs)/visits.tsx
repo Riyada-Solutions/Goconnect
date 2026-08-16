@@ -1,6 +1,7 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { isEffectivelyOnline } from '@/context/NetworkContext'
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import {
@@ -99,16 +100,18 @@ export default function VisitsScreen() {
   }, [onTabRefresh, refetch])
 
   // Refresh data when screen comes into focus (e.g., returning from visit detail)
+  const queryClient = useQueryClient();
   useFocusEffect(
     useCallback(() => {
       const refreshOnFocus = async () => {
         const isOnline = await isEffectivelyOnline()
         if (isOnline) {
-          refetch()
+          queryClient.invalidateQueries({ queryKey: ["visits"] });
+          await refetch()
         }
       }
       refreshOnFocus()
-    }, [refetch])
+    }, [queryClient, refetch])
   )
 
   React.useEffect(() => {

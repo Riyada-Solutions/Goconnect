@@ -1,5 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { OfflineQueuedError } from "@/data/offline_api";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View } from "react-native";
@@ -99,14 +100,21 @@ function VisitDetailScreenInner() {
   // Refresh visit data when screen comes into focus
   const { refetch: refetchVisit } = visitQuery;
   const { refetch: refetchSlot } = slotQuery;
+  const queryClient = useQueryClient();
   useFocusEffect(
     useCallback(() => {
-      if (!isSlot) {
-        refetchVisit();
-      } else {
-        refetchSlot();
-      }
-    }, [isSlot, refetchVisit, refetchSlot])
+      const invalidateAndRefresh = async () => {
+        // Invalidate query cache to force fresh fetch when online (shows loading state)
+        if (!isSlot) {
+          queryClient.invalidateQueries({ queryKey: ["visits", numId] });
+          await refetchVisit();
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["slots", numId] });
+          await refetchSlot();
+        }
+      };
+      void invalidateAndRefresh();
+    }, [isSlot, numId, refetchVisit, refetchSlot, queryClient])
   );
 
   // Stable refusal prefill — parsed once per unique raw payload so that
