@@ -1177,6 +1177,7 @@ function VisitDetailScreenInner() {
           onSelectItem={(item) => { setSelectedItem(item); setUseModalVisible(true); }}
           isReadOnly={isReadOnly}
           colors={colors}
+          embeddedInventory={(record as any)?.inventory}
         />
         {/* {patientName && ( */}
           <WorkflowActionButtons

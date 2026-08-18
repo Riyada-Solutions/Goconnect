@@ -173,7 +173,7 @@ export function mapVisitFromApi(raw: any): Visit {
       return raw.sariScreenings
     })(),
     inventory: (() => {
-      const items: any[] = raw.patientInventory ?? raw.inventory ?? []
+      const items: any[] = raw.patientInventory ?? raw.patient_inventory ?? raw.inventory ?? []
       if (!Array.isArray(items)) return undefined
       return items.map(mapInventoryItemFromApi)
     })(),

@@ -24,9 +24,13 @@ interface Props {
   onSelectItem: (item: InventoryItem) => void;
   isReadOnly: boolean;
   colors: any;
+  /** Inventory already embedded in the visit details response (`patient_inventory`).
+   *  When present (home system), it's used as-is and no separate fetch is made;
+   *  otherwise this falls back to the paginated `/patient-inventory` API, same as before. */
+  embeddedInventory?: InventoryItem[];
 }
 
-export function PatientInventorySection({ patientId, visitId, expanded, onToggle, onSelectItem, isReadOnly, colors }: Props) {
+export function PatientInventorySection({ patientId, visitId, expanded, onToggle, onSelectItem, isReadOnly, colors, embeddedInventory }: Props) {
   const { user } = useApp();
   const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
   const [search, setSearch] = useState("");
@@ -35,9 +39,16 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
   const isHomeSystem = user?.selected_system === "home";
   const title = isHomeSystem ? "Patient Inventory" : "Branch Inventory";
 
+  // Use the inventory already embedded in the visit details (from the home
+  // system) when it's available — no separate call needed. Only fall back to
+  // fetching the paginated /patient-inventory endpoint when it's missing/null,
+  // same as before this data was embedded.
+  const hasEmbedded = isHomeSystem && Array.isArray(embeddedInventory);
+
   // Only fetch while the section is expanded — CollapsibleBody unmounts its
   // children when closed, but gating the query too avoids a request firing
   // the instant patientId/visitId become available, before the user opens it.
+  const shouldFetch = expanded && !hasEmbedded;
   const {
     data: pagesData,
     isLoading,
@@ -45,11 +56,11 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useInventory(expanded ? patientId : 0, expanded ? visitId : 0, debouncedSearch);
+  } = useInventory(shouldFetch ? patientId : 0, shouldFetch ? visitId : 0, debouncedSearch);
 
-  const isSearching = isFetching && !isLoading && !isFetchingNextPage;
+  const isSearching = !hasEmbedded && isFetching && !isLoading && !isFetchingNextPage;
 
-  const items = useMemo(() => {
+  const fetchedItems = useMemo(() => {
     const all = pagesData?.pages.flatMap((p) => p.items) ?? [];
     const seen = new Set<number>();
     return all.filter((item) => {
@@ -58,6 +69,15 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
       return true;
     });
   }, [pagesData]);
+
+  const items = useMemo(() => {
+    if (!hasEmbedded) return fetchedItems;
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return embeddedInventory!;
+    return embeddedInventory!.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.itemNumber.toLowerCase().includes(q)
+    );
+  }, [hasEmbedded, embeddedInventory, fetchedItems, debouncedSearch]);
 
   return (
     <Animated.View entering={FadeInDown.delay(230).springify()} style={s.section}>
@@ -108,7 +128,7 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
             )}
           </View>
 
-          {isLoading ? (
+          {!hasEmbedded && isLoading ? (
             <ActivityIndicator size="small" color={Colors.primary} style={{ paddingVertical: 20 }} />
           ) : items.length === 0 ? (
             <Text style={{ color: colors.textSecondary, fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", paddingVertical: 20 }}>
@@ -181,9 +201,9 @@ export function PatientInventorySection({ patientId, visitId, expanded, onToggle
                 );
               })}
 
-              {isFetchingNextPage ? (
+              {!hasEmbedded && isFetchingNextPage ? (
                 <ActivityIndicator size="small" color={Colors.primary} style={{ paddingVertical: 12 }} />
-              ) : hasNextPage ? (
+              ) : !hasEmbedded && hasNextPage ? (
                 <Pressable
                   onPress={() => {
                     Haptics.selectionAsync();
