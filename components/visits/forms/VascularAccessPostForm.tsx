@@ -9,22 +9,24 @@ import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles"
 const PAIN_SCALE = Array.from({ length: 11 }, (_, i) => String(i));
 
 const HEMOSTASIS_TIME_OPTIONS = [
-  { value: "under_10", label: "Under 10 min" },
-  { value: "10_15", label: "10 - 15 min" },
-  { value: "15_20", label: "15 - 20 min" },
-  { value: "over_20", label: "Over 20 min" },
+  { value: "under_10", label: "<10 min" },
+  { value: "between_10_20", label: "10–20 min" },
+  { value: "over_20", label: ">20 min" },
 ];
-const BLEEDING_OPTIONS = ["None", "Minimal", "Moderate", "Severe"] as const;
+const BLEEDING_OPTIONS = ["None", "Mild", "Moderate", "Severe"] as const;
 const THRILL_OPTIONS = ["Present", "Weak", "Absent"] as const;
-const BRUIT_OPTIONS = ["Normal", "Abnormal", "Absent"] as const;
+const BRUIT_OPTIONS = ["Normal", "Weak", "Absent"] as const;
 const YES_NO_OPTIONS = [
   { value: "Yes", label: "Yes" },
   { value: "No", label: "No" },
 ];
-const LOCKING_SOLUTION_OPTIONS = ["Heparin", "Citrate", "Saline", "N/A"] as const;
-const EXIT_SITE_AFTER_OPTIONS = ["Clean", "Red", "Swollen", "Drainage"] as const;
-const COMPLICATIONS_OPTIONS = ["None", "Bleeding", "Infiltration", "Hematoma", "Infection"] as const;
-const ACCESS_STATUS_DISCHARGE_OPTIONS = ["Stable", "Monitor", "Unstable"] as const;
+const LOCKING_SOLUTION_OPTIONS = ["Heparin", "Citrate", "Other"] as const;
+const EXIT_SITE_AFTER_OPTIONS = ["Clean", "Bleeding", "Oozing", "Redness"] as const;
+const COMPLICATIONS_OPTIONS = [
+  "None", "Difficult Cannulation", "Infiltration", "Hematoma",
+  "Prolonged Bleeding", "Access Clotting", "Suspected Infection", "Catheter Dysfunction",
+] as const;
+const ACCESS_STATUS_DISCHARGE_OPTIONS = ["Stable", "Needs Review", "Physician Notified"] as const;
 
 interface Props {
   value: FlowSheetVascularAccessPost;

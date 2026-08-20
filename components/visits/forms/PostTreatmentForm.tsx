@@ -9,7 +9,9 @@ import type { FlowSheetMobilePostTx } from "@/data/models/flowSheet";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
 import { FormField } from "../FormField";
 
-const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temporal"] as const;
+// "Temponal" matches the web form's option value exactly (a typo baked into
+// the backend enum) — kept as-is so submissions stay compatible with the API.
+const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temponal"] as const;
 const BP_SITE_OPTIONS = [
   "Right Upper Arm", "Left Upper Arm", "Right Forearm", "Left Forearm",
   "Right Wrist", "Left Wrist", "Right Thigh", "Left Thigh", "Right Ankle", "Left Ankle",

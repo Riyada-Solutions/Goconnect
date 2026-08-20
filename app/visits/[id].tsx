@@ -1182,7 +1182,8 @@ function VisitDetailScreenInner() {
         {/* {patientName && ( */}
           <WorkflowActionButtons
             phase={visitPhase}
-            canEditProcedure={can("visits.StartEndMyProcedure") || can("visits.StartEndAllProcedure")}
+            canStartProcedure={can("start_visit")}
+            canEndProcedure={can("end_visit")}
             canReopen={(can("visits.ReopenMyVisit") || can("visits.ReopenAllVisit")) && recordStatus !== "in_active"}
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}

@@ -28,6 +28,7 @@ import { Colors } from "@/theme/colors";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useApp } from "@/context/AppContext";
+import { useFreshOnFocus } from "@/hooks/useFreshOnFocus";
 import { useHome } from "@/hooks/useHome";
 import { useTheme } from "@/hooks/useTheme";
 import { formatWorkspace } from "@/utils/workspace";
@@ -74,8 +75,14 @@ export default function HomeScreen() {
     | "goodAfternoon"
     | "goodEvening";
 
-  const { data: home, refetch: refetchHome, isFetching } = useHome();
+  const { data: home, refetch: refetchHome, isFetching, isPending } = useHome();
   const qc = useQueryClient();
+  // Opening Home online must never show yesterday's dashboard: drop the
+  // cached `['home']` payload on focus so the screen goes back to skeletons
+  // and only paints numbers that came from this fetch. The query client sets
+  // `refetchOnMount: false` and persists its cache for 24h, so without this
+  // the restored payload would sit there until a pull-to-refresh.
+  useFreshOnFocus(["home"]);
   const [refreshing, setRefreshing] = useState(false);
   const workspaceLabel = formatWorkspace(user, t as (k: string) => string);
   // Pulling on Home should refresh everything the dashboard renders. The
@@ -143,9 +150,10 @@ export default function HomeScreen() {
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 84);
 
   // Show shimmer skeletons whenever the home query is fetching — covers the
-  // first load and every pull-to-refresh. The cached content is hidden behind
-  // the shimmers so the user gets unambiguous "loading" feedback each time.
-  const showSkeleton = isFetching;
+  // first load, every focus reset and every pull-to-refresh. `isPending` covers
+  // the frame between the focus reset clearing the cache and the refetch
+  // actually starting, which would otherwise flash the empty state.
+  const showSkeleton = isFetching || isPending;
 
   const isGuest = !user || user.role === "guest";
 

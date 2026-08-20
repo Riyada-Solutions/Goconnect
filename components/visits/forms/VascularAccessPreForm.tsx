@@ -6,23 +6,23 @@ import type { FlowSheetVascularAccessPre } from "@/data/models/flowSheet";
 
 const PAIN_SCALE = Array.from({ length: 11 }, (_, i) => String(i));
 
-const ACCESS_TYPE_OPTIONS = ["AVF", "AVG", "CVC", "Permacath"] as const;
+const ACCESS_TYPE_OPTIONS = ["AVF", "AVG", "Tunneled CVC", "Non-tunneled CVC"] as const;
 const ACCESS_SITE_OPTIONS = [
-  "Right Arm", "Left Arm", "Right Forearm", "Left Forearm", "Chest", "Neck", "Thigh",
+  "Right IJ", "Left IJ", "Right Femoral", "Left Femoral", "Right Arm", "Left Arm", "Other",
 ] as const;
-const ACCESS_PATENCY_OPTIONS = ["Thrill Present", "Weak Thrill", "Thrill Absent"] as const;
-const BRUIT_OPTIONS = ["Normal", "Abnormal", "Absent"] as const;
-const CATHETER_CONDITION_OPTIONS = ["Intact", "Damaged", "Kinked", "Leaking", "N/A"] as const;
-const EXIT_SITE_APPEARANCE_OPTIONS = ["Clean & Dry", "Red", "Swollen", "Drainage", "Crusted"] as const;
-const DRESSING_STATUS_OPTIONS = ["Clean & Intact", "Soiled", "Loose", "Needs Change"] as const;
-const INFECTION_SIGNS_OPTIONS = ["None", "Redness", "Swelling", "Discharge", "Pain/Tenderness"] as const;
+const ACCESS_PATENCY_OPTIONS = ["Thrill Present", "Thrill Weak", "No Thrill"] as const;
+const BRUIT_OPTIONS = ["Normal", "Weak", "Absent"] as const;
+const CATHETER_CONDITION_OPTIONS = ["Intact", "Damaged", "Loose"] as const;
+const EXIT_SITE_APPEARANCE_OPTIONS = ["Clean & Dry", "Redness", "Swelling", "Tenderness", "Drainage", "Bleeding"] as const;
+const DRESSING_STATUS_OPTIONS = ["Clean & Intact", "Loose", "Wet", "Soiled", "Changed"] as const;
+const INFECTION_SIGNS_OPTIONS = ["None", "Suspected"] as const;
 const EDEMA_OPTIONS = ["None", "Mild", "Moderate", "Severe"] as const;
-const HEMATOMA_OPTIONS = ["None", "Small", "Moderate", "Large"] as const;
-const CANNULATION_SITE_OPTIONS = ["Suitable", "Limited", "Not Suitable"] as const;
-const BLOOD_FLOW_OPTIONS = ["Good", "Sluggish", "Poor"] as const;
+const HEMATOMA_OPTIONS = ["None", "Present"] as const;
+const CANNULATION_SITE_OPTIONS = ["Suitable", "Difficult", "Not Suitable"] as const;
+const BLOOD_FLOW_OPTIONS = ["Good", "Fair", "Poor"] as const;
 const READY_FOR_DIALYSIS_OPTIONS = [
   { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
+  { value: "no_review", label: "No (Physician Review Required)" },
 ];
 
 interface Props {

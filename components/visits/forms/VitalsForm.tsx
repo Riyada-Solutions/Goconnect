@@ -6,7 +6,9 @@ import { SelectField } from "@/components/ui/SelectField";
 import { mobileFlowStyles as ms, visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
 import { FormField } from "../FormField";
 
-const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temporal"] as const;
+// "Temponal" matches the web form's option value exactly (a typo baked into
+// the backend enum) — kept as-is so submissions stay compatible with the API.
+const METHOD_OPTIONS = ["Oral", "Axilla", "Tympanic", "Temponal"] as const;
 
 const BP_SITE_OPTIONS = [
   "Right Upper Arm",
