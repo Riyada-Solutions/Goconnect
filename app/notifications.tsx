@@ -196,37 +196,8 @@ function NotifRow({ notif, colors, isDark, onPress, onDismiss, isLast }: RowProp
   );
 }
 
-// ─── Tab pill ─────────────────────────────────────────────────────────────────
-
-function TabPill({
-  label,
-  active,
-  count,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  count?: number;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={() => { Haptics.selectionAsync(); onPress(); }}
-      style={[s.tabPill, active ? { backgroundColor: Colors.primary } : { backgroundColor: "transparent" }]}
-    >
-      <Text style={[s.tabPillText, { color: active ? "#fff" : "#6B7280" }]}>{label}</Text>
-      {!!count && count > 0 && (
-        <View style={[s.tabCount, { backgroundColor: active ? "rgba(255,255,255,0.25)" : Colors.pastel.teal }]}>
-          <Text style={[s.tabCountText, { color: active ? "#fff" : Colors.primary }]}>{count}</Text>
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-type FilterTab = "all" | "unread";
 type ListItem =
   | { kind: "header"; group: Group }
   | { kind: "notif"; notif: ApiNotification; isLast: boolean; group: Group };
@@ -244,15 +215,13 @@ function NotificationsContent() {
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);
 
-  const [activeTab, setActiveTab] = React.useState<FilterTab>("all");
-
-  const query   = useNotifications(activeTab);
+  const query   = useNotifications();
   const refetch = () => query.refetch();
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
-  const markReadMutation   = useMarkNotificationRead(activeTab);
+  const markReadMutation   = useMarkNotificationRead();
   const markAllMutation    = useMarkAllRead();
-  const deleteMutation     = useDeleteNotification(activeTab);
+  const deleteMutation     = useDeleteNotification();
 
   const items: ApiNotification[] = query.data?.data ?? [];
   const unreadCount = items.filter((n) => !n.read).length;
@@ -346,27 +315,6 @@ function NotificationsContent() {
     </View>
   );
 
-  // ── Tabs ────────────────────────────────────────────────────────────────
-  const tabs = (
-    <View style={[s.tabBar, { backgroundColor: colors.background }]}>
-      <View style={[s.tabTrack, { backgroundColor: isDark ? colors.surface : "#EDEEF2" }]}>
-        <TabPill
-          label={t("all")}
-          active={activeTab === "all"}
-          count={items.length}
-          onPress={() => setActiveTab("all")}
-        />
-        <TabPill
-          label={t("unread")}
-          active={activeTab === "unread"}
-          count={unreadCount}
-          onPress={() => setActiveTab("unread")}
-        />
-      </View>
-      <Text style={[s.hintText, { color: colors.textTertiary }]}>{t("holdToDismiss")}</Text>
-    </View>
-  );
-
   // ── Loading ────────────────────────────────────────────────────────────
   const showSkeleton = (query.isLoading && !query.data) || refreshing;
 
@@ -383,7 +331,6 @@ function NotificationsContent() {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
         {header}
-        {tabs}
         <NotifSkeleton colors={colors} />
       </View>
     );
@@ -395,7 +342,6 @@ function NotificationsContent() {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
         {header}
-        {tabs}
         <View style={s.center}>
           <View style={[s.errorIcon, { backgroundColor: Colors.pastel.red }]}>
             <Feather name="alert-triangle" size={28} color={Colors.icon.red} />
@@ -420,7 +366,6 @@ function NotificationsContent() {
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
       {header}
-      {tabs}
 
       {isEmpty ? (
         <View style={s.center}>
@@ -428,21 +373,11 @@ function NotificationsContent() {
             <Feather name="bell-off" size={36} color={Colors.primary} />
           </View>
           <Text style={[s.emptyTitle, { color: colors.text }]}>
-            {activeTab === "unread" ? t("noUnreadNotifications") : t("noNotifications")}
+            {t("noNotifications")}
           </Text>
           <Text style={[s.emptySub, { color: colors.textSecondary }]}>
-            {activeTab === "unread" ? t("readEverything") : t("newAlertsHere")}
+            {t("newAlertsHere")}
           </Text>
-          {activeTab === "unread" && (
-            <Pressable
-              onPress={() => setActiveTab("all")}
-              style={({ pressed }) => [s.viewAllBtn, { backgroundColor: Colors.pastel.teal, opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>
-                {t("viewAll")}
-              </Text>
-            </Pressable>
-          )}
         </View>
       ) : (
         <FlatList
@@ -539,22 +474,6 @@ const s = StyleSheet.create({
   },
   markAllText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 
-  tabBar: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 20, paddingBottom: 10, gap: 12,
-  },
-  tabTrack: { flexDirection: "row", borderRadius: 12, padding: 3, gap: 2 },
-  tabPill: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9, gap: 5,
-  },
-  tabPillText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  tabCount: {
-    borderRadius: 7, paddingHorizontal: 6, paddingVertical: 1,
-    minWidth: 20, alignItems: "center",
-  },
-  tabCountText: { fontSize: 11, fontFamily: "Inter_700Bold" },
-  hintText: { fontSize: 11, fontFamily: "Inter_400Regular", marginLeft: "auto" },
 
   groupHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 8 },
   groupLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 1 },
@@ -608,5 +527,4 @@ const s = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", maxWidth: 260 },
-  viewAllBtn: { marginTop: 4, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
 });

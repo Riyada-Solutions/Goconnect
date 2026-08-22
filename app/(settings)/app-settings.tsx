@@ -24,6 +24,7 @@ import { Language } from "@/config/i18n";
 import { useApp } from "@/context/AppContext";
 import { clearFaceToken, setFaceToken } from "@/data/secure_storage";
 import { useTheme } from "@/hooks/useTheme";
+import { APP_BUILD, APP_VERSION } from "@/utils/appVersion";
 
 // ─── Toggle row (icon + label + subtitle + switch) ───────────────────────────
 interface ToggleRowProps {
@@ -436,7 +437,7 @@ export default function AppSettingsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, { color: colors.text }]}>{t("version")}</Text>
               <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
-                {t("appVersion")} ({t("buildLabel")} 1)
+                {APP_BUILD ? `${APP_VERSION} (${t("buildLabel")} ${APP_BUILD})` : APP_VERSION}
               </Text>
             </View>
             <View style={[styles.versionBadge, { backgroundColor: Colors.pastel.green }]}>

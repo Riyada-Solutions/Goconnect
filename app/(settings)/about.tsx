@@ -17,6 +17,7 @@ import { Card } from "@/components/common/Card";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { APP_VERSION } from "@/utils/appVersion";
 
 export default function AboutScreen() {
   const { t } = useApp();
@@ -68,7 +69,7 @@ export default function AboutScreen() {
           </View>
           <Text style={styles.appName}>GoConnect</Text>
           <Text style={styles.appVersion}>
-            {t("version")} {t("appVersion")}
+            {t("version")} {APP_VERSION}
           </Text>
         </LinearGradient>
 

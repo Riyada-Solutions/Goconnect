@@ -82,4 +82,44 @@ export const cacheService = {
       // ignore
     }
   },
+
+  /**
+   * Rewrite every cached entry whose key starts with `keyPrefix`, in place.
+   *
+   * Used by offline mutations that need the *persisted* copy to reflect an
+   * optimistic change — patching only the React-Query cache would lose it as
+   * soon as the screen remounts and re-reads from storage while still offline.
+   *
+   * The updater receives the stored payload and returns the replacement, or
+   * `null`/the same reference to leave that entry untouched. The original
+   * timestamp and TTL are preserved so patching doesn't extend cache lifetime.
+   */
+  async updateMatching<T>(keyPrefix: string, updater: (data: T) => T | null): Promise<void> {
+    try {
+      const fullPrefix = CACHE_PREFIX + keyPrefix
+      const allKeys = await AsyncStorage.getAllKeys()
+      const matching = allKeys.filter((k) => k.startsWith(fullPrefix))
+      if (matching.length === 0) return
+
+      const pairs = await AsyncStorage.multiGet(matching)
+      const writes: [string, string][] = []
+
+      for (const [key, raw] of pairs) {
+        if (!raw) continue
+        try {
+          const entry: CacheEntry<T> = JSON.parse(raw)
+          const next = updater(entry.data)
+          if (next == null || next === entry.data) continue
+          writes.push([key, JSON.stringify({ ...entry, data: next })])
+        } catch {
+          // skip unparseable entries
+        }
+      }
+
+      if (writes.length > 0) await AsyncStorage.multiSet(writes)
+      log(`cache.updateMatching(${keyPrefix})`, JSON.stringify({ scanned: matching.length, written: writes.length }))
+    } catch {
+      // non-fatal — an un-patched cache just shows stale data until the next fetch
+    }
+  },
 }

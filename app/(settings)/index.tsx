@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/hooks/useTheme";
+import { useDevMode } from "@/hooks/useDevMode";
+import { APP_VERSION } from "@/utils/appVersion";
 import { formatWorkspace } from "@/utils/workspace";
 
 interface MenuItemProps {
@@ -79,6 +81,7 @@ export default function ProfileMainScreen() {
   const insets = useSafeAreaInsets();
   const { dialogProps, show: showDialog } = useFeedbackDialog();
   const [workspaceOpen, setWorkspaceOpen] = React.useState(false);
+  const { enabled: devMode, registerTap, disable: disableDevMode } = useDevMode();
 
   const workspaceLabel = formatWorkspace(user, t as (k: string) => string);
 
@@ -87,6 +90,31 @@ export default function ProfileMainScreen() {
 
   const border = isDark ? colors.borderLight : "#F0F2F7";
   const textColor = colors.text;
+
+  // Hidden entry point for the Developer screen — tap the version label
+  // repeatedly to reveal it, long-press to hide it again. See useDevMode.
+  const handleVersionTap = () => {
+    const { unlocked, remaining } = registerTap();
+    if (unlocked) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showDialog({
+        variant: "success",
+        title: t("devModeOn"),
+        message: t("devModeOnMsg"),
+      });
+    } else if (remaining > 0 && remaining <= 3) {
+      // Only buzz once the taps are clearly deliberate, so an accidental
+      // double-tap on the footer stays silent.
+      Haptics.selectionAsync();
+    }
+  };
+
+  const handleVersionLongPress = () => {
+    if (!devMode) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    disableDevMode();
+    showDialog({ variant: "success", title: t("devModeOff"), message: t("devModeOffMsg") });
+  };
 
   const handleLogout = () => {
     if (Platform.OS === "web") {
@@ -312,7 +340,22 @@ export default function ProfileMainScreen() {
               isDark={isDark}
               border={border}
               text={textColor}
+              isLast={!devMode}
             />
+            {devMode && (
+            <MenuItem
+              icon="terminal"
+              label={t("developerOptions")}
+              subText={t("developerOptionsSub")}
+              iconColor={Colors.icon.purple}
+              iconBg={Colors.pastel.purple}
+              onPress={() => router.push("/(settings)/dev")}
+              isDark={isDark}
+              border={border}
+              text={textColor}
+              isLast
+            />
+            )}
           </View>
         </Animated.View>
 
@@ -330,9 +373,11 @@ export default function ProfileMainScreen() {
           </Pressable>
         </Animated.View>
 
-        <Text style={[styles.version, { color: colors.textTertiary }]}>
-          {t("version")} {t("appVersion")}
-        </Text>
+        <Pressable onPress={handleVersionTap} onLongPress={handleVersionLongPress}>
+          <Text style={[styles.version, { color: colors.textTertiary }]}>
+            {t("version")} {APP_VERSION}
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

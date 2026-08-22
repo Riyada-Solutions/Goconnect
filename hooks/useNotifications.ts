@@ -17,10 +17,12 @@ export const NOTIFICATIONS_QUERY_KEY = ['notifications', 'inbox'] as const
 export const UNREAD_COUNT_QUERY_KEY = ['notifications', 'unread-count'] as const
 
 // ─── List ──────────────────────────────────────────────────────────────────────
-export function useNotifications(filter: 'all' | 'unread' = 'all') {
+/** The screen has a single list — always `filter=all`. Read/unread is shown
+ *  per row from the `read` flag rather than by refetching a filtered list. */
+export function useNotifications() {
   return useOfflineQuery({
-    queryKey: [...NOTIFICATIONS_QUERY_KEY, filter],
-    queryFn: () => fetchNotifications({ filter, per_page: 50, page: 1 }),
+    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryFn: () => fetchNotifications({ filter: 'all', per_page: 50, page: 1 }),
     cacheTtl: 30_000,
   })
 }
@@ -37,31 +39,23 @@ export function useUnreadCount() {
 // ─── Helper: update cached list optimistically ─────────────────────────────────
 function patchList(
   qc: ReturnType<typeof useQueryClient>,
-  filter: 'all' | 'unread',
   patch: (items: ApiNotification[]) => ApiNotification[],
 ) {
-  const key = [...NOTIFICATIONS_QUERY_KEY, filter]
-  qc.setQueryData<NotificationListResponse>(key, (old) => {
+  qc.setQueryData<NotificationListResponse>(NOTIFICATIONS_QUERY_KEY, (old) => {
     if (!old) return old
     return { ...old, data: patch(old.data) }
   })
 }
 
 // ─── Mark single as read ───────────────────────────────────────────────────────
-export function useMarkNotificationRead(activeFilter: 'all' | 'unread' = 'all') {
+export function useMarkNotificationRead() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => markNotificationRead(id),
     onMutate: (id) => {
-      patchList(qc, activeFilter, (items) =>
+      patchList(qc, (items) =>
         items.map((n) => (n.id === id ? { ...n, read: true } : n)),
       )
-      // also patch the "all" list if we're looking at "unread"
-      if (activeFilter === 'unread') {
-        patchList(qc, 'all', (items) =>
-          items.map((n) => (n.id === id ? { ...n, read: true } : n)),
-        )
-      }
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY })
@@ -75,9 +69,7 @@ export function useMarkAllRead() {
   return useMutation({
     mutationFn: markAllNotificationsRead,
     onMutate: () => {
-      for (const filter of ['all', 'unread'] as const) {
-        patchList(qc, filter, (items) => items.map((n) => ({ ...n, read: true })))
-      }
+      patchList(qc, (items) => items.map((n) => ({ ...n, read: true })))
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY })
@@ -86,14 +78,12 @@ export function useMarkAllRead() {
 }
 
 // ─── Delete a notification ─────────────────────────────────────────────────────
-export function useDeleteNotification(activeFilter: 'all' | 'unread' = 'all') {
+export function useDeleteNotification() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => deleteNotification(id),
     onMutate: (id) => {
-      for (const filter of ['all', 'unread'] as const) {
-        patchList(qc, filter, (items) => items.filter((n) => n.id !== id))
-      }
+      patchList(qc, (items) => items.filter((n) => n.id !== id))
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY })

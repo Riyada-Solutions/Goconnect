@@ -410,47 +410,54 @@ function VisitDetailScreenInner() {
     endVisitMutation.mutate();
   }, [endVisitMutation, record, showDialog, t]);
 
+  // A queued-offline mutation isn't a failure — the request is stored and will
+  // replay on reconnect, so the optimistic phase must stand instead of being
+  // rolled back (the caches are patched to match in `useVisitStatusMutation`).
+  const revertPhaseUnlessQueued = useCallback((err: unknown, phase: VisitPhase) => {
+    if (!(err instanceof OfflineQueuedError)) setVisitPhase(phase);
+  }, []);
+
   const handleCheckOut = useCallback(() => {
     setShowCheckoutModal(false);
     setVisitPhase("completed");
     checkoutVisitMutation.mutate(undefined, {
       onError: (err) => {
-        setVisitPhase("end_procedure");
+        revertPhaseUnlessQueued(err, "end_procedure");
         handleMutationError(err);
       },
     });
-  }, [checkoutVisitMutation, showDialog, t]);
+  }, [checkoutVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
 
   const handleCheckOutWithoutSap = useCallback(() => {
     setShowCheckoutModal(false);
     setVisitPhase("completed");
     checkoutWithoutSapMutation.mutate(undefined, {
       onError: (err) => {
-        setVisitPhase("end_procedure");
+        revertPhaseUnlessQueued(err, "end_procedure");
         handleMutationError(err);
       },
     });
-  }, [checkoutWithoutSapMutation, showDialog, t]);
+  }, [checkoutWithoutSapMutation, handleMutationError, revertPhaseUnlessQueued]);
 
   const handleCloseVisit = useCallback(() => {
     setVisitPhase("completed");
     closeVisitMutation.mutate(undefined, {
       onError: (err) => {
-        setVisitPhase("reopened");
+        revertPhaseUnlessQueued(err, "reopened");
         handleMutationError(err);
       },
     });
-  }, [closeVisitMutation, handleMutationError]);
+  }, [closeVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
 
   const handleReopenVisit = useCallback(() => {
     setVisitPhase("reopened");
     reopenVisitMutation.mutate(undefined, {
       onError: (err) => {
-        setVisitPhase("completed");
+        revertPhaseUnlessQueued(err, "completed");
         handleMutationError(err);
       },
     });
-  }, [reopenVisitMutation, handleMutationError]);
+  }, [reopenVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
 
   // Collapsible states
   const [alertsOpen, setAlertsOpen] = useState(false);

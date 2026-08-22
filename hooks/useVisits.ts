@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { cacheService } from '@/data/cache_service'
+import { OfflineQueuedError } from '@/data/offline_api'
 import { useOfflineInfiniteQuery } from './useOfflineInfiniteQuery'
 import { useOfflineQuery } from './useOfflineQuery'
 import {
@@ -206,29 +208,77 @@ export function useSubmitInventoryUsageMultiple(visitId: number) {
 }
 
 
+/**
+ * Offline status transitions never return a Visit — `offlinePost` queues the
+ * request and throws `OfflineQueuedError`. Nothing then updates the caches, so
+ * the visit keeps reporting its pre-transition status: the detail screen
+ * re-offers "Check Out" on remount and the list still shows it as in progress.
+ *
+ * Patch the new status in locally instead, in both places the UI reads from:
+ * the React-Query cache (this session) and the persisted cache the offline
+ * queries fall back to (survives remount and app restart). The queued request
+ * replays on reconnect and the server response overwrites this.
+ */
+async function applyOfflineVisitStatus(
+  qc: ReturnType<typeof useQueryClient>,
+  visitId: number,
+  status: Visit['status'],
+) {
+  const sameVisit = (v: any) => v && typeof v === 'object' && String(v.id) === String(visitId)
+  const patchVisit = (v: any) => (sameVisit(v) && v.status !== status ? { ...v, status } : v)
+
+  /** Handles both cached shapes: a single Visit, and a paged list of them. */
+  const patchPayload = (payload: any): any => {
+    if (!payload || typeof payload !== 'object') return payload
+    // infinite-query shape held by React Query: { pages: [page, ...] }
+    if (Array.isArray(payload.pages)) {
+      const pages = payload.pages.map(patchPayload)
+      return pages.some((p: any, i: number) => p !== payload.pages[i]) ? { ...payload, pages } : payload
+    }
+    // a lone Visit, as cached by useVisit — checked before the paged shapes so a
+    // visit that happens to carry a `data`/`items` array isn't mistaken for a page
+    if (payload.id != null) return patchVisit(payload)
+    // a single page, as cached by useOfflineInfiniteQuery: { data | items: [...] }
+    const listKey = Array.isArray(payload.data) ? 'data' : Array.isArray(payload.items) ? 'items' : null
+    if (listKey) {
+      const list = payload[listKey].map(patchVisit)
+      return list.some((v: any, i: number) => v !== payload[listKey][i]) ? { ...payload, [listKey]: list } : payload
+    }
+    return payload
+  }
+
+  qc.setQueriesData({ queryKey: ['visits'] }, patchPayload)
+  // Cache keys are `query:<JSON queryKey>`; every visit query key starts with "visits".
+  await cacheService.updateMatching('query:["visits"', patchPayload)
+}
+
 function useVisitStatusMutation(
   fn: (id: number) => Promise<Visit>,
   visitId: number,
+  offlineStatus: Visit['status'],
 ) {
   const qc = useQueryClient()
   return useMutation<Visit, Error, void>({
     mutationFn: () => fn(visitId),
     onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+    onError: (err) => {
+      if (err instanceof OfflineQueuedError) void applyOfflineVisitStatus(qc, visitId, offlineStatus)
+    },
   })
 }
 
 export const useStartVisit = (visitId: number) =>
-  useVisitStatusMutation(startVisit, visitId)
+  useVisitStatusMutation(startVisit, visitId, 'start_procedure')
 export const useEndVisit = (visitId: number) =>
-  useVisitStatusMutation(endVisit, visitId)
+  useVisitStatusMutation(endVisit, visitId, 'end_procedure')
 export const useCheckoutVisit = (visitId: number) =>
-  useVisitStatusMutation(checkoutVisit, visitId)
+  useVisitStatusMutation(checkoutVisit, visitId, 'completed')
 export const useCheckoutWithoutSapVisit = (visitId: number) =>
-  useVisitStatusMutation(checkoutWithoutSapVisit, visitId)
+  useVisitStatusMutation(checkoutWithoutSapVisit, visitId, 'completed')
 export const useCloseVisit = (visitId: number) =>
-  useVisitStatusMutation(closeVisit, visitId)
+  useVisitStatusMutation(closeVisit, visitId, 'completed')
 export const useReopenVisit = (visitId: number) =>
-  useVisitStatusMutation(reopenVisit, visitId)
+  useVisitStatusMutation(reopenVisit, visitId, 'reopened')
 
 export function useSaveProcedureTimes(visitId: number) {
   const qc = useQueryClient()
