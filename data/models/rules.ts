@@ -87,6 +87,14 @@ export type RuleAction =
   | 'submit_enrollments_checklist'
   | 'view_consent_form'
   | 'submit_consent_form'
+  | 'view_dialysis_order'
+  | 'submit_dialysis_order'
+  | 'delete_dialysis_order'
+  | 'acknowledge_dialysis_order'
+  | 'view_medication_administration'
+  | 'view_patient_medications'
+  | 'submit_patient_medications'
+  | 'refill_patient_medication'
   // ── Help & support ────────────────────────────────────────────────
   | 'view_help_support'
   | 'submit_support_message'
@@ -169,6 +177,14 @@ export const ALL_RULE_ACTIONS: RuleAction[] = [
   'submit_enrollments_checklist',
   'view_consent_form',
   'submit_consent_form',
+  'view_dialysis_order',
+  'submit_dialysis_order',
+  'delete_dialysis_order',
+  'acknowledge_dialysis_order',
+  'view_medication_administration',
+  'view_patient_medications',
+  'submit_patient_medications',
+  'refill_patient_medication',
 
   'view_help_support',
   'submit_support_message',
@@ -690,6 +706,23 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   submit_enrollments_checklist:       BackendRule.Patient.EnrollmentsChecklistEdit,
   view_consent_form:                  [BackendRule.Patient.ConsentForm, BackendRule.Patient.ConsentFormEdit],
   submit_consent_form:                BackendRule.Patient.ConsentFormEdit,
+
+  // ── Dialysis Order / MAR ──────────────────────────────────────────
+  // Viewing accepts either the read rule or the edit rule, so a user granted
+  // only `.edit` isn't locked out of the table they're allowed to write to.
+  view_dialysis_order:                [BackendRule.Patient.DialysisOrder, BackendRule.Patient.DialysisOrderEdit],
+  submit_dialysis_order:              BackendRule.Patient.DialysisOrderEdit,
+  delete_dialysis_order:              BackendRule.Patient.DialysisOrderDelete,
+  acknowledge_dialysis_order:         BackendRule.Patient.NurseAcknowledgment,
+  view_medication_administration:     BackendRule.Patient.MedicationAdministration,
+
+  // ── Patient medications ───────────────────────────────────────────
+  // Read is open to any signed-in user; the edit rule covers save, edit,
+  // delete, deactivate/reactivate and recording a dose. Refill has its own
+  // rule but the edit rule implies it (§7 of the mobile guide).
+  view_patient_medications:           [BackendRule.Patient.Medications, BackendRule.Patient.MedicationsEdit],
+  submit_patient_medications:         BackendRule.Patient.MedicationsEdit,
+  refill_patient_medication:          [BackendRule.Patient.MedicationRefill, BackendRule.Patient.MedicationsEdit],
 
   // ── Support ───────────────────────────────────────────────────────
   submit_support_message: BackendRule.TicketingAction.CreateTickets,

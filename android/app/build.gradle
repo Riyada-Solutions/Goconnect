@@ -81,6 +81,29 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+// ─── Release signing ────────────────────────────────────────────────────────
+// Credentials live in android/keystore.properties, which is gitignored — see
+// keystore.properties.example. Keeping them out of build.gradle stops the
+// upload key's password from being committed.
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def hasReleaseKeystore = keystoreProps.containsKey('storeFile')
+
+// A Play bundle signed with the debug key is rejected on upload with a
+// "signed with the wrong key" error. Fail here instead of at the Play Console.
+if (!hasReleaseKeystore && gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundlerelease') }) {
+    throw new GradleException("""
+Cannot build a release bundle: android/keystore.properties is missing.
+
+Copy android/keystore.properties.example to android/keystore.properties and fill in
+the upload keystore's path and passwords (get them from: eas credentials -p android),
+or build through EAS instead: eas build --platform android --profile production
+""")
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -92,7 +115,7 @@ android {
         applicationId 'com.careconnectksa.nurse'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode 9
         versionName "1.0.9"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -104,15 +127,24 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (hasReleaseKeystore) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Signed with the upload key when android/keystore.properties is present,
+            // otherwise the debug key — fine for `run:android --variant release` on a
+            // device, rejected by Play. `bundleRelease` refuses to run unsigned (above).
+            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

@@ -42,6 +42,7 @@ import { EnrollmentsChecklistForm } from "@/components/visits/visitForms/Enrollm
 import { MedicationsForm } from "@/components/visits/visitForms/MedicationsForm";
 import { DialysisOrderForm } from "@/components/visits/visitForms/DialysisOrderForm";
 import { MARForm } from "@/components/visits/visitForms/MARForm";
+import { PatientMedicationsForm } from "@/components/visits/visitForms/PatientMedicationsForm";
 import { PatientAssessmentForm } from "@/components/visits/visitForms/PatientAssessmentForm";
 import { VisualTriageChecklistForm, type VisualTriageHistoryEntry } from "@/components/visits/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "@/components/visits/visitForms/MorseFallScaleSheet";
@@ -854,15 +855,47 @@ function VisitDetailScreenInner() {
           <MedicationsForm visitId={numId} colors={colors} />
         </Animated.View> */}
 
-        {/* ─── Dialysis Order (webview) ───────────────────────────────────── */}
-        {/* <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
-          <DialysisOrderForm visitId={numId} colors={colors} />
-        </Animated.View> */}
+        {/* ─── Dialysis Order ─────────────────────────────────────────────── */}
+        {can("view_dialysis_order") && patientRecord?.id ? (
+          <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
+            <DialysisOrderForm
+              patientId={Number(patientRecord.id)}
+              visitId={numId}
+              colors={colors}
+              isReadOnly={isReadOnly}
+              canEdit={can("submit_dialysis_order")}
+              canDelete={can("delete_dialysis_order")}
+              canAcknowledge={can("acknowledge_dialysis_order")}
+              initialExpanded={false}
+              onSuccess={(message) => showDialog({ variant: "success", title: t("save"), message })}
+              onError={handleMutationError}
+            />
+          </Animated.View>
+        ) : null}
 
-        {/* ─── MAR (webview) ──────────────────────────────────────────────── */}
-        {/* <Animated.View entering={FadeInDown.delay(221).springify()} style={s.section}>
-          <MARForm visitId={numId} colors={colors} />
-        </Animated.View> */}
+        {/* ─── Patient Medications (home / dialysis) ──────────────────────── */}
+        {can("view_patient_medications") && patientRecord?.id ? (
+          <Animated.View entering={FadeInDown.delay(221).springify()} style={s.section}>
+            <PatientMedicationsForm
+              patientId={Number(patientRecord.id)}
+              visitId={numId}
+              colors={colors}
+              isReadOnly={isReadOnly}
+              canEdit={can("submit_patient_medications")}
+              canRefill={can("refill_patient_medication")}
+              initialExpanded={false}
+              onSuccess={(message) => showDialog({ variant: "success", title: t("save"), message })}
+              onError={handleMutationError}
+            />
+          </Animated.View>
+        ) : null}
+
+        {/* ─── Medication Administration Record (read-only) ───────────────── */}
+        {can("view_medication_administration") && patientRecord?.id ? (
+          <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>
+            <MARForm patientId={Number(patientRecord.id)} colors={colors} initialExpanded={false} />
+          </Animated.View>
+        ) : null}
 
         {/* ─── Progress Note (Doctor / Nursing / Social Worker) ───────────── */}
         <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>
