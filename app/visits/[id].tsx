@@ -58,6 +58,7 @@ import { VisitDetailSkeleton } from "@/components/visits/VisitDetailSkeleton";
 import { VisitInfoCard } from "@/components/visits/VisitInfoCard";
 import { WorkflowActionButtons } from "@/components/visits/visitForms/WorkflowActionButtons";
 import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
+import { usePrefetchVisitData } from "@/hooks/usePrefetchVisitData";
 
 // Temporarily hidden per product request — flip back to true to restore.
 const SHOW_SOCIAL_INCIDENTS_TRIAGE_FORMS = false;
@@ -646,6 +647,18 @@ function VisitDetailScreenInner() {
   const patientRecord = (record as any)?.patient ?? null;
   const patientAlertsData =
     patientRecord?.patientAlerts ?? (record as any)?.patientAlerts ?? null;
+
+  // Prefetch all visit data for offline mode when checking in (A2).
+  usePrefetchVisitData({
+    patientId: patientRecord?.id ?? null,
+    visitId: numId,
+    permissions: {
+      canViewMedications: can("view_patient_medications"),
+      canViewDialysisOrders: can("view_dialysis_order"),
+      canViewMAR: can("view_medication_administration"),
+    },
+    enabled: !!patientRecord?.id && !!numId,
+  });
 
 
   // App-bar always visible — body switches between skeleton/error/empty/content.

@@ -28,6 +28,7 @@ import {
   type AppSettings,
 } from "@/data/app_settings_repository";
 import { setWebDomain, restoreCachedWebDomain } from "@/data/upload_config";
+import { setCachedLanguage } from "@/data/api_client";
 import { cacheService } from "@/data/cache_service";
 import type { User } from "@/data/models/auth";
 import {
@@ -296,6 +297,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = useCallback(async (lang: Language) => {
     await AsyncStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
     setLanguageState(lang);
+    setCachedLanguage(lang); // Update the request interceptor cache
     const isRTL = lang === "ar";
     I18nManager.forceRTL(isRTL);
   }, []);

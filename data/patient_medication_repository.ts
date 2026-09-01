@@ -182,3 +182,17 @@ export async function refillPatientMedication(
   )
   return mapMedicationFromApi(res.data?.data ?? res.data)
 }
+
+/** `POST …/{id}/acknowledge` — nurse acknowledges the medication. */
+export async function acknowledgePatientMedication(
+  patientId: number | string,
+  medicationId: number | string,
+  visitId?: number | string,
+): Promise<PatientMedication> {
+  const res = await offlinePost(
+    `/patients/${patientId}/medications/${medicationId}/acknowledge`,
+    {},
+    visitId != null ? String(visitId) : undefined,
+  )
+  return mapMedicationFromApi(res.data?.data ?? res.data)
+}

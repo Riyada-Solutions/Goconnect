@@ -21,6 +21,15 @@ interface DoseProps {
   colors: any;
 }
 
+interface AcknowledgeProps {
+  visible: boolean;
+  onClose: () => void;
+  medication: PatientMedication | null;
+  isSaving: boolean;
+  onConfirm: () => void;
+  colors: any;
+}
+
 /** Record a dose — `POST …/{id}/administer` (§4). */
 export function AdministerDoseSheet({
   visible,
@@ -167,6 +176,50 @@ export function RefillMedicationSheet({
             <Feather name="refresh-cw" size={15} color="#fff" />
           )}
           <Text style={s.mainBtnText}>{isSaving ? "Refilling…" : "Confirm refill"}</Text>
+        </Pressable>
+      </KeyboardAwareScrollViewCompat>
+    </BottomSheet>
+  );
+}
+
+/** Acknowledge medication — `POST …/{id}/acknowledge`. */
+export function AcknowledgeMedicationSheet({
+  visible,
+  onClose,
+  medication,
+  isSaving,
+  onConfirm,
+  colors,
+}: AcknowledgeProps) {
+  return (
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="Acknowledge medication"
+      subtitle={medication ? drugLabel(medication.drug) : undefined}
+      maxHeightRatio={0.6}
+    >
+      <KeyboardAwareScrollViewCompat
+        contentContainerStyle={{ padding: 16, gap: 12 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={{ fontSize: 12.5, fontFamily: "Inter_400Regular", color: colors.textSecondary }}>
+          Confirm that you have reviewed and acknowledge this medication order.
+        </Text>
+        <Pressable
+          style={[s.saveFlowBtn, { backgroundColor: Colors.primary, opacity: isSaving ? 0.6 : 1 }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onConfirm();
+          }}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Feather name="check-circle" size={15} color="#fff" />
+          )}
+          <Text style={s.mainBtnText}>{isSaving ? "Acknowledging…" : "Acknowledge"}</Text>
         </Pressable>
       </KeyboardAwareScrollViewCompat>
     </BottomSheet>

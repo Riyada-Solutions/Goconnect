@@ -10,6 +10,12 @@ const APP_PLATFORM = Platform.OS === 'ios' ? 'ios' : 'android'
 
 const TAG = 'API Request'
 
+// Cache language in memory (rarely changes — only via setLanguage in AppContext)
+let cachedLanguage: string | null = null
+export function setCachedLanguage(lang: string) {
+  cachedLanguage = lang
+}
+
 export const apiClient = axios.create({
   baseURL: `${ENV.API_BASE_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
@@ -17,10 +23,16 @@ export const apiClient = axios.create({
 })
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('access_token')
+  // Parallelize AsyncStorage reads (previously sequential, blocking every request)
+  const [token, storedLang] = await Promise.all([
+    AsyncStorage.getItem('access_token'),
+    AsyncStorage.getItem('@goconnect/language'),
+  ])
+
   if (token) config.headers.Authorization = `Bearer ${token}`
 
-  const lang = (await AsyncStorage.getItem('@goconnect/language')) || 'en'
+  // Use cached language if available, fall back to storage if cache was cleared
+  const lang = cachedLanguage || storedLang || 'en'
   config.headers['Accept-Language'] = lang
   config.headers['X-Lang'] = lang
   config.headers['X-App-Version'] = APP_VERSION

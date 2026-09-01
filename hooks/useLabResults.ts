@@ -6,6 +6,6 @@ export function useLabResults(patientId: number) {
     queryKey: ['lab-results', patientId],
     queryFn: () => getLabResultsByPatient(patientId),
     enabled: !!patientId,
-    cacheTtl: 30_000,
+    cacheTtl: 5 * 60 * 1000, // 5 minutes — align with other patient-scoped queries
   })
 }

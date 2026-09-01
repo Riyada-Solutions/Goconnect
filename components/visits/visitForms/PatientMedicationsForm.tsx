@@ -18,6 +18,7 @@ import {
 } from "@/data/models/patientMedication";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
+  useAcknowledgeMedication,
   useAdministerMedication,
   useCreatePatientMedications,
   useDeletePatientMedication,
@@ -37,6 +38,7 @@ import { EditMedicationSheet } from "./patientMedications/EditMedicationSheet";
 import { MedicationCard } from "./patientMedications/MedicationCard";
 import { MedicationDetailSheet } from "./patientMedications/MedicationDetailSheet";
 import {
+  AcknowledgeMedicationSheet,
   AdministerDoseSheet,
   RefillMedicationSheet,
 } from "./patientMedications/MedicationActionSheets";
@@ -55,7 +57,7 @@ interface Props {
   onError: (err: unknown) => void;
 }
 
-type SheetMode = "add" | "edit" | "detail" | "dose" | "refill";
+type SheetMode = "add" | "edit" | "detail" | "dose" | "refill" | "acknowledge";
 
 /**
  * Patient Medications — the patient's home and dialysis prescriptions.
@@ -98,6 +100,7 @@ export function PatientMedicationsForm({
   const statusMutation = useSetMedicationStatus(patientId, visitId);
   const doseMutation = useAdministerMedication(patientId, visitId);
   const refillMutation = useRefillMedication(patientId, visitId);
+  const acknowledgeMutation = useAcknowledgeMedication(patientId, visitId);
 
   // `useOfflineInfiniteQuery` under-declares its result type (same cast as the
   // patients/visits lists) — the runtime shape is `{ pages: [...] }`.
@@ -124,7 +127,8 @@ export function PatientMedicationsForm({
     deleteMutation.isPending ||
     statusMutation.isPending ||
     doseMutation.isPending ||
-    refillMutation.isPending;
+    refillMutation.isPending ||
+    acknowledgeMutation.isPending;
 
   const openSheet = (mode: SheetMode, id: number | null) => {
     Haptics.selectionAsync();
@@ -268,6 +272,20 @@ export function PatientMedicationsForm({
     );
   };
 
+  const handleAcknowledge = () => {
+    if (!activeId) return;
+    acknowledgeMutation.mutate(activeId, {
+      onSuccess: () => {
+        closeSheet();
+        onSuccess("Medication acknowledged");
+      },
+      onError: (err) => {
+        if (err instanceof OfflineQueuedError) closeSheet();
+        onError(err);
+      },
+    });
+  };
+
   const cardProps = (med: PatientMedication) => ({
     medication: med,
     colors,
@@ -277,7 +295,7 @@ export function PatientMedicationsForm({
     onOpen: () => openSheet("detail", med.id),
     onRefill: () => openSheet("refill", med.id),
     onEdit: () => openSheet("edit", med.id),
-    onDose: () => openSheet("dose", med.id),
+    onAcknowledge: () => openSheet("acknowledge", med.id),
     onStop: () => confirmStop(med),
     onReactivate: () => handleStatus(med, true),
     onDelete: () => confirmDelete(med),
@@ -484,6 +502,7 @@ export function PatientMedicationsForm({
         onRefill={() => switchSheet("refill")}
         onDose={() => switchSheet("dose")}
         onStop={() => activeMed && confirmStop(activeMed)}
+        onAcknowledge={() => switchSheet("acknowledge")}
         colors={colors}
       />
 
@@ -503,6 +522,15 @@ export function PatientMedicationsForm({
         medication={activeMed}
         isSaving={refillMutation.isPending}
         onConfirm={handleRefill}
+        colors={colors}
+      />
+
+      <AcknowledgeMedicationSheet
+        visible={sheet === "acknowledge"}
+        onClose={closeSheet}
+        medication={activeMed}
+        isSaving={acknowledgeMutation.isPending}
+        onConfirm={handleAcknowledge}
         colors={colors}
       />
     </>

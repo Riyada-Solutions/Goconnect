@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 
 import { Colors } from "@/theme/colors";
 
@@ -63,6 +64,9 @@ export function Avatar({ name, imageUrl, size = 44, color }: AvatarProps) {
           source={{ uri: imageUrl as string }}
           style={{ width: size, height: size, borderRadius: size / 2 }}
           onError={() => setImageFailed(true)}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={100}
         />
       ) : initials ? (
         <Text style={[styles.initials, { fontSize }]}>{initials}</Text>

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FALLBACK_MEDICATION_OPTIONS,
   MEDICATIONS_PER_PAGE,
+  acknowledgePatientMedication,
   administerPatientMedication,
   createPatientMedications,
   deletePatientMedication,
@@ -191,6 +192,15 @@ export function useRefillMedication(patientId: number, visitId?: number) {
       // §9 — a refill writes a history row, so that list is stale too.
       qc.invalidateQueries({ queryKey: ['medication-refills', patientId, medicationId] })
     },
+  })
+}
+
+export function useAcknowledgeMedication(patientId: number, visitId?: number) {
+  const invalidate = useMedicationsInvalidator(patientId)
+  return useMutation<PatientMedication, Error, number>({
+    mutationFn: (medicationId) =>
+      acknowledgePatientMedication(patientId, medicationId, visitId),
+    onSuccess: invalidate,
   })
 }
 

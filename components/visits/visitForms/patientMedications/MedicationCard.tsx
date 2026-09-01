@@ -39,7 +39,7 @@ interface Props {
   onOpen: () => void;
   onRefill: () => void;
   onEdit: () => void;
-  onDose: () => void;
+  onAcknowledge: () => void;
   onStop: () => void;
   onReactivate: () => void;
   onDelete: () => void;
@@ -61,7 +61,7 @@ export function MedicationCard({
   onOpen,
   onRefill,
   onEdit,
-  onDose,
+  onAcknowledge,
   onStop,
   onReactivate,
   onDelete,
@@ -149,7 +149,9 @@ export function MedicationCard({
             {canEdit ? (
               <>
                 <CardButton icon="edit-2" label="Edit" color={Colors.primary} disabled={busy} onPress={onEdit} colors={colors} />
-                <CardButton icon="check-square" label="Dose" color="#059669" disabled={busy} onPress={onDose} colors={colors} />
+                {!medication.isAcknowledged ? (
+                  <CardButton icon="check-circle" label="Acknowledgment" color="#10B981" disabled={busy} onPress={onAcknowledge} colors={colors} />
+                ) : null}
                 <CardButton icon="slash" label="Stop" color="#EF4444" disabled={busy} onPress={onStop} colors={colors} />
               </>
             ) : null}

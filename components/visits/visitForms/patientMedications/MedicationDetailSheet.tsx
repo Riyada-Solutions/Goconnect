@@ -24,6 +24,7 @@ interface Props {
   onRefill: () => void;
   onStop: () => void;
   onDose: () => void;
+  onAcknowledge: () => void;
   colors: any;
 }
 
@@ -46,6 +47,7 @@ export function MedicationDetailSheet({
   onRefill,
   onStop,
   onDose,
+  onAcknowledge,
   colors,
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
@@ -226,6 +228,16 @@ export function MedicationDetailSheet({
                   disabled={busy}
                   onPress={onDose}
                 />
+                {!medication.isAcknowledged ? (
+                  <SheetButton
+                    icon="check-circle"
+                    label="Acknowledge"
+                    background={colors.borderLight}
+                    foreground={colors.text}
+                    disabled={busy}
+                    onPress={onAcknowledge}
+                  />
+                ) : null}
                 {medication.status ? (
                   <SheetButton
                     icon="slash"
