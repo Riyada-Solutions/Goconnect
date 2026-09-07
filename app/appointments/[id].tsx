@@ -46,11 +46,12 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
+import { cacheVisitDataAfterCheckIn } from "@/data/visit_cache_integration";
 
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { t, can } = useApp();
+  const { t, can, user } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad, horizontal, gap, insets } = useScreenPadding({
     hasActionBar: true,
@@ -136,8 +137,13 @@ export default function AppointmentDetailScreen() {
   const handleCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     checkInMutation.mutate(Number(id), {
-      onSuccess: () =>
-        showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") }),
+      onSuccess: async (slot: any) => {
+        // Cache visit data for offline use
+        if (user?.id) {
+          await cacheVisitDataAfterCheckIn(slot, user.id);
+        }
+        showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") });
+      },
       onError: handleMutationError,
     });
   };
