@@ -1,4 +1,4 @@
-import { Audio } from 'expo-av'
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
 import { Platform } from 'react-native'
 
 export type NotificationType =
@@ -18,21 +18,22 @@ export type NotificationType =
   | 'vaccine_due_soon'
   | 'task'
 
-let soundInstance: Audio.Sound | null = null
+let soundInstance: AudioPlayer | null = null
 
-async function loadSound(): Promise<Audio.Sound | null> {
+// expo-audio's createAudioPlayer is synchronous, unlike expo-av's
+// Audio.Sound.createAsync, so this no longer needs to be async.
+function loadSound(): AudioPlayer | null {
   if (soundInstance) {
     return soundInstance
   }
 
   try {
     console.log('🔊 Loading notification sound...')
-    const { sound } = await Audio.Sound.createAsync(
+    soundInstance = createAudioPlayer(
       require('../assets/sound/notification_sounbd.wav'),
     )
-    soundInstance = sound
     console.log('✅ Notification sound loaded successfully')
-    return sound
+    return soundInstance
   } catch (error) {
     console.error(`❌ Failed to load notification sound:`, error)
     console.error('Stack:', (error as Error).stack)
@@ -45,12 +46,12 @@ export async function playNotificationSound(type: NotificationType): Promise<voi
 
   try {
     console.log(`🔔 Playing notification sound for type: ${type}`)
-    const sound = await loadSound()
-    if (sound) {
+    const player = loadSound()
+    if (player) {
       console.log('📢 Sound loaded, resetting position...')
-      await sound.setPositionAsync(0)
+      await player.seekTo(0)
       console.log('▶️ Playing sound...')
-      await sound.playAsync()
+      player.play()
       console.log('✅ Sound played successfully')
     } else {
       console.warn('⚠️ Sound instance is null')
@@ -64,7 +65,7 @@ export async function playNotificationSound(type: NotificationType): Promise<voi
 export async function cleanup(): Promise<void> {
   if (soundInstance) {
     try {
-      await soundInstance.unloadAsync()
+      soundInstance.remove()
     } catch (error) {
       console.warn('⚠️ Failed to unload sound:', error)
     }

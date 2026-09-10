@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { useApp } from "@/context/AppContext";
@@ -25,19 +25,37 @@ import { DateTimeConverter } from "@/utils/datetime";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 
+/**
+ * Grid geometry. The frozen medication column and the horizontally scrolling
+ * day columns are two separate stacks, so they must agree on row heights to
+ * the pixel — otherwise the halves drift apart as you scroll sideways.
+ */
+const MED_COL_W = 150;
+const DAY_COL_W = 104;
+const HEAD_H = 38;
+const ROW_H = 58;
+
+/** `2026-09-02` → `2026/09/02`, matching the web column headers. */
+const gridDate = (iso: string) => iso.replace(/-/g, "/");
+
 interface Props {
   patientId: number;
   colors: any;
   initialExpanded?: boolean;
 }
 
+type Selection = { med: MarMedication; date: string; cell: MarDayCell };
+
 /**
  * Medication Administration Record — **read-only** compliance report.
  *
- * One card per active dialysis medication, one row per day in the range.
- * The dose itself is charted in the Flow Sheet during the visit, so nothing
- * here writes; offline simply serves the last cached range, with no conflict
- * to resolve.
+ * Laid out as a matrix to mirror the web MAR: one row per medication, one
+ * column per day, a solid status chip only where something was charted. The
+ * dose itself is recorded from the Flow Sheet during the visit, so nothing
+ * here writes; offline simply serves the last cached range.
+ *
+ * A cell carries more than fits in a chip (dose, route, time, who, why), so
+ * tapping one opens the detail panel below the grid.
  */
 export function MARForm({ patientId, colors, initialExpanded }: Props) {
   const { t } = useApp();
@@ -49,12 +67,14 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
     start: marDateOffset(MAR_DEFAULT_DAYS - 1),
     end: marDateOffset(0),
   }));
+  const [selected, setSelected] = useState<Selection | null>(null);
 
   const query = useMedicationAdministration(patientId, range.start, range.end, open);
   const record = query.data;
 
   const legend = record?.legend ?? [];
   const days = record?.days ?? [];
+  const meds = record?.medications ?? [];
 
   // §7 — the server truncates anything longer than its max; say so rather
   // than pretending the requested window was honoured.
@@ -62,15 +82,13 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
   const wasTruncated = !!record && record.range.days >= maxDays;
 
   const hasAnyEntry = useMemo(
-    () =>
-      (record?.medications ?? []).some((med) =>
-        Object.values(med.days).some((cell) => cell.status !== "none"),
-      ),
-    [record],
+    () => meds.some((med) => Object.values(med.days).some((cell) => cell.status !== "none")),
+    [meds],
   );
 
   const search = () => {
     Haptics.selectionAsync();
+    setSelected(null);
     setRange({ start: draftStart, end: draftEnd });
   };
 
@@ -109,14 +127,16 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
             }}
           >
             <Feather name="search" size={14} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{t("marSearch")}</Text>
+            <Text style={{ color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
+              {t("marSearch")}
+            </Text>
           </Pressable>
         </View>
 
         {record?.range.startDate ? (
           <Text style={{ fontSize: 11.5, fontFamily: "Inter_400Regular", color: colors.textSecondary }}>
-            Showing {record.range.startDate} → {record.range.endDate} ({record.range.days} days)
-            {wasTruncated ? ` · capped at ${maxDays} days` : ""}
+            Showing {gridDate(record.range.startDate)} → {gridDate(record.range.endDate)} (
+            {record.range.days} days){wasTruncated ? ` · capped at ${maxDays} days` : ""}
           </Text>
         ) : null}
 
@@ -124,7 +144,7 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
         {legend.length > 0 ? (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {legend.map((item) => (
-              <StatusPill key={item.status} label={item.label} status={item.status} tone={item.tone} />
+              <LegendPill key={item.status} label={item.label} status={item.status} tone={item.tone} />
             ))}
           </View>
         ) : null}
@@ -133,7 +153,7 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
           <View style={{ paddingVertical: 24, alignItems: "center" }}>
             <ActivityIndicator color={Colors.primary} />
           </View>
-        ) : !record || record.medications.length === 0 ? (
+        ) : !record || meds.length === 0 ? (
           <View style={{ paddingVertical: 18, alignItems: "center", gap: 6 }}>
             <Feather name="clipboard" size={22} color={colors.textTertiary} />
             <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: colors.textSecondary }}>
@@ -159,9 +179,34 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
               </View>
             ) : null}
 
-            {record.medications.map((med) => (
-              <MedicationCard key={med.id} med={med} days={days} colors={colors} />
-            ))}
+            <MarGrid
+              meds={meds}
+              days={days}
+              colors={colors}
+              inactiveLabel={t("inactive")}
+              selected={selected}
+              onSelect={(med, date, cell) => {
+                Haptics.selectionAsync();
+                // Tapping the open cell closes it, so the panel can be dismissed.
+                setSelected((prev) =>
+                  prev && prev.med.id === med.id && prev.date === date ? null : { med, date, cell },
+                );
+              }}
+            />
+
+            {selected ? (
+              <CellDetail
+                med={selected.med}
+                date={selected.date}
+                cell={selected.cell}
+                colors={colors}
+                onClose={() => setSelected(null)}
+              />
+            ) : hasAnyEntry ? (
+              <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.textTertiary }}>
+                Tap a chip for dose, time and comments.
+              </Text>
+            ) : null}
           </>
         )}
       </CollapsibleBody>
@@ -169,7 +214,206 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
   );
 }
 
-function StatusPill({ label, status, tone }: { label: string; status: string; tone: string }) {
+/* ─── Grid ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Frozen medication column + horizontally scrolling day columns, as the web
+ * renders it. `days` from the response root is the authoritative column
+ * order — never re-sort it here.
+ */
+function MarGrid({
+  meds,
+  days,
+  colors,
+  inactiveLabel,
+  selected,
+  onSelect,
+}: {
+  meds: MarMedication[];
+  days: string[];
+  colors: any;
+  inactiveLabel: string;
+  selected: Selection | null;
+  onSelect: (med: MarMedication, date: string, cell: MarDayCell) => void;
+}) {
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 12,
+        overflow: "hidden",
+        flexDirection: "row",
+      }}
+    >
+      {/* Frozen medication column */}
+      <View style={{ width: MED_COL_W, borderRightWidth: 1, borderRightColor: colors.border }}>
+        <View
+          style={{
+            height: HEAD_H,
+            justifyContent: "center",
+            paddingHorizontal: 10,
+            backgroundColor: colors.borderLight,
+          }}
+        >
+          <Text style={{ fontSize: 11.5, fontFamily: "Inter_700Bold", color: colors.text }}>
+            Medication
+          </Text>
+        </View>
+        {meds.map((med) => (
+          <View
+            key={med.id}
+            style={{
+              height: ROW_H,
+              justifyContent: "center",
+              gap: 3,
+              paddingHorizontal: 10,
+              borderTopWidth: 1,
+              borderTopColor: colors.borderLight,
+            }}
+          >
+            <Text
+              numberOfLines={2}
+              style={{
+                fontSize: 10.5,
+                lineHeight: 13,
+                fontFamily: "Inter_600SemiBold",
+                color: med.isActive ? colors.text : colors.textSecondary,
+              }}
+            >
+              {med.drugName}
+            </Text>
+            {!med.isActive ? (
+              <View
+                style={{
+                  alignSelf: "flex-start",
+                  backgroundColor: `${MAR_TONE_COLORS.warning}22`,
+                  borderRadius: 4,
+                  paddingHorizontal: 5,
+                  paddingVertical: 1,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 8.5,
+                    fontFamily: "Inter_600SemiBold",
+                    color: MAR_TONE_COLORS.warning,
+                  }}
+                >
+                  {inactiveLabel}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ))}
+      </View>
+
+      {/* Horizontally scrolling day columns */}
+      <ScrollView horizontal showsHorizontalScrollIndicator>
+        <View>
+          <View style={{ flexDirection: "row", height: HEAD_H, backgroundColor: colors.borderLight }}>
+            {days.map((date) => (
+              <View
+                key={date}
+                style={{ width: DAY_COL_W, justifyContent: "center", alignItems: "center" }}
+              >
+                <Text
+                  style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: colors.textSecondary }}
+                >
+                  {gridDate(date)}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {meds.map((med) => (
+            <View
+              key={med.id}
+              style={{
+                flexDirection: "row",
+                height: ROW_H,
+                borderTopWidth: 1,
+                borderTopColor: colors.borderLight,
+              }}
+            >
+              {days.map((date) => {
+                const cell = med.days[date];
+                const isSel = !!selected && selected.med.id === med.id && selected.date === date;
+                return (
+                  <View
+                    key={date}
+                    style={{
+                      width: DAY_COL_W,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderLeftWidth: 1,
+                      borderLeftColor: colors.borderLight,
+                    }}
+                  >
+                    {/* A `none` day is simply blank, exactly as on the web. */}
+                    {cell && cell.status !== "none" ? (
+                      <StatusChip cell={cell} selected={isSel} onPress={() => onSelect(med, date, cell)} />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * Solid fill matching the web chip. `missed` shares the warning tone with
+ * `not_administered` but gets a dashed outline instead of a fill — a charting
+ * lapse must not read as a recorded clinical decision.
+ */
+function StatusChip({
+  cell,
+  selected,
+  onPress,
+}: {
+  cell: MarDayCell;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const color = MAR_TONE_COLORS[cell.tone] ?? MAR_TONE_COLORS.muted;
+  const missed = cell.status === "missed";
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: missed ? "transparent" : color,
+        borderWidth: missed ? 1 : 0,
+        borderStyle: missed ? "dashed" : "solid",
+        borderColor: color,
+        borderRadius: 5,
+        paddingHorizontal: 6,
+        paddingVertical: 7,
+        width: DAY_COL_W - 20,
+        alignItems: "center",
+        opacity: selected ? 0.75 : 1,
+      }}
+    >
+      <Text
+        numberOfLines={2}
+        style={{
+          fontSize: 9.5,
+          lineHeight: 11.5,
+          textAlign: "center",
+          fontFamily: "Inter_600SemiBold",
+          color: missed ? color : "#fff",
+        }}
+      >
+        {cell.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function LegendPill({ label, status, tone }: { label: string; status: string; tone: string }) {
   const color = MAR_TONE_COLORS[(tone as keyof typeof MAR_TONE_COLORS) ?? "muted"] ?? MAR_TONE_COLORS.muted;
   const icon = MAR_STATUS_ICON[status as keyof typeof MAR_STATUS_ICON] ?? "minus";
   // `missed` shares the warning tone with `not_administered` but gets a
@@ -196,104 +440,68 @@ function StatusPill({ label, status, tone }: { label: string; status: string; to
   );
 }
 
-function MedicationCard({ med, days, colors }: { med: MarMedication; days: string[]; colors: any }) {
-  const subtitle = [med.scientificName, med.form, med.dosage, med.route, med.frequency]
-    .filter(Boolean)
-    .join(" · ");
-
-  return (
-    <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: "hidden" }}>
-      <View style={{ padding: 12, gap: 5, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
-        <Text style={{ fontSize: 13.5, fontFamily: "Inter_700Bold", color: colors.text }}>
-          {med.drugName}
-        </Text>
-        {subtitle ? (
-          <Text style={{ fontSize: 11.5, fontFamily: "Inter_400Regular", color: colors.textSecondary }}>
-            {subtitle}
-          </Text>
-        ) : null}
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
-          <SummaryChip icon="check-circle" color="#10B981" count={med.summary.administered} />
-          <SummaryChip icon="alert-triangle" color="#F59E0B" count={med.summary.notAdministered} />
-          <SummaryChip icon="circle" color="#F59E0B" count={med.summary.missed} />
-          <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: colors.textTertiary }}>
-            {med.summary.scheduled} scheduled
-          </Text>
-        </View>
-      </View>
-
-      {/* `days` from the response root is the authoritative column order. */}
-      {days.map((date) => {
-        const cell = med.days[date];
-        if (!cell) return null;
-        return <DayRow key={date} date={date} cell={cell} colors={colors} />;
-      })}
-    </View>
-  );
-}
-
-function SummaryChip({ icon, color, count }: { icon: string; color: string; count: number }) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      <Feather name={icon as any} size={12} color={color} />
-      <Text style={{ fontSize: 11.5, fontFamily: "Inter_700Bold", color }}>{count}</Text>
-    </View>
-  );
-}
-
 /**
- * One day cell. §5 spells out exactly what shows where: dose + route on any
- * recorded status, the time only when administered, the reason only when it
- * wasn't — and a plain dash when the drug wasn't scheduled at all.
+ * §5 spells out exactly what shows where: dose + route on any recorded
+ * status, the time only when administered, the reason only when it wasn't.
  */
-function DayRow({ date, cell, colors }: { date: string; cell: MarDayCell; colors: any }) {
+function CellDetail({
+  med,
+  date,
+  cell,
+  colors,
+  onClose,
+}: {
+  med: MarMedication;
+  date: string;
+  cell: MarDayCell;
+  colors: any;
+  onClose: () => void;
+}) {
   const color = MAR_TONE_COLORS[cell.tone] ?? MAR_TONE_COLORS.muted;
-  const isNone = cell.status === "none";
+  const subtitle = [med.scientificName, med.form, med.frequency].filter(Boolean).join(" · ");
 
   return (
     <View
       style={{
-        flexDirection: "row",
-        gap: 10,
-        paddingHorizontal: 12,
-        paddingVertical: isNone ? 6 : 9,
-        borderTopWidth: 1,
-        borderTopColor: colors.borderLight,
-        opacity: isNone ? 0.55 : 1,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderLeftWidth: 3,
+        borderLeftColor: color,
+        borderRadius: 10,
+        padding: 12,
+        gap: 5,
       }}
     >
-      <Text
-        style={{
-          width: 84,
-          fontSize: 11.5,
-          fontFamily: "Inter_500Medium",
-          color: colors.textSecondary,
-        }}
-      >
-        {date}
-      </Text>
-      <View style={{ flex: 1, gap: 4 }}>
-        <StatusPill label={cell.label} status={cell.status} tone={cell.tone} />
-        {!isNone ? (
-          <View style={{ gap: 2 }}>
-            {cell.dosage || cell.route ? (
-              <Detail
-                colors={colors}
-                text={[cell.dosage ? `Dose: ${cell.dosage}` : null, cell.route ? `Route: ${cell.route}` : null]
-                  .filter(Boolean)
-                  .join("  ·  ")}
-              />
-            ) : null}
-            {cell.status === "administered" && cell.givenAt ? (
-              <Detail colors={colors} text={`Given: ${DateTimeConverter.time(cell.givenAt)}`} />
-            ) : null}
-            {cell.administeredBy ? <Detail colors={colors} text={`By: ${cell.administeredBy}`} /> : null}
-            {cell.status === "not_administered" && cell.reason ? (
-              <Detail colors={colors} text={`Comment: ${cell.reason}`} color={color} />
-            ) : null}
-          </View>
-        ) : null}
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ fontSize: 13, fontFamily: "Inter_700Bold", color: colors.text }}>
+            {med.drugName}
+          </Text>
+          <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: colors.textSecondary }}>
+            {gridDate(date)} · {cell.label}
+          </Text>
+        </View>
+        <Pressable onPress={onClose} hitSlop={10}>
+          <Feather name="x" size={16} color={colors.textSecondary} />
+        </Pressable>
       </View>
+
+      {subtitle ? <Detail colors={colors} text={subtitle} /> : null}
+      {cell.dosage || cell.route ? (
+        <Detail
+          colors={colors}
+          text={[cell.dosage ? `Dose: ${cell.dosage}` : null, cell.route ? `Route: ${cell.route}` : null]
+            .filter(Boolean)
+            .join("  ·  ")}
+        />
+      ) : null}
+      {cell.status === "administered" && cell.givenAt ? (
+        <Detail colors={colors} text={`Given: ${DateTimeConverter.time(cell.givenAt)}`} />
+      ) : null}
+      {cell.administeredBy ? <Detail colors={colors} text={`By: ${cell.administeredBy}`} /> : null}
+      {cell.status === "not_administered" && cell.reason ? (
+        <Detail colors={colors} text={`Comment: ${cell.reason}`} color={color} />
+      ) : null}
     </View>
   );
 }

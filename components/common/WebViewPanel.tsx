@@ -198,7 +198,7 @@ export function WebViewPanel({ url }: WebViewPanelProps) {
         <View
           style={[
             styles.centerState,
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             { backgroundColor: colors.background },
           ]}
         >

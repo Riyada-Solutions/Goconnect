@@ -7,17 +7,9 @@
     "icon": "./assets/images/logo.png",
     "scheme": "goconnect",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2DAAAE"
-    },
     "ios": {
       "icon": "./assets/images/logo.png",
       "supportsTablet": false,
-      "requiresFullScreen": true,
-      "displayName": "Goconnect",
       "bundleIdentifier": "com.careconnectksa.nurse",
       "buildNumber": "53",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -35,7 +27,8 @@
         "UIBackgroundModes": [
           "fetch",
           "remote-notification"
-        ]
+        ],
+        "UIRequiresFullScreen": true
       },
       "appleTeamId": "N3R8MF955Y"
     },
@@ -114,7 +107,19 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#2DAAAE"
+        }
+      ],
+      "expo-status-bar",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

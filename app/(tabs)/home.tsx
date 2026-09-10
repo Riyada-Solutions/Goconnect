@@ -531,13 +531,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   screenBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "flex-end",
     justifyContent: "flex-end",
     // opacity: 1,
   },
   headerBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.55,
   },
   headerContent: {

@@ -43,6 +43,9 @@ export interface MarMedication {
   frequency: string | null
   startDate: string | null
   endDate: string | null
+  /** Stopped medications still appear in the grid, flagged. Absent on older
+   *  API builds, in which case treat the row as active. */
+  isActive: boolean
   summary: MarSummary
   /** date (YYYY-MM-DD) → cell. Every day in `days` is guaranteed present. */
   days: Record<string, MarDayCell>
@@ -97,6 +100,10 @@ function mapMedication(raw: any): MarMedication {
     frequency: asString(raw?.frequency),
     startDate: asString(raw?.start_date),
     endDate: asString(raw?.end_date),
+    isActive: (() => {
+      const a = raw?.is_active ?? raw?.isActive
+      return a == null ? true : !!a
+    })(),
     summary: {
       administered: Number(s.administered ?? 0),
       notAdministered: Number(s.not_administered ?? 0),
@@ -132,7 +139,9 @@ export function mapMedicationAdministrationFromApi(raw: any): MedicationAdminist
 
 /** Palette for a cell tone, mapped onto the app's status colours. */
 export const MAR_TONE_COLORS: Record<MarTone, string> = {
-  success: '#10B981',
+  // Brand teal (Colors.primary) — matches the web MAR grid's "Administrated"
+  // chip. Hard-coded rather than imported so the model stays theme-free.
+  success: '#2DAAAE',
   warning: '#F59E0B',
   muted: '#9CA3AF',
 }

@@ -6,7 +6,7 @@
  * The plugin runs in the "dangerous" mod lifecycle so it executes during
  * `expo prebuild` (both plain and --clean).
  */
-const { withDangerousMod } = require('@expo/config-plugins');
+const { withDangerousMod } = require('expo/config-plugins');
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');

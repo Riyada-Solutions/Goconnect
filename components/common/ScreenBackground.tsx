@@ -30,7 +30,7 @@ export function ScreenBackground() {
 
 const styles = StyleSheet.create({
   bg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "flex-end",
     alignItems: "flex-end",
     // opacity: 0.7,

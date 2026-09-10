@@ -104,7 +104,10 @@ export function useBiometricLogin({
       });
 
       if (!result.success) {
-        const err = "error" in result ? result.error : "unknown";
+        // Widened to string: SDK 57 dropped 'missing_usage_description' from the
+        // LocalAuthenticationError union, but the native module can still surface
+        // it (and other codes) at runtime, so the checks below stay meaningful.
+        const err: string = "error" in result ? result.error : "unknown";
         const warning = "warning" in result ? (result as any).warning : undefined;
         if (err === "missing_usage_description") {
           setError(getBiometricErrorMessage(err, t as (key: string) => string));

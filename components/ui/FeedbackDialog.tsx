@@ -153,7 +153,7 @@ export function useFeedbackDialog() {
 
 const styles = StyleSheet.create({
   overlayFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1000,
     elevation: 1000,
   },

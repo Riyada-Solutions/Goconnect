@@ -18,6 +18,12 @@ allprojects {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
+    // notifee publishes app.notifee:core into a local maven repo inside its own
+    // package. Its build.gradle registers that repo via rootProject.allprojects,
+    // but `expo run:android` passes --configure-on-demand, so :app resolves its
+    // classpath before :notifee_react-native is ever configured. Register it here
+    // too so the local run matches what EAS (no configure-on-demand) already gets.
+    maven { url "$rootDir/../node_modules/@notifee/react-native/android/libs" }
   }
 }
 

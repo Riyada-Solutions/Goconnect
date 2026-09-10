@@ -9,13 +9,27 @@ import { Colors } from "@/theme/colors";
 import { useApp } from "@/context/AppContext";
 import { useTabRefresh } from "@/context/RefreshContext";
 
+/**
+ * SDK 57's expo-router swapped React Navigation for standard-navigation, and a
+ * bare useNavigation() is now typed as the root navigator, whose event map has
+ * no 'tabPress'. The Tabs navigator still emits the event at runtime (Expo's own
+ * stack navigators subscribe to it the same way), so this narrows the hook to
+ * just the listener shape this layout needs.
+ */
+type TabPressNavigation = {
+  addListener: (
+    event: "tabPress",
+    callback: (event: { target?: string }) => void,
+  ) => () => void;
+};
+
 export default function TabLayout() {
   const { isDark } = useApp();
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const dark = isDark;
-  const navigation = useNavigation();
+  const navigation = useNavigation<TabPressNavigation>();
   const { triggerRefresh } = useTabRefresh();
 
   useEffect(() => {

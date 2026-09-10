@@ -15,7 +15,7 @@
  * Mirrors expo-notifications' own plugin/build/withNotificationsAndroid.js
  * and withNotificationsIOS.js sound-bundling logic.
  */
-const { withDangerousMod, withXcodeProject, IOSConfig, assertValidAndroidAssetName } = require('@expo/config-plugins');
+const { withDangerousMod, withXcodeProject, IOSConfig, assertValidAndroidAssetName } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 

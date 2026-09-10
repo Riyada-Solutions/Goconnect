@@ -1,15 +1,25 @@
 const { getDefaultConfig } = require("expo/metro-config");
-const exclusionList = require("metro-config/private/defaults/exclusionList").default;
 
 const config = getDefaultConfig(__dirname);
 
 // Native (Android/iOS) build output inside node_modules is irrelevant to JS
 // bundling and can crash Metro's Windows file watcher (ENOENT on deeply
 // nested Gradle/Kotlin build artifact folders), so keep it out of the watch.
-config.resolver.blockList = exclusionList([
-  /node_modules\/.*\/android\/.*\/build\/.*/,
-  /node_modules\/.*\/ios\/.*\/build\/.*/,
-]);
+//
+// This used to go through metro-config's `private/defaults/exclusionList`, but
+// SDK 57 swapped Metro for the @expo/metro fork and that internal path is no
+// longer resolvable. Joining the patterns into one RegExp is exactly what the
+// helper did, and it drops the dependency on Metro's private module layout.
+// The separator class matches both "/" and "\" so this still works on Windows.
+const SEP = "[/\\\\]";
+config.resolver.blockList = new RegExp(
+  [
+    `node_modules${SEP}.*${SEP}android${SEP}.*${SEP}build${SEP}.*`,
+    `node_modules${SEP}.*${SEP}ios${SEP}.*${SEP}build${SEP}.*`,
+  ]
+    .map((pattern) => `(${pattern})`)
+    .join("|"),
+);
 
 config.transformer.babelTransformerPath = require.resolve(
   "react-native-svg-transformer/expo",
