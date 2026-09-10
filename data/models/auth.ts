@@ -45,7 +45,8 @@ export interface VerifyFaceRequest {
 
 export interface RegisterRequest {
   registerCode?: string
-  phone: string
+  /** Optional — App Store guideline 5.1.1(v) forbids requiring it. */
+  phone?: string
   username: string
   name: string
   email: string

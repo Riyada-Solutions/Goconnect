@@ -53,7 +53,7 @@ export default function RegisterScreen() {
   const validate = (): boolean => {
     const e: RegisterErrors = {};
     if (!registerCode.trim()) e.registerCode = t("registerCodeRequired");
-    if (!phone.trim())        e.phone        = t("phoneRequired");
+    // Phone is optional (App Store guideline 5.1.1(v)) — never block sign-up on it.
     if (!username.trim())     e.username     = t("usernameRequired");
     if (!name.trim())         e.name         = t("nameRequired");
     if (!email.trim())        e.email        = t("emailRequired");
@@ -91,7 +91,7 @@ export default function RegisterScreen() {
     try {
       await register({
         registerCode,
-        phone,
+        phone: phone.trim() || undefined,
         username,
         name,
         email,
@@ -175,7 +175,7 @@ export default function RegisterScreen() {
               <Feather name="phone" size={18} color={errors.phone ? colors.error : colors.textSecondary} style={s.inputIcon} />
               <TextInput
                 style={s.input}
-                placeholder={t("phone")}
+                placeholder={t("phoneOptional")}
                 placeholderTextColor={colors.textSecondary}
                 value={phone}
                 onChangeText={(v) => { setPhone(v); clearError("phone"); }}
