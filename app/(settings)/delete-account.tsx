@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { useApp } from "@/context/AppContext";
 import { deleteAccount } from "@/data/auth_repository";
+import { RuleActions } from "@/data/models/rules";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
 
@@ -41,7 +42,7 @@ export default function DeleteAccountScreen() {
   const [passwordError, setPasswordError] = useState("");
   const { dialogProps, show: showDialog } = useFeedbackDialog();
 
-  const canDeleteAccount = can("delete_account");
+  const canDeleteAccount = can(RuleActions.Profile.DeleteAccount);
   const canSubmit = canDeleteAccount && confirm === "DELETE" && password.length > 0;
 
   const handleDelete = () => {

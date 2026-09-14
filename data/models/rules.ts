@@ -8,187 +8,186 @@
  * `ALL_RULE_ACTIONS` below is the canonical list the mobile app gates on; it
  * is the contract handed to the backend so they know which keys to support.
  */
-export type RuleAction =
+/** Extracts the union of every string leaf in a nested `as const` object. */
+type Leaves<T> = T extends string
+  ? T
+  : T extends object
+    ? { [K in keyof T]: Leaves<T[K]> }[keyof T]
+    : never
+
+/** Collects every string leaf of a nested rule object into a flat array. */
+function flattenRules(obj: object, out: string[] = []): string[] {
+  for (const v of Object.values(obj)) {
+    if (typeof v === 'string') out.push(v)
+    else if (v && typeof v === 'object') flattenRules(v, out)
+  }
+  return out
+}
+
+/**
+ * Semantic FE rule keys — the single source of truth for what the app gates on.
+ *
+ * Namespaced so callsites read naturally and so `Find All References` / `Rename
+ * Symbol` work on a rule, e.g. `can(RuleActions.Medication.Submit)` rather than
+ * a bare `can('submit_patient_medications')`. Prefer these constants over the
+ * raw strings at every callsite; the string literals stay assignable so older
+ * code keeps compiling.
+ *
+ * The `RuleAction` union and `ALL_RULE_ACTIONS` list below are DERIVED from this
+ * object — add a rule here and both follow automatically.
+ */
+export const RuleActions = {
   // ── Dashboard / shell ─────────────────────────────────────────────
-  | 'view_dashboard'
-  | 'view_notifications'
+  Shell: {
+    Dashboard:     'view_dashboard',
+    Notifications: 'view_notifications',
+  },
+
   // ── Profile / account ─────────────────────────────────────────────
-  | 'view_profile'
-  | 'edit_profile'
-  | 'change_avatar'
-  | 'change_password'
-  | 'delete_account'
-  | 'logout'
+  Profile: {
+    View:           'view_profile',
+    Edit:           'edit_profile',
+    ChangeAvatar:   'change_avatar',
+    ChangePassword: 'change_password',
+    DeleteAccount:  'delete_account',
+    Logout:         'logout',
+  },
+
   // ── App settings ──────────────────────────────────────────────────
-  | 'toggle_biometric'
-  | 'toggle_push_notifications'
-  | 'toggle_email_notifications'
-  | 'change_language'
-  | 'change_theme'
+  Settings: {
+    ToggleBiometric:          'toggle_biometric',
+    TogglePushNotifications:  'toggle_push_notifications',
+    ToggleEmailNotifications: 'toggle_email_notifications',
+    ChangeLanguage:           'change_language',
+    ChangeTheme:              'change_theme',
+  },
+
   // ── Patients ──────────────────────────────────────────────────────
-  | 'view_patients'
-  | 'view_patient_detail'
-  | 'view_patient_care_team'
-  | 'call_patient'
-  | 'navigate_to_patient_address'
+  Patient: {
+    List:            'view_patients',
+    Detail:          'view_patient_detail',
+    CareTeam:        'view_patient_care_team',
+    Call:            'call_patient',
+    NavigateAddress: 'navigate_to_patient_address',
+  },
+
   // ── Lab results ───────────────────────────────────────────────────
-  | 'view_lab_results'
-  | 'view_lab_order_pdf'
-  | 'view_lab_result_pdf'
+  Lab: {
+    Results:   'view_lab_results',
+    OrderPdf:  'view_lab_order_pdf',
+    ResultPdf: 'view_lab_result_pdf',
+  },
+
   // ── Schedule / appointments ───────────────────────────────────────
-  | 'view_schedule'
-  | 'view_appointment_detail'
-  | 'confirm_appointment'
-  | 'confirm_for_others'
-  | 'cancel_appointment'
-  | 'check_in_patient'
+  Schedule: {
+    View:            'view_schedule',
+    Detail:          'view_appointment_detail',
+    Confirm:         'confirm_appointment',
+    ConfirmForOthers: 'confirm_for_others',
+    Cancel:          'cancel_appointment',
+    CheckIn:         'check_in_patient',
+  },
+
   // ── Visits (read) ─────────────────────────────────────────────────
-  | 'view_visits'
-  | 'view_visit_detail'
-  | 'start_visit'
-  | 'end_visit'
-  // ── Visit submissions (write) ─────────────────────────────────────
-  | 'submit_flow_sheet_outside_dialysis'
-  | 'submit_flow_sheet_pre_treatment_vitals'
-  | 'submit_flow_sheet_machines'
-  | 'submit_flow_sheet_pain_assessment'
-  | 'submit_flow_sheet_fall_risk'
-  | 'submit_flow_sheet_nursing_actions'
-  | 'submit_flow_sheet_dialysis_parameters'
-  | 'submit_flow_sheet_alarms_test'
-  | 'submit_flow_sheet_intake_output'
-  | 'submit_flow_sheet_car'
-  | 'submit_flow_sheet_access'
-  | 'submit_flow_sheet_dialysate'
-  | 'submit_flow_sheet_anticoagulation'
-  | 'submit_flow_sheet_medications'
-  | 'submit_flow_sheet_post_treatment'
-  | 'submit_flow_sheet_vascular_access_pre'
-  | 'submit_flow_sheet_vascular_access_post'
-  | 'view_nursing_progress_note'
-  | 'submit_nursing_progress_note'
-  | 'view_doctor_progress_note'
-  | 'submit_doctor_progress_note'
-  | 'view_social_worker_progress_note'
-  | 'submit_social_worker_progress_note'
-  | 'view_nutrition_progress_note'
-  | 'submit_nutrition_progress_note'
-  | 'submit_referral'
-  | 'submit_refusal'
-  | 'submit_sari_screening'
-  | 'submit_inventory_usage'
-  | 'view_consent_for_hemodialysis'
-  | 'submit_consent_for_hemodialysis'
-  | 'view_patient_responsibility'
-  | 'submit_patient_responsibility'
-  | 'view_patient_assessment'
-  | 'submit_patient_assessment'
-  | 'view_enrollments_checklist'
-  | 'submit_enrollments_checklist'
-  | 'view_consent_form'
-  | 'submit_consent_form'
-  | 'view_dialysis_order'
-  | 'submit_dialysis_order'
-  | 'delete_dialysis_order'
-  | 'acknowledge_dialysis_order'
-  | 'view_medication_administration'
-  | 'view_patient_medications'
-  | 'submit_patient_medications'
-  | 'refill_patient_medication'
+  Visit: {
+    List:   'view_visits',
+    Detail: 'view_visit_detail',
+    Start:  'start_visit',
+    End:    'end_visit',
+  },
+
+  // ── Flow sheet submissions (write) ────────────────────────────────
+  FlowSheet: {
+    OutsideDialysis:    'submit_flow_sheet_outside_dialysis',
+    PreTreatmentVitals: 'submit_flow_sheet_pre_treatment_vitals',
+    Machines:           'submit_flow_sheet_machines',
+    PainAssessment:     'submit_flow_sheet_pain_assessment',
+    FallRisk:           'submit_flow_sheet_fall_risk',
+    NursingActions:     'submit_flow_sheet_nursing_actions',
+    DialysisParameters: 'submit_flow_sheet_dialysis_parameters',
+    AlarmsTest:         'submit_flow_sheet_alarms_test',
+    IntakeOutput:       'submit_flow_sheet_intake_output',
+    Car:                'submit_flow_sheet_car',
+    Access:             'submit_flow_sheet_access',
+    Dialysate:          'submit_flow_sheet_dialysate',
+    Anticoagulation:    'submit_flow_sheet_anticoagulation',
+    Medications:        'submit_flow_sheet_medications',
+    PostTreatment:      'submit_flow_sheet_post_treatment',
+    VascularAccessPre:  'submit_flow_sheet_vascular_access_pre',
+    VascularAccessPost: 'submit_flow_sheet_vascular_access_post',
+  },
+
+  // ── Progress notes ────────────────────────────────────────────────
+  ProgressNote: {
+    ViewNursing:        'view_nursing_progress_note',
+    SubmitNursing:      'submit_nursing_progress_note',
+    ViewDoctor:         'view_doctor_progress_note',
+    SubmitDoctor:       'submit_doctor_progress_note',
+    ViewSocialWorker:   'view_social_worker_progress_note',
+    SubmitSocialWorker: 'submit_social_worker_progress_note',
+    ViewNutrition:      'view_nutrition_progress_note',
+    SubmitNutrition:    'submit_nutrition_progress_note',
+  },
+
+  // ── Visit forms ───────────────────────────────────────────────────
+  Form: {
+    SubmitReferral:            'submit_referral',
+    SubmitRefusal:             'submit_refusal',
+    SubmitSariScreening:       'submit_sari_screening',
+    SubmitInventoryUsage:      'submit_inventory_usage',
+    ViewConsentHemodialysis:   'view_consent_for_hemodialysis',
+    SubmitConsentHemodialysis: 'submit_consent_for_hemodialysis',
+    ViewResponsibility:        'view_patient_responsibility',
+    SubmitResponsibility:      'submit_patient_responsibility',
+    ViewAssessment:            'view_patient_assessment',
+    SubmitAssessment:          'submit_patient_assessment',
+    ViewEnrollmentsChecklist:  'view_enrollments_checklist',
+    SubmitEnrollmentsChecklist:'submit_enrollments_checklist',
+    ViewConsent:               'view_consent_form',
+    SubmitConsent:             'submit_consent_form',
+  },
+
+  // ── Dialysis order ────────────────────────────────────────────────
+  DialysisOrder: {
+    View:        'view_dialysis_order',
+    Submit:      'submit_dialysis_order',
+    Delete:      'delete_dialysis_order',
+    Acknowledge: 'acknowledge_dialysis_order',
+  },
+
+  // ── Medications ───────────────────────────────────────────────────
+  Medication: {
+    ViewAdministration: 'view_medication_administration',
+    View:               'view_patient_medications',
+    Submit:             'submit_patient_medications',
+    Refill:             'refill_patient_medication',
+    Acknowledge:        'acknowledge_patient_medication',
+  },
+
   // ── Help & support ────────────────────────────────────────────────
-  | 'view_help_support'
-  | 'submit_support_message'
+  Support: {
+    View:          'view_help_support',
+    SubmitMessage: 'submit_support_message',
+  },
+} as const
 
-export const ALL_RULE_ACTIONS: RuleAction[] = [
-  'view_dashboard',
-  'view_notifications',
+/**
+ * Action-level permission keys returned by `GET /me/rules`.
+ *
+ * The backend returns a flat array of strings — every string in the array
+ * grants the user the matching action. Anything NOT in the array (or unknown)
+ * is treated as disabled.
+ *
+ * Derived from `RuleActions` so the union can never drift from the constants.
+ */
+export type RuleAction = Leaves<typeof RuleActions>
 
-  'view_profile',
-  'edit_profile',
-  'change_avatar',
-  'change_password',
-  'delete_account',
-  'logout',
-
-  'toggle_biometric',
-  'toggle_push_notifications',
-  'toggle_email_notifications',
-  'change_language',
-  'change_theme',
-
-  'view_patients',
-  'view_patient_detail',
-  'view_patient_care_team',
-  'call_patient',
-  'navigate_to_patient_address',
-
-  'view_lab_results',
-  'view_lab_order_pdf',
-  'view_lab_result_pdf',
-
-  'view_schedule',
-  'view_appointment_detail',
-  'confirm_appointment',
-  'confirm_for_others',
-  'cancel_appointment',
-  'check_in_patient',
-
-  'view_visits',
-  'view_visit_detail',
-  'start_visit',
-  'end_visit',
-
-  'submit_flow_sheet_outside_dialysis',
-  'submit_flow_sheet_pre_treatment_vitals',
-  'submit_flow_sheet_machines',
-  'submit_flow_sheet_pain_assessment',
-  'submit_flow_sheet_fall_risk',
-  'submit_flow_sheet_nursing_actions',
-  'submit_flow_sheet_dialysis_parameters',
-  'submit_flow_sheet_alarms_test',
-  'submit_flow_sheet_intake_output',
-  'submit_flow_sheet_car',
-  'submit_flow_sheet_access',
-  'submit_flow_sheet_dialysate',
-  'submit_flow_sheet_anticoagulation',
-  'submit_flow_sheet_medications',
-  'submit_flow_sheet_post_treatment',
-  'submit_flow_sheet_vascular_access_pre',
-  'submit_flow_sheet_vascular_access_post',
-  'view_nursing_progress_note',
-  'submit_nursing_progress_note',
-  'view_doctor_progress_note',
-  'submit_doctor_progress_note',
-  'view_social_worker_progress_note',
-  'submit_social_worker_progress_note',
-  'view_nutrition_progress_note',
-  'submit_nutrition_progress_note',
-  'submit_referral',
-  'submit_refusal',
-  'submit_sari_screening',
-  'submit_inventory_usage',
-  'view_consent_for_hemodialysis',
-  'submit_consent_for_hemodialysis',
-  'view_patient_responsibility',
-  'submit_patient_responsibility',
-  'view_patient_assessment',
-  'submit_patient_assessment',
-  'view_enrollments_checklist',
-  'submit_enrollments_checklist',
-  'view_consent_form',
-  'submit_consent_form',
-  'view_dialysis_order',
-  'submit_dialysis_order',
-  'delete_dialysis_order',
-  'acknowledge_dialysis_order',
-  'view_medication_administration',
-  'view_patient_medications',
-  'submit_patient_medications',
-  'refill_patient_medication',
-
-  'view_help_support',
-  'submit_support_message',
-]
+/**
+ * Canonical list the mobile app gates on; it is the contract handed to the
+ * backend so they know which keys to support. Derived from `RuleActions`.
+ */
+export const ALL_RULE_ACTIONS: RuleAction[] =
+  Array.from(new Set(flattenRules(RuleActions))) as RuleAction[]
 
 /**
  * Canonical list of backend rule keys returned by `GET /me/rules`, organised
@@ -588,22 +587,8 @@ export const BackendRule = {
   },
 } as const
 
-type Leaves<T> = T extends string
-  ? T
-  : T extends object
-    ? { [K in keyof T]: Leaves<T[K]> }[keyof T]
-    : never
-
 /** Union of every backend rule string value declared in `BackendRule`. */
 export type BackendRuleKey = Leaves<typeof BackendRule>
-
-function flattenRules(obj: object, out: string[] = []): string[] {
-  for (const v of Object.values(obj)) {
-    if (typeof v === 'string') out.push(v)
-    else if (v && typeof v === 'object') flattenRules(v, out)
-  }
-  return out
-}
 
 /** Flat list of every backend rule string (deduped, derived from `BackendRule`). */
 export const ALL_BACKEND_RULES: readonly BackendRuleKey[] =
@@ -723,6 +708,7 @@ export const FE_RULE_TO_BACKEND: Partial<Record<RuleAction, BackendRuleKey | Bac
   view_patient_medications:           [BackendRule.Patient.Medications, BackendRule.Patient.MedicationsEdit],
   submit_patient_medications:         BackendRule.Patient.MedicationsEdit,
   refill_patient_medication:          [BackendRule.Patient.MedicationRefill, BackendRule.Patient.MedicationsEdit],
+  acknowledge_patient_medication:     BackendRule.Patient.NurseAcknowledgment,
 
   // ── Support ───────────────────────────────────────────────────────
   submit_support_message: BackendRule.TicketingAction.CreateTickets,

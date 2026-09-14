@@ -5,9 +5,10 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { Colors } from "@/theme/colors";
-import type {
-  SocialWorkerLocation,
-  SocialWorkerProgressNote,
+import {
+  SOCIAL_WORKER_LOCATIONS,
+  type SocialWorkerLocation,
+  type SocialWorkerProgressNote,
 } from "@/data/models/socialWorkerProgressNote";
 
 import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
@@ -47,7 +48,8 @@ export function SocialWorkerProgressNoteForm({
   };
 
   const done = previousNotes.length > 0 || currentNote.trim() !== "";
-  const locationLabel = (loc: SocialWorkerLocation) => (loc === "on_call" ? t("onCall") : t("inCenter"));
+  const locationLabel = (loc: SocialWorkerLocation) =>
+    t(LOCATION_LABEL_KEYS[loc] ?? "inCenter");
 
   const body = (
     <View style={{gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
@@ -83,19 +85,18 @@ export function SocialWorkerProgressNoteForm({
             )}
           </View>
 
-          <View style={{ flexDirection: "row", gap: 16 }}>
-            <LocationCheckbox
-              label={t("onCall")}
-              checked={location === "on_call"}
-              onPress={() => setLocation("on_call")}
-              colors={colors}
-            />
-            <LocationCheckbox
-              label={t("inCenter")}
-              checked={location === "in_center"}
-              onPress={() => setLocation("in_center")}
-              colors={colors}
-            />
+          {/* Wraps rather than scrolls — three labels no longer fit one row
+              on a narrow phone, and Arabic labels are longer still. */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
+            {SOCIAL_WORKER_LOCATIONS.map((loc) => (
+              <LocationCheckbox
+                key={loc}
+                label={locationLabel(loc)}
+                checked={location === loc}
+                onPress={() => setLocation(loc)}
+                colors={colors}
+              />
+            ))}
           </View>
 
           <View>
@@ -159,6 +160,13 @@ export function SocialWorkerProgressNoteForm({
     </Card>
   );
 }
+
+/** One translation key per location; keep in step with `SocialWorkerLocation`. */
+const LOCATION_LABEL_KEYS: Record<SocialWorkerLocation, string> = {
+  on_call: "onCall",
+  in_center: "inCenter",
+  on_visit: "onVisit",
+};
 
 function LocationCheckbox({
   label,

@@ -10,6 +10,11 @@
 export type MarStatus = 'none' | 'missed' | 'administered' | 'not_administered'
 export type MarTone = 'muted' | 'warning' | 'success'
 
+/** The API still reports `missed`, but it records a charting lapse rather than
+ *  care given or withheld, so the grid and legend leave it out entirely. */
+export const isMarChartedStatus = (status: MarStatus) =>
+  status !== 'none' && status !== 'missed'
+
 export interface MarDayCell {
   status: MarStatus
   label: string
@@ -146,8 +151,8 @@ export const MAR_TONE_COLORS: Record<MarTone, string> = {
   muted: '#9CA3AF',
 }
 
-/** `missed` must read differently from `not_administered` — one is a charting
- *  lapse, the other a recorded clinical decision. Same tone, different mark. */
+/** Mark per status. `missed` never renders — see `isMarChartedStatus` — but
+ *  stays keyed so the record covers every `MarStatus`. */
 export const MAR_STATUS_ICON: Record<MarStatus, string> = {
   administered: 'check-circle',
   not_administered: 'alert-triangle',

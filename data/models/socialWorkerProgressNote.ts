@@ -1,4 +1,11 @@
-export type SocialWorkerLocation = "on_call" | "in_center"
+export type SocialWorkerLocation = "on_call" | "in_center" | "on_visit"
+
+/** Display order, and the keys the API uses both as booleans and as `type`. */
+export const SOCIAL_WORKER_LOCATIONS: readonly SocialWorkerLocation[] = [
+  "on_call",
+  "in_center",
+  "on_visit",
+]
 
 export interface SocialWorkerProgressNote {
   id: number

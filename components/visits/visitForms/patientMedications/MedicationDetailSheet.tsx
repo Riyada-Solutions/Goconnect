@@ -19,6 +19,7 @@ interface Props {
   isLoading?: boolean;
   canEdit: boolean;
   canRefill: boolean;
+  canAcknowledge: boolean;
   busy: boolean;
   onEdit: () => void;
   onRefill: () => void;
@@ -42,6 +43,7 @@ export function MedicationDetailSheet({
   isLoading,
   canEdit,
   canRefill,
+  canAcknowledge,
   busy,
   onEdit,
   onRefill,
@@ -228,27 +230,28 @@ export function MedicationDetailSheet({
                   disabled={busy}
                   onPress={onDose}
                 />
-                {!medication.isAcknowledged ? (
-                  <SheetButton
-                    icon="check-circle"
-                    label="Acknowledge"
-                    background={colors.borderLight}
-                    foreground={colors.text}
-                    disabled={busy}
-                    onPress={onAcknowledge}
-                  />
-                ) : null}
-                {medication.status ? (
-                  <SheetButton
-                    icon="slash"
-                    label="Stop"
-                    background="#EF444416"
-                    foreground="#DC2626"
-                    disabled={busy}
-                    onPress={onStop}
-                  />
-                ) : null}
               </>
+            ) : null}
+            {/* §12.4 — acknowledgment is its own right, not part of `canEdit`. */}
+            {canAcknowledge && !medication.isAcknowledged ? (
+              <SheetButton
+                icon="check-circle"
+                label="Acknowledge"
+                background={colors.borderLight}
+                foreground={colors.text}
+                disabled={busy}
+                onPress={onAcknowledge}
+              />
+            ) : null}
+            {canEdit && medication.status ? (
+              <SheetButton
+                icon="slash"
+                label="Stop"
+                background="#EF444416"
+                foreground="#DC2626"
+                disabled={busy}
+                onPress={onStop}
+              />
             ) : null}
           </View>
         </>

@@ -52,6 +52,7 @@ interface Props {
   isReadOnly: boolean;
   canEdit: boolean;
   canRefill: boolean;
+  canAcknowledge: boolean;
   initialExpanded?: boolean;
   onSuccess: (message: string) => void;
   onError: (err: unknown) => void;
@@ -74,6 +75,7 @@ export function PatientMedicationsForm({
   isReadOnly,
   canEdit,
   canRefill,
+  canAcknowledge,
   initialExpanded,
   onSuccess,
   onError,
@@ -114,6 +116,7 @@ export function PatientMedicationsForm({
 
   const editable = canEdit && !isReadOnly;
   const refillable = canRefill && !isReadOnly;
+  const acknowledgeable = canAcknowledge && !isReadOnly;
 
   const listedMed =
     [...activeMeds, ...stoppedMeds].find((m) => m.id === activeId) ?? null;
@@ -292,6 +295,7 @@ export function PatientMedicationsForm({
     busy,
     canEdit: editable,
     canRefill: refillable,
+    canAcknowledge: acknowledgeable,
     onOpen: () => openSheet("detail", med.id),
     onRefill: () => openSheet("refill", med.id),
     onEdit: () => openSheet("edit", med.id),
@@ -497,6 +501,7 @@ export function PatientMedicationsForm({
         isLoading={detailQuery.isLoading && !listedMed}
         canEdit={editable}
         canRefill={refillable}
+        canAcknowledge={acknowledgeable}
         busy={busy}
         onEdit={() => switchSheet("edit")}
         onRefill={() => switchSheet("refill")}

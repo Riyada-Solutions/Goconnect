@@ -21,6 +21,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { GuestWall } from "@/components/ui/GuestWall";
 import { useApp } from "@/context/AppContext";
+import { RuleActions } from "@/data/models/rules";
 import { OfflineQueuedError } from "@/data/offline_api";
 import { uploadAvatar } from "@/data/settings_repository";
 import { useTheme } from "@/hooks/useTheme";
@@ -37,8 +38,8 @@ export default function EditProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  const canEdit = can("edit_profile");
-  const canChangeAvatar = can("change_avatar");
+  const canEdit = can(RuleActions.Profile.Edit);
+  const canChangeAvatar = can(RuleActions.Profile.ChangeAvatar);
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
   const botPad = insets.bottom + (Platform.OS === "web" ? 34 : 24);

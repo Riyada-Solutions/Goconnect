@@ -9,6 +9,7 @@ import { DateTimeField } from "@/components/ui/DateTimeField";
 import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
 import { Colors } from "@/theme/colors";
 import {
+  isMarChartedStatus,
   MAR_STATUS_ICON,
   MAR_TONE_COLORS,
   type MarDayCell,
@@ -72,7 +73,8 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
   const query = useMedicationAdministration(patientId, range.start, range.end, open);
   const record = query.data;
 
-  const legend = record?.legend ?? [];
+  // `missed` is dropped everywhere — it reports a charting lapse, not care.
+  const legend = (record?.legend ?? []).filter((item) => isMarChartedStatus(item.status));
   const days = record?.days ?? [];
   const meds = record?.medications ?? [];
 
@@ -82,7 +84,7 @@ export function MARForm({ patientId, colors, initialExpanded }: Props) {
   const wasTruncated = !!record && record.range.days >= maxDays;
 
   const hasAnyEntry = useMemo(
-    () => meds.some((med) => Object.values(med.days).some((cell) => cell.status !== "none")),
+    () => meds.some((med) => Object.values(med.days).some((cell) => isMarChartedStatus(cell.status))),
     [meds],
   );
 
@@ -350,8 +352,8 @@ function MarGrid({
                       borderLeftColor: colors.borderLight,
                     }}
                   >
-                    {/* A `none` day is simply blank, exactly as on the web. */}
-                    {cell && cell.status !== "none" ? (
+                    {/* A `none` or `missed` day is simply blank. */}
+                    {cell && isMarChartedStatus(cell.status) ? (
                       <StatusChip cell={cell} selected={isSel} onPress={() => onSelect(med, date, cell)} />
                     ) : null}
                   </View>
@@ -365,11 +367,7 @@ function MarGrid({
   );
 }
 
-/**
- * Solid fill matching the web chip. `missed` shares the warning tone with
- * `not_administered` but gets a dashed outline instead of a fill — a charting
- * lapse must not read as a recorded clinical decision.
- */
+/** Solid fill matching the web chip. */
 function StatusChip({
   cell,
   selected,
@@ -380,15 +378,11 @@ function StatusChip({
   onPress: () => void;
 }) {
   const color = MAR_TONE_COLORS[cell.tone] ?? MAR_TONE_COLORS.muted;
-  const missed = cell.status === "missed";
   return (
     <Pressable
       onPress={onPress}
       style={{
-        backgroundColor: missed ? "transparent" : color,
-        borderWidth: missed ? 1 : 0,
-        borderStyle: missed ? "dashed" : "solid",
-        borderColor: color,
+        backgroundColor: color,
         borderRadius: 5,
         paddingHorizontal: 6,
         paddingVertical: 7,
@@ -404,7 +398,7 @@ function StatusChip({
           lineHeight: 11.5,
           textAlign: "center",
           fontFamily: "Inter_600SemiBold",
-          color: missed ? color : "#fff",
+          color: "#fff",
         }}
       >
         {cell.label}
@@ -416,9 +410,6 @@ function StatusChip({
 function LegendPill({ label, status, tone }: { label: string; status: string; tone: string }) {
   const color = MAR_TONE_COLORS[(tone as keyof typeof MAR_TONE_COLORS) ?? "muted"] ?? MAR_TONE_COLORS.muted;
   const icon = MAR_STATUS_ICON[status as keyof typeof MAR_STATUS_ICON] ?? "minus";
-  // `missed` shares the warning tone with `not_administered` but gets a
-  // dashed outline — a charting lapse must not read as a clinical decision.
-  const dashed = status === "missed";
   return (
     <View
       style={{
@@ -429,9 +420,6 @@ function LegendPill({ label, status, tone }: { label: string; status: string; to
         borderRadius: 999,
         paddingHorizontal: 9,
         paddingVertical: 3,
-        borderWidth: dashed ? 1 : 0,
-        borderStyle: dashed ? "dashed" : "solid",
-        borderColor: color,
       }}
     >
       <Feather name={icon as any} size={11} color={color} />

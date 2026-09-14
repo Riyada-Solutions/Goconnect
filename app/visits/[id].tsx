@@ -16,7 +16,9 @@ import { useSlot } from "@/hooks/useScheduler";
 import { useCheckoutVisit, useCheckoutWithoutSapVisit, useCloseVisit, useEndVisit, useReopenVisit, useSaveProcedureTimes, useStartVisit, useSubmitAllergiesForm, useSubmitBloodSugarForm, useSubmitConsentForHemodialysis, useSubmitConsentForm, useSubmitDoctorProgressNote, useSubmitEnrollmentsChecklist, useSubmitIncidentsForm, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitPatientAssessment, useSubmitPatientResponsibility, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialAssessmentForm, useSubmitSocialWorkerProgressNote, useSubmitVisualTriageChecklist, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
+import { BackendRule, RuleActions } from "@/data/models/rules";
 import type { InventoryItem } from "@/data/models/visit";
+import { SOCIAL_WORKER_LOCATIONS } from "@/data/models/socialWorkerProgressNote";
 import type { CareTeamMember } from "@/data/models/careTeam";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -595,23 +597,18 @@ function VisitDetailScreenInner() {
   const rawNursing      = (progressNotes?.nursing       ?? []).map(normalizeNote);
   const rawDoctorBucket = (progressNotes?.doctor        ?? []).map(normalizeNote);
   // Social worker rows carry location two different ways depending on when
-  // they were saved: legacy rows use `type: "on_call"`, newer ones use
-  // separate `on_call`/`in_center` booleans. Neither sets `location`, which
-  // is what the form actually reads — derive it here so old and new rows
-  // both display their real location instead of always falling back to
-  // "in Center".
+  // they were saved: legacy rows put the value in `type` (e.g. `"on_visit"`),
+  // newer ones set one boolean per location. Neither sets `location`, which is
+  // what the form actually reads — derive it here so old and new rows both
+  // display their real location instead of falling back to "In center".
   const normalizeSocialNote = (n: any) => {
     const normalized = normalizeNote(n);
     if (!normalized || typeof normalized !== 'object') return normalized;
     const location =
       normalized.location ??
-      (normalized.on_call === true
-        ? 'on_call'
-        : normalized.in_center === true
-          ? 'in_center'
-          : normalized.type === 'on_call'
-            ? 'on_call'
-            : 'in_center');
+      SOCIAL_WORKER_LOCATIONS.find((key) => normalized[key] === true) ??
+      SOCIAL_WORKER_LOCATIONS.find((key) => normalized.type === key) ??
+      'in_center';
     return { ...normalized, location };
   };
   const rawSocialBucket = (progressNotes?.socialWorker  ?? []).map(normalizeSocialNote);
@@ -653,9 +650,9 @@ function VisitDetailScreenInner() {
     patientId: patientRecord?.id ?? null,
     visitId: numId,
     permissions: {
-      canViewMedications: can("view_patient_medications"),
-      canViewDialysisOrders: can("view_dialysis_order"),
-      canViewMAR: can("view_medication_administration"),
+      canViewMedications: can(RuleActions.Medication.View),
+      canViewDialysisOrders: can(RuleActions.DialysisOrder.View),
+      canViewMAR: can(RuleActions.Medication.ViewAdministration),
     },
     enabled: !!patientRecord?.id && !!numId,
   });
@@ -810,7 +807,7 @@ function VisitDetailScreenInner() {
           procedureEndTimeStr={procedureEndTimeStr}
           showProcedureEdit={showProcedureEdit}
           enableProcedureEdit={appSettings.enableToggleProcedureButton}
-          canEditProcedure={can("visits.StartEndMyProcedure") || can("visits.StartEndAllProcedure")}
+          canEditProcedure={can(BackendRule.Visit.StartEndMyProcedure) || can(BackendRule.Visit.StartEndAllProcedure)}
           editProcStart={editProcStart}
           editProcEnd={editProcEnd}
           isReadOnly={isReadOnly}
@@ -869,16 +866,16 @@ function VisitDetailScreenInner() {
         </Animated.View> */}
 
         {/* ─── Dialysis Order ─────────────────────────────────────────────── */}
-        {can("view_dialysis_order") && patientRecord?.id ? (
+        {can(RuleActions.DialysisOrder.View) && patientRecord?.id ? (
           <Animated.View entering={FadeInDown.delay(220).springify()} style={s.section}>
             <DialysisOrderForm
               patientId={Number(patientRecord.id)}
               visitId={numId}
               colors={colors}
               isReadOnly={isReadOnly}
-              canEdit={can("submit_dialysis_order")}
-              canDelete={can("delete_dialysis_order")}
-              canAcknowledge={can("acknowledge_dialysis_order")}
+              canEdit={can(RuleActions.DialysisOrder.Submit)}
+              canDelete={can(RuleActions.DialysisOrder.Delete)}
+              canAcknowledge={can(RuleActions.DialysisOrder.Acknowledge)}
               initialExpanded={false}
               onSuccess={(message) => showDialog({ variant: "success", title: t("save"), message })}
               onError={handleMutationError}
@@ -887,15 +884,16 @@ function VisitDetailScreenInner() {
         ) : null}
 
         {/* ─── Patient Medications (home / dialysis) ──────────────────────── */}
-        {can("view_patient_medications") && patientRecord?.id ? (
+        {can(RuleActions.Medication.View) && patientRecord?.id ? (
           <Animated.View entering={FadeInDown.delay(221).springify()} style={s.section}>
             <PatientMedicationsForm
               patientId={Number(patientRecord.id)}
               visitId={numId}
               colors={colors}
               isReadOnly={isReadOnly}
-              canEdit={can("submit_patient_medications")}
-              canRefill={can("refill_patient_medication")}
+              canEdit={can(RuleActions.Medication.Submit)}
+              canRefill={can(RuleActions.Medication.Refill)}
+              canAcknowledge={can(RuleActions.Medication.Acknowledge)}
               initialExpanded={false}
               onSuccess={(message) => showDialog({ variant: "success", title: t("save"), message })}
               onError={handleMutationError}
@@ -904,7 +902,7 @@ function VisitDetailScreenInner() {
         ) : null}
 
         {/* ─── Medication Administration Record (read-only) ───────────────── */}
-        {can("view_medication_administration") && patientRecord?.id ? (
+        {can(RuleActions.Medication.ViewAdministration) && patientRecord?.id ? (
           <Animated.View entering={FadeInDown.delay(222).springify()} style={s.section}>
             <MARForm patientId={Number(patientRecord.id)} colors={colors} initialExpanded={false} />
           </Animated.View>
@@ -915,9 +913,9 @@ function VisitDetailScreenInner() {
           <ProgressNoteGroup
             colors={colors}
             isReadOnly={isReadOnly}
-            canSubmitDoctor={can("submit_doctor_progress_note")}
-            canSubmitNursing={can("submit_nursing_progress_note")}
-            canSubmitSocial={can("submit_social_worker_progress_note")}
+            canSubmitDoctor={can(RuleActions.ProgressNote.SubmitDoctor)}
+            canSubmitNursing={can(RuleActions.ProgressNote.SubmitNursing)}
+            canSubmitSocial={can(RuleActions.ProgressNote.SubmitSocialWorker)}
             // initialExpanded={initialPhase === "completed"}
             doctorVitals={preTreatmentVitals}
             doctorNotes={doctorProgressNotes}
@@ -1047,11 +1045,11 @@ function VisitDetailScreenInner() {
         </Animated.View>
 
         {/* ─── Consent Form ────────────────────────────────────────────── */}
-        {can("view_consent_form") && (
+        {can(RuleActions.Form.ViewConsent) && (
           <Animated.View entering={FadeInDown.delay(256).springify()} style={s.section}>
             <ConsentFormForm
               colors={colors}
-              isReadOnly={isReadOnly || !can("submit_consent_form")}
+              isReadOnly={isReadOnly || !can(RuleActions.Form.SubmitConsent)}
               initialExpanded={false}
               initial={consentFormInitial}
               isSaving={submitConsentForm.isPending}
@@ -1071,11 +1069,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Patient Responsibility ──────────────────────────────────── */}
-        {can("view_patient_responsibility") && (
+        {can(RuleActions.Form.ViewResponsibility) && (
           <Animated.View entering={FadeInDown.delay(259).springify()} style={s.section}>
             <PatientResponsibilityForm
               colors={colors}
-              isReadOnly={isReadOnly || !can("submit_patient_responsibility")}
+              isReadOnly={isReadOnly || !can(RuleActions.Form.SubmitResponsibility)}
               initialExpanded={false}
               initial={patientResponsibilityInitial}
               isSaving={submitPatientResponsibility.isPending}
@@ -1093,11 +1091,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Consent for Hemodialysis ────────────────────────────────── */}
-        {can("view_consent_for_hemodialysis") && (
+        {can(RuleActions.Form.ViewConsentHemodialysis) && (
           <Animated.View entering={FadeInDown.delay(262).springify()} style={s.section}>
             <ConsentForHemodialysisForm
               colors={colors}
-              isReadOnly={isReadOnly || !can("submit_consent_for_hemodialysis")}
+              isReadOnly={isReadOnly || !can(RuleActions.Form.SubmitConsentHemodialysis)}
               initialExpanded={false}
               initial={consentForHemodialysisInitial}
               isSaving={submitConsentForHemodialysis.isPending}
@@ -1115,11 +1113,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Patient Assessment ──────────────────────────────────────── */}
-        {can("view_patient_assessment") && (
+        {can(RuleActions.Form.ViewAssessment) && (
           <Animated.View entering={FadeInDown.delay(265).springify()} style={s.section}>
             <PatientAssessmentForm
               colors={colors}
-              isReadOnly={isReadOnly || !can("submit_patient_assessment")}
+              isReadOnly={isReadOnly || !can(RuleActions.Form.SubmitAssessment)}
               initialExpanded={false}
               initial={patientAssessmentInitial}
               isSaving={submitPatientAssessment.isPending}
@@ -1141,11 +1139,11 @@ function VisitDetailScreenInner() {
         )}
 
         {/* ─── Enrollments Checklist ───────────────────────────────────── */}
-        {can("view_enrollments_checklist") && (
+        {can(RuleActions.Form.ViewEnrollmentsChecklist) && (
           <Animated.View entering={FadeInDown.delay(268).springify()} style={s.section}>
             <EnrollmentsChecklistForm
               colors={colors}
-              isReadOnly={isReadOnly || !can("submit_enrollments_checklist")}
+              isReadOnly={isReadOnly || !can(RuleActions.Form.SubmitEnrollmentsChecklist)}
               initialExpanded={false}
               initial={enrollmentsChecklistInitial}
               demographicsFromVisit={enrollmentDemographicsFromVisit}
@@ -1235,9 +1233,9 @@ function VisitDetailScreenInner() {
         {/* {patientName && ( */}
           <WorkflowActionButtons
             phase={visitPhase}
-            canStartProcedure={can("start_visit")}
-            canEndProcedure={can("end_visit")}
-            canReopen={(can("visits.ReopenMyVisit") || can("visits.ReopenAllVisit")) && recordStatus !== "in_active"}
+            canStartProcedure={can(RuleActions.Visit.Start)}
+            canEndProcedure={can(RuleActions.Visit.End)}
+            canReopen={(can(BackendRule.Visit.ReopenMy) || can(BackendRule.Visit.ReopenAll)) && recordStatus !== "in_active"}
             onStartProcedure={handleStartProcedure}
             onEndProcedure={handleEndProcedure}
             onCheckOut={() => setShowCheckoutModal(true)}

@@ -389,6 +389,7 @@ export const translations = {
     print: "Print",
     onCall: "On call",
     inCenter: "In center",
+    onVisit: "On visit",
 
     // Referral
     referral: "Referral",
@@ -1129,6 +1130,7 @@ export const translations = {
     print: "طباعة",
     onCall: "عند الاستدعاء",
     inCenter: "في المركز",
+    onVisit: "أثناء الزيارة",
 
     // Referral
     referral: "إحالة",

@@ -36,6 +36,7 @@ interface Props {
   busy: boolean;
   canEdit: boolean;
   canRefill: boolean;
+  canAcknowledge: boolean;
   onOpen: () => void;
   onRefill: () => void;
   onEdit: () => void;
@@ -49,8 +50,8 @@ interface Props {
  * One medication as a card (§1.1: cards, not a table).
  *
  * Order is fixed by the mockup: name → status → tags → dates → refills →
- * last dose → actions. Active rows offer Refill / Edit / Dose / Stop;
- * deactivated ones only Reactivate / Delete.
+ * last dose → actions. Active rows offer Refill / Edit / Acknowledgment / Stop,
+ * each behind its own right; deactivated ones only Reactivate / Delete.
  */
 export function MedicationCard({
   medication,
@@ -58,6 +59,7 @@ export function MedicationCard({
   busy,
   canEdit,
   canRefill,
+  canAcknowledge,
   onOpen,
   onRefill,
   onEdit,
@@ -147,13 +149,14 @@ export function MedicationCard({
               />
             ) : null}
             {canEdit ? (
-              <>
-                <CardButton icon="edit-2" label="Edit" color={Colors.primary} disabled={busy} onPress={onEdit} colors={colors} />
-                {!medication.isAcknowledged ? (
-                  <CardButton icon="check-circle" label="Acknowledgment" color="#10B981" disabled={busy} onPress={onAcknowledge} colors={colors} />
-                ) : null}
-                <CardButton icon="slash" label="Stop" color="#EF4444" disabled={busy} onPress={onStop} colors={colors} />
-              </>
+              <CardButton icon="edit-2" label="Edit" color={Colors.primary} disabled={busy} onPress={onEdit} colors={colors} />
+            ) : null}
+            {/* §12.4 — acknowledgment is its own right, not part of `canEdit`. */}
+            {canAcknowledge && !medication.isAcknowledged ? (
+              <CardButton icon="check-circle" label="Acknowledgment" color="#10B981" disabled={busy} onPress={onAcknowledge} colors={colors} />
+            ) : null}
+            {canEdit ? (
+              <CardButton icon="slash" label="Stop" color="#EF4444" disabled={busy} onPress={onStop} colors={colors} />
             ) : null}
           </>
         ) : canEdit ? (
