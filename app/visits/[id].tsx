@@ -597,17 +597,17 @@ function VisitDetailScreenInner() {
   const rawNursing      = (progressNotes?.nursing       ?? []).map(normalizeNote);
   const rawDoctorBucket = (progressNotes?.doctor        ?? []).map(normalizeNote);
   // Social worker rows carry location two different ways depending on when
-  // they were saved: legacy rows put the value in `type` (e.g. `"on_visit"`),
-  // newer ones set one boolean per location. Neither sets `location`, which is
-  // what the form actually reads — derive it here so old and new rows both
-  // display their real location instead of falling back to "In center".
+  // they were saved: `type` holds the value (e.g. `"on_visit"`), and older
+  // rows only set one boolean per location. Neither sets `location`, which is
+  // what the form actually reads — derive it here, trusting `type` first and
+  // only falling back to the booleans for rows that predate it.
   const normalizeSocialNote = (n: any) => {
     const normalized = normalizeNote(n);
     if (!normalized || typeof normalized !== 'object') return normalized;
     const location =
       normalized.location ??
-      SOCIAL_WORKER_LOCATIONS.find((key) => normalized[key] === true) ??
       SOCIAL_WORKER_LOCATIONS.find((key) => normalized.type === key) ??
+      SOCIAL_WORKER_LOCATIONS.find((key) => normalized[key] === true) ??
       'in_center';
     return { ...normalized, location };
   };
