@@ -22,6 +22,8 @@ import { OfflineQueuedError } from "@/data/offline_api";
 import { clearFaceToken, getFaceToken } from "@/data/secure_storage";
 import { clearQueue } from "@/data/offline_queue";
 import { requestAndSavePushToken } from "@/utils/pushNotifications";
+// TODO: Disabled temporarily to debug startup crash
+// import { visitCacheRepository } from "@/data/offline_visit_cache";
 import {
   fetchAppSettings,
   DEFAULT_APP_SETTINGS,
@@ -30,7 +32,8 @@ import {
 import { setWebDomain, restoreCachedWebDomain } from "@/data/upload_config";
 import { setCachedLanguage } from "@/data/api_client";
 import { cacheService } from "@/data/cache_service";
-import { visitCacheRepository } from "@/data/offline_visit_cache";
+// TODO: Disabled temporarily to debug startup crash
+// import { visitCacheRepository } from "@/data/offline_visit_cache";
 import type { User } from "@/data/models/auth";
 import {
   ALL_BACKEND_RULES,
@@ -277,7 +280,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await clearFaceToken();
     await AsyncStorage.removeItem(CACHED_USER_KEY);
     await cacheService.clearAll(); // Clear all cached API responses
-    await visitCacheRepository.invalidateAllCaches(); // Clear all visit caches
+    // TODO: Re-enable after debugging startup crash
+    // await visitCacheRepository.invalidateAllCaches(); // Clear all visit caches
     setUser(null);
     setToken(null);
     setRules(new Set());

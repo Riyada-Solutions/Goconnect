@@ -58,6 +58,7 @@
     "plugins": [
       "./plugins/withOpaqueIosIcon",
       "./plugins/withNotificationSound",
+      "./plugins/withRnFirebaseDisableSpm",
       [
         "expo-router",
         {

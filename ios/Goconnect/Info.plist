@@ -17,11 +17,9 @@
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
     <key>CFBundlePackageType</key>
-    <string>APPL</string>
-
-    <!-- <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string> -->
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-	  <string>$(MARKETING_VERSION)</string>
+    <string>1.0.9</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -33,9 +31,15 @@
           <string>com.careconnectksa.nurse</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>exp+careconnectnurse</string>
+        </array>
+      </dict>
     </array>
-	<key>CFBundleVersion</key>
-		<string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>53</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -49,23 +53,23 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSBonjourServices</key>
+    <array>
+      <string>_http._tcp</string>
+      <string>_expo._tcp</string>
+    </array>
     <key>NSCameraUsageDescription</key>
     <string>Goconnect needs camera access to capture patient documents.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Goconnect uses Face ID to sign you in securely.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Goconnect needs local network access to connect to the Metro bundler during development.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Goconnect needs your location to verify visit check-in.</string>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>Goconnect needs local network access to connect to the Metro bundler during development.</string>
-    <key>NSBonjourServices</key>
-    <array>
-      <string>_http._tcp</string>
-      <string>_expo._tcp</string>
-    </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>Goconnect needs microphone access to record patient videos.</string>
     <key>NSMotionUsageDescription</key>
@@ -76,8 +80,8 @@
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
     </array>
-    <key>RCTNewArchEnabled</key>
-    <true/>
+    <key>RCTMetroPort</key>
+    <string>$(RCT_METRO_PORT)</string>
     <key>UIBackgroundModes</key>
     <array>
       <string>fetch</string>
