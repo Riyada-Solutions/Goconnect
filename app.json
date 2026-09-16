@@ -18,6 +18,7 @@
         "NSPhotoLibraryUsageDescription": "Goconnect needs photo library access to upload patient documents.",
         "NSLocationWhenInUseUsageDescription": "Goconnect needs your location to verify visit check-in.",
         "NSFaceIDUsageDescription": "Goconnect uses Face ID to sign you in securely.",
+        "NSMotionUsageDescription": "Goconnect uses motion data only if needed by system or SDK features related to visit activity and device integrity.",
         "NSLocalNetworkUsageDescription": "Goconnect needs local network access to connect to the Metro bundler during development.",
         "NSBonjourServices": [
           "_http._tcp",

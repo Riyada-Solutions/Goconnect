@@ -68,6 +68,8 @@
     </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>Goconnect needs microphone access to record patient videos.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Goconnect uses motion data only if needed by system or SDK features related to visit activity and device integrity.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Goconnect needs photo library access to upload patient documents.</string>
     <key>NSUserActivityTypes</key>
