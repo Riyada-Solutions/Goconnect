@@ -33,6 +33,17 @@ import { AppProvider } from "@/context/AppContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { NotificationBanner } from "@/components/NotificationBanner";
 
+// Set global error handlers for uncaught errors during initialization
+if (typeof ErrorUtils !== 'undefined') {
+  const originalHandler = ErrorUtils.getGlobalHandler?.();
+  ErrorUtils.setGlobalHandler?.((error: any, isFatal: boolean) => {
+    console.error('[GlobalErrorHandler]', { error, isFatal });
+    if (originalHandler) {
+      originalHandler(error, isFatal);
+    }
+  });
+}
+
 // ─── Suppress fontfaceobserver "timeout exceeded" errors on web ───────────────
 if (Platform.OS === "web" && typeof window !== "undefined") {
   const isFontTimeout = (v: unknown): boolean => {
