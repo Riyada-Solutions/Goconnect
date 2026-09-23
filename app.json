@@ -11,7 +11,7 @@
       "icon": "./assets/images/logo.png",
       "supportsTablet": false,
       "bundleIdentifier": "com.careconnectksa.nurse",
-      "buildNumber": "58",
+      "buildNumber": "59",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "Goconnect needs camera access to capture patient documents.",
