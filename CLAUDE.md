@@ -17,7 +17,7 @@ Expo SDK 57 / React Native 0.86.3 / Hermes / New Architecture. Bundle id `com.ca
   ```
   `ExportOptions.plist`: `method=app-store-connect`, `destination=upload`, `teamID=N3R8MF955Y`, `signingStyle=automatic`.
 - **Build number must be higher than the last one in App Store Connect** (EAS builds also count; last known: 58 on 2026-09-18). Set it in both `app.json` → `ios.buildNumber` and `ios/Goconnect/Info.plist` → `CFBundleVersion`. If Apple replies "bundle version must be higher than … ‘N’", use N+1.
-- `ios/Goconnect/Goconnect.entitlements` must keep `aps-environment` = `production`; `expo prebuild` resets it to `development`.
+- `ios/Goconnect/Goconnect.entitlements` keeps `aps-environment` = `development`, which is what `expo prebuild` generates and what Xcode's automatic signing wants for a local build. Forcing `production` there makes Xcode rewrite the file mid-build and fail with *"Entitlements file … was modified during the build, which is not supported"*. The App Store export re-signs with the distribution profile, so TestFlight builds get production APNs anyway — verified on build 58, whose archive was signed `development` and uploaded fine. Do not "fix" this back to `production`, and do not set `CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION`.
 - CocoaPods crashes with `unicode_normalize` errors in shells without a UTF-8 locale — export `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` before `pod install` / `expo prebuild`.
 
 ## Startup crash in TestFlight after the Expo upgrade (fixed 2026-09-18)
