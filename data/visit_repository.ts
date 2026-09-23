@@ -1498,12 +1498,13 @@ export async function submitSocialWorkerProgressNote(
     return patchMockVisit(payload.visitId, 'in_progress')
   }
   // Dedicated endpoint for social-worker notes (NOT the same /forms/progress-notes
-  // used by the doctor). Body: { notes, on_call, in_center, on_visit } — the
-  // visit context is expressed as one boolean per location, not a single field.
+  // used by the doctor). Body: { notes, type, on_call, in_center, on_visit } —
+  // `type` is the selected location; the booleans stay in step with it.
   const res = await offlinePost(
     `/visits/${payload.visitId}/forms/social-worker-progress-note`,
     {
       notes:     payload.note,
+      type:      payload.location,
       on_call:   payload.location === 'on_call',
       in_center: payload.location === 'in_center',
       on_visit:  payload.location === 'on_visit',

@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { visitCacheRepository } from "@/data/offline_visit_cache";
 import { getRules } from "@/data/rules_repository";
 import { log } from "@/utils/logger";
@@ -58,7 +59,6 @@ export async function cacheVisitDataAfterCheckIn(
 
     // Store in AsyncStorage
     const key = `@goconnect/visit-cache:${visitId}`;
-    const AsyncStorage = require("@react-native-async-storage/async-storage").default;
     await AsyncStorage.setItem(key, JSON.stringify(entry));
 
     // Update rules cache globally

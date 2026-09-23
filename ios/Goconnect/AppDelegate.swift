@@ -3,7 +3,7 @@ import FirebaseCore
 import React
 import ReactAppDependencyProvider
 
-@UIApplicationMain
+@main
 class AppDelegate: ExpoAppDelegate {
   var window: UIWindow?
 
@@ -65,22 +65,6 @@ class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
 
   override func bundleURL() -> URL? {
 #if DEBUG
-    // On a physical device, RCTBundleURLProvider's "is packager running?" probe can
-    // fail before Local Network permission is granted, which yields a null script URL.
-    // Prefer the Metro IP written into the app bundle (ip.txt) and load directly.
-    if let ipPath = Bundle.main.path(forResource: "ip", ofType: "txt"),
-       let ip = try? String(contentsOfFile: ipPath, encoding: .utf8)
-        .trimmingCharacters(in: .whitespacesAndNewlines),
-       !ip.isEmpty
-    {
-      return RCTBundleURLProvider.jsBundleURL(
-        forBundleRoot: ".expo/.virtual-metro-entry",
-        packagerHost: ip,
-        enableDev: true,
-        enableMinification: false,
-        inlineSourceMap: false
-      )
-    }
     return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: ".expo/.virtual-metro-entry")
 #else
     return Bundle.main.url(forResource: "main", withExtension: "jsbundle")

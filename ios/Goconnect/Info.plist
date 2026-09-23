@@ -1,104 +1,113 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict>
-    <key>CADisableMinimumFrameDurationOnPhone</key>
-    <true/>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleDisplayName</key>
-    <string>Goconnect</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-
-    <!-- <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string> -->
-    <key>CFBundleShortVersionString</key>
-	  <string>$(MARKETING_VERSION)</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <key>CFBundleURLTypes</key>
-    <array>
-      <dict>
-        <key>CFBundleURLSchemes</key>
-        <array>
-          <string>goconnect</string>
-          <string>com.careconnectksa.nurse</string>
-        </array>
-      </dict>
-    </array>
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Goconnect</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.10</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>goconnect</string>
+				<string>com.careconnectksa.nurse</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>exp+careconnectnurse</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
-		<string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>ITSAppUsesNonExemptEncryption</key>
-    <false/>
-    <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-      <key>NSAllowsArbitraryLoads</key>
-      <false/>
-      <key>NSAllowsLocalNetworking</key>
-      <true/>
-    </dict>
-    <key>NSCameraUsageDescription</key>
-    <string>Goconnect needs camera access to capture patient documents.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>Goconnect uses Face ID to sign you in securely.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
-    <key>NSLocationAlwaysUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Goconnect needs your location to verify visit check-in.</string>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>Goconnect needs local network access to connect to the Metro bundler during development.</string>
-    <key>NSBonjourServices</key>
-    <array>
-      <string>_http._tcp</string>
-      <string>_expo._tcp</string>
-    </array>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Goconnect needs microphone access to record patient videos.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Goconnect needs photo library access to upload patient documents.</string>
-    <key>NSUserActivityTypes</key>
-    <array>
-      <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
-    </array>
-    <key>RCTNewArchEnabled</key>
-    <true/>
-    <key>UIBackgroundModes</key>
-    <array>
-      <string>fetch</string>
-      <string>remote-notification</string>
-    </array>
-    <key>UILaunchStoryboardName</key>
-    <string>SplashScreen</string>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-      <string>arm64</string>
-    </array>
-    <key>UIRequiresFullScreen</key>
-    <false/>
-    <key>UIStatusBarStyle</key>
-    <string>UIStatusBarStyleDefault</string>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-      <string>UIInterfaceOrientationPortrait</string>
-      <string>UIInterfaceOrientationPortraitUpsideDown</string>
-    </array>
-    <key>UIUserInterfaceStyle</key>
-    <string>Automatic</string>
-    <key>UIViewControllerBasedStatusBarAppearance</key>
-    <false/>
-  </dict>
+	<string>58</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSMinimumSystemVersion</key>
+	<string>16.4</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_expo._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Goconnect needs camera access to capture patient documents.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Goconnect uses Face ID to sign you in securely.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Goconnect needs local network access to connect to the Metro bundler during development.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Allow $(PRODUCT_NAME) to access your location</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Allow $(PRODUCT_NAME) to access your location</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Goconnect needs your location to verify visit check-in.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Goconnect needs microphone access to record patient videos.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Goconnect uses motion data only if needed by system or SDK features related to visit activity and device integrity.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Goconnect needs photo library access to upload patient documents.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
+	</array>
+	<key>RCTMetroPort</key>
+	<string>$(RCT_METRO_PORT)</string>
+	<key>RCTNewArchEnabled</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>audio</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>SplashScreen</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Automatic</string>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+</dict>
 </plist>
