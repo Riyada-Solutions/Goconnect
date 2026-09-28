@@ -48,3 +48,17 @@ Expo SDK 57 / React Native 0.86.3 / Hermes / New Architecture. Bundle id `com.ca
 3. Symbolicate unnamed frames with the dSYM from `build/dd/Build/Products/Release-iphonesimulator/` (e.g. `xcrun atos -arch arm64 -o <dSYM DWARF> -l 0x0 <imageOffset> | xcrun swift-demangle`).
 4. Also check for other hand edits in `node_modules` — they are lost on reinstall or, worse, silently break release builds. Persist any needed change with `npx patch-package <pkg>`.
 5. Crashes from real TestFlight devices: App Store Connect → TestFlight → Crashes, or Xcode → Window → Organizer → Crashes.
+
+## iOS 27 launch crash — UIScene life cycle (fixed 2026-09-28)
+
+**Symptom:** App Review rejected 1.0.10 (59) with "the app crashed on launch", while the same build ran fine on our iPhone 14 Pro Max (iOS 26.5). Crash logs: `EXC_BREAKPOINT` in `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`, all on **iOS 27.0**.
+
+**Cause:** iOS 27 terminates at launch any app that still drives its window from the app delegate instead of adopting the **UIScene** life cycle. iOS 26.x does not enforce it, so a device on 26.x cannot catch this.
+
+**Fix:** `plugins/withIosSceneLifecycle.js` (also copied into HR-Mobile). It adds `UIApplicationSceneManifest` to Info.plist, writes `SceneDelegate.swift` (subclass of Expo's `ExpoAppSceneDelegate`) and adds it to the Xcode target, and rewrites AppDelegate to conform to `ExpoReactNativeFactoryProvider` without creating the window or starting React Native. `SceneDelegate.swift` must use `internal import Expo` to match AppDelegate, or the build fails with "ambiguous implicit access level for import of 'Expo'". Delete the plugin once the Expo template adopts scenes itself.
+
+**Rule — always test on an iOS 27 simulator before submitting.** Newest OS first; a passing run on the owner's device proves nothing about the reviewer's:
+```bash
+xcrun simctl list devices | sed -n '/iOS 27/,/^--/p'   # e.g. iPhone 17
+xcrun simctl install <UDID> <Release build>.app && xcrun simctl launch <UDID> com.careconnectksa.nurse
+```
