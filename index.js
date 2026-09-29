@@ -14,12 +14,27 @@ if (isNativeFirebaseAvailable()) {
     const fbModule = typeof raw === 'function' ? raw : raw.default
 
     if (typeof fbModule === 'function') {
-      fbModule().setBackgroundMessageHandler(async (message) => {
-        await displayFcmNotification(message)
+      const messaging = fbModule()
+      if (messaging && typeof messaging.setBackgroundMessageHandler === 'function') {
+        messaging.setBackgroundMessageHandler(async (message) => {
+          try {
+            await displayFcmNotification(message)
+          } catch (err) {
+            console.warn('⚠️ Failed to display FCM notification:', err instanceof Error ? err.message : err)
+          }
+        })
+      }
+    } else if (fbModule && typeof fbModule.setBackgroundMessageHandler === 'function') {
+      fbModule.setBackgroundMessageHandler(async (message) => {
+        try {
+          await displayFcmNotification(message)
+        } catch (err) {
+          console.warn('⚠️ Failed to display FCM notification:', err instanceof Error ? err.message : err)
+        }
       })
     }
   } catch (error) {
-    console.warn('⚠️ Firebase messaging not available:', error instanceof Error ? error.message : error)
+    console.warn('⚠️ Firebase messaging setup failed:', error instanceof Error ? error.message : error)
   }
 }
 

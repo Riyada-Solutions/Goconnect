@@ -46,7 +46,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
-import { cacheVisitDataAfterCheckIn } from "@/data/visit_cache_integration";
+// import { cacheVisitDataAfterCheckIn } from "@/data/visit_cache_integration";
 
 
 export default function AppointmentDetailScreen() {
@@ -139,9 +139,10 @@ export default function AppointmentDetailScreen() {
     checkInMutation.mutate(Number(id), {
       onSuccess: async (slot: any) => {
         // Cache visit data for offline use
-        if (user?.id) {
-          await cacheVisitDataAfterCheckIn(slot, user.id);
-        }
+        // TODO: Re-enable after debugging startup crash
+        // if (user?.id) {
+        //   await cacheVisitDataAfterCheckIn(slot, user.id);
+        // }
         showDialog({ variant: "success", title: t("checkedIn"), message: t("patientCheckedInMessage") });
       },
       onError: handleMutationError,

@@ -14,27 +14,45 @@ import { notificationDisplay } from './notificationDisplay'
 let notifee: typeof import('@notifee/react-native').default | null = null
 let EventType: typeof import('@notifee/react-native').EventType | null = null
 let AndroidImportance: typeof import('@notifee/react-native').AndroidImportance | null = null
+/** Once probed, do not retry — Notifee's require() throws a redbox-visible error when native is missing. */
+let notifeeResolved = false
 
 // Queue to store notification payloads tapped during login
 let pendingNotificationPayload: NotificationPayload | null = null
 
-function getNotifee() {
-  if (notifee === null) {
-    try {
-      const originalError = console.error
-      console.error = () => {} // Suppress error logs during Notifee load
-      try {
-        notifee = require('@notifee/react-native').default
-        EventType = require('@notifee/react-native').EventType
-        AndroidImportance = require('@notifee/react-native').AndroidImportance
-      } finally {
-        console.error = originalError
-      }
-    } catch (error) {
-      // Notifee requires native modules — not available in Expo Go. Silently skip.
-      return null
-    }
+function isNotifeeNativeLinked(): boolean {
+  try {
+    return !!(
+      NativeModules.NotifeeApiModule ||
+      TurboModuleRegistry.get?.('NotifeeApiModule')
+    )
+  } catch {
+    return false
   }
+}
+
+function getNotifee() {
+  if (notifeeResolved) return notifee
+  notifeeResolved = true
+
+  // Never require('@notifee/react-native') unless the native module exists.
+  // Loading the JS package constructs NativeEventEmitter and throws
+  // "Notifee native module not found" (Expo Go / missing native link).
+  if (!isNotifeeNativeLinked()) {
+    return null
+  }
+
+  try {
+    const mod = require('@notifee/react-native')
+    notifee = mod.default
+    EventType = mod.EventType
+    AndroidImportance = mod.AndroidImportance
+  } catch {
+    notifee = null
+    EventType = null
+    AndroidImportance = null
+  }
+
   return notifee
 }
 
