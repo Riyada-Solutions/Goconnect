@@ -17,7 +17,7 @@ Expo SDK 57 / React Native 0.86.3 / Hermes / New Architecture. Bundle id `com.ca
   ```
   `ExportOptions.plist`: `method=app-store-connect`, `destination=upload`, `teamID=N3R8MF955Y`, `signingStyle=automatic`.
 - **Build number must be higher than the last one in App Store Connect** (EAS builds also count; last known: 58 on 2026-09-18). Set it in both `app.json` → `ios.buildNumber` and `ios/Goconnect/Info.plist` → `CFBundleVersion`. If Apple replies "bundle version must be higher than … ‘N’", use N+1.
-- `ios/Goconnect/Goconnect.entitlements` must keep `aps-environment` = `production`; `expo prebuild` resets it to `development`.
+- `ios/Goconnect/Goconnect.entitlements` keeps `aps-environment` = `development`, which is what `expo prebuild` generates and what Xcode's automatic signing wants for a local build. Forcing `production` there makes Xcode rewrite the file mid-build and fail with *"Entitlements file … was modified during the build, which is not supported"*. The App Store export re-signs with the distribution profile, so TestFlight builds get production APNs anyway — verified on build 58, whose archive was signed `development` and uploaded fine. Do not "fix" this back to `production`, and do not set `CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION`.
 - CocoaPods crashes with `unicode_normalize` errors in shells without a UTF-8 locale — export `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` before `pod install` / `expo prebuild`.
 
 ## Startup crash in TestFlight after the Expo upgrade (fixed 2026-09-18)
@@ -48,3 +48,17 @@ Expo SDK 57 / React Native 0.86.3 / Hermes / New Architecture. Bundle id `com.ca
 3. Symbolicate unnamed frames with the dSYM from `build/dd/Build/Products/Release-iphonesimulator/` (e.g. `xcrun atos -arch arm64 -o <dSYM DWARF> -l 0x0 <imageOffset> | xcrun swift-demangle`).
 4. Also check for other hand edits in `node_modules` — they are lost on reinstall or, worse, silently break release builds. Persist any needed change with `npx patch-package <pkg>`.
 5. Crashes from real TestFlight devices: App Store Connect → TestFlight → Crashes, or Xcode → Window → Organizer → Crashes.
+
+## iOS 27 launch crash — UIScene life cycle (fixed 2026-09-28)
+
+**Symptom:** App Review rejected 1.0.10 (59) with "the app crashed on launch", while the same build ran fine on our iPhone 14 Pro Max (iOS 26.5). Crash logs: `EXC_BREAKPOINT` in `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`, all on **iOS 27.0**.
+
+**Cause:** iOS 27 terminates at launch any app that still drives its window from the app delegate instead of adopting the **UIScene** life cycle. iOS 26.x does not enforce it, so a device on 26.x cannot catch this.
+
+**Fix:** `plugins/withIosSceneLifecycle.js` (also copied into HR-Mobile). It adds `UIApplicationSceneManifest` to Info.plist, writes `SceneDelegate.swift` (subclass of Expo's `ExpoAppSceneDelegate`) and adds it to the Xcode target, and rewrites AppDelegate to conform to `ExpoReactNativeFactoryProvider` without creating the window or starting React Native. `SceneDelegate.swift` must use `internal import Expo` to match AppDelegate, or the build fails with "ambiguous implicit access level for import of 'Expo'". Delete the plugin once the Expo template adopts scenes itself.
+
+**Rule — always test on an iOS 27 simulator before submitting.** Newest OS first; a passing run on the owner's device proves nothing about the reviewer's:
+```bash
+xcrun simctl list devices | sed -n '/iOS 27/,/^--/p'   # e.g. iPhone 17
+xcrun simctl install <UDID> <Release build>.app && xcrun simctl launch <UDID> com.careconnectksa.nurse
+```
