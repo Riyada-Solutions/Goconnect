@@ -180,6 +180,8 @@ function RootLayoutNav() {
         <Stack.Screen name="patients/[id]"            options={{ headerShown: false }} />
         <Stack.Screen name="visits/[id]"              options={{ headerShown: false }} />
         <Stack.Screen name="lab-results/[patientId]" options={{ headerShown: false }} />
+        <Stack.Screen name="lab-results/order/[id]"  options={{ headerShown: false }} />
+        <Stack.Screen name="document-viewer"         options={{ headerShown: false }} />
       </Stack>
       {showSplash && <SplashView onFinish={() => setShowSplash(false)} />}
     </NetworkProvider>

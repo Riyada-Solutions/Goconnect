@@ -52,6 +52,13 @@ export const Colors = {
     info: "#60A5FA",
   },
 
+  // Full-screen media viewer (same in light + dark)
+  mediaViewer: {
+    background: "#000000",
+    control: "rgba(255,255,255,0.15)",
+    icon: "#FFFFFF",
+  },
+
   // Pastel icon backgrounds (HR-Mobile style)
   pastel: {
     teal: "#E3F7FA",

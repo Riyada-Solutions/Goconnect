@@ -4,7 +4,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
 import {
   FlatList,
-  Linking,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -26,6 +25,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
+import { openDocumentViewer } from "@/utils/openDocument";
 
 export default function LabResultsScreen() {
   const { patientId } = useLocalSearchParams<{ patientId: string }>();
@@ -39,7 +39,7 @@ export default function LabResultsScreen() {
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const showSkeleton = isLoading || refreshing;
 
-  const openPdf = async (url?: string | null) => {
+  const openPdf = (url: string | null | undefined, title: string) => {
     if (!url) {
       showDialog({
         variant: "error",
@@ -49,16 +49,15 @@ export default function LabResultsScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const ok = await Linking.canOpenURL(url);
-      if (ok) await Linking.openURL(url);
-    } catch {
-      showDialog({
-        variant: "error",
-        title: t("labResults"),
-        message: t("pdfOpenFailed"),
-      });
-    }
+    openDocumentViewer(url, "pdf", title);
+  };
+
+  const openOrder = (orderId: number) => {
+    Haptics.selectionAsync();
+    router.push({
+      pathname: "/lab-results/order/[id]",
+      params: { id: String(orderId), patientId: String(pid) },
+    });
   };
 
   return (
@@ -121,6 +120,7 @@ export default function LabResultsScreen() {
           }
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
+              <Pressable onPress={() => openOrder(item.id)}>
               <Card style={styles.itemCard}>
                 {/* Header row: ID + status */}
                 <View style={styles.headerRow}>
@@ -153,7 +153,7 @@ export default function LabResultsScreen() {
                       style={[styles.metaValue, { color: colors.text }]}
                       numberOfLines={1}
                     >
-                      {item.addedBy}
+                      {item.addedBy ?? "—"}
                     </Text>
                   </View>
                   <View style={styles.metaItem}>
@@ -199,7 +199,7 @@ export default function LabResultsScreen() {
                 >
                   <RuleGate action="view_lab_order_pdf">
                     <Pressable
-                      onPress={() => openPdf(item.labOrderPdfUrl)}
+                      onPress={() => openPdf(item.labOrderPdfUrl, t("viewLabOrder"))}
                       disabled={!item.labOrderPdfUrl}
                       style={[
                         styles.viewBtn,
@@ -235,7 +235,7 @@ export default function LabResultsScreen() {
 
                   <RuleGate action="view_lab_result_pdf">
                     <Pressable
-                      onPress={() => openPdf(item.resultPdfUrl)}
+                      onPress={() => openPdf(item.resultPdfUrl, t("viewLabResults"))}
                       disabled={!item.resultPdfUrl}
                       style={[
                         styles.viewBtn,
@@ -268,6 +268,7 @@ export default function LabResultsScreen() {
                   </RuleGate>
                 </View>
               </Card>
+              </Pressable>
             </Animated.View>
           )}
           ListEmptyComponent={

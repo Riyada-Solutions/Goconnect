@@ -13,6 +13,16 @@ export const MOCK_LAB_RESULTS: LabResult[] = [
     status: 'result_ready',
     resultPdfUrl: PDF_SAMPLE,
     labOrderPdfUrl: PDF_SAMPLE,
+    results: [
+      { id: 1, testName: 'AST', value: '30', unit: 'U/L', category: 'Biochemistry', referenceRange: '10.00 - 45.00', isAbnormal: false },
+      { id: 2, testName: 'Calcium (Ca++)', value: '3', unit: 'mmol/L', referenceRange: '2.10 - 2.60', isAbnormal: true },
+      { id: 3, testName: 'CRP, Quantitative', value: '2', unit: 'mg/L', referenceRange: '0.00 - 1.00', isAbnormal: true, notes: 'Repeat next visit' },
+    ],
+    documents: [
+      { id: 1, url: 'https://picsum.photos/id/1/1200/1600.jpg', mimeType: 'image/jpeg', fileName: 'Sample photo', description: 'test', uploadedBy: 'Waleed', uploadedAt: '2026/09/29 15:42' },
+      { id: 2, url: PDF_SAMPLE, mimeType: 'application/pdf', fileName: 'Lab report', uploadedBy: 'Waleed', uploadedAt: '2026/09/29 15:45' },
+      { id: 3, url: 'https://example.com', fileName: 'External portal', uploadedBy: 'Waleed', uploadedAt: '2026/09/29 15:50' },
+    ],
   },
   {
     id: 140,
