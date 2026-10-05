@@ -13,13 +13,20 @@ export interface LabTestResult {
   testName: string
   value: string
   unit?: string | null
-  /** Group heading, e.g. "BIOCHEMISTRY". Rows without one fall under "OTHER". */
-  category?: string | null
   /** Display text, e.g. "10.00 - 45.00". */
   referenceRange?: string | null
   isAbnormal?: boolean | null
   description?: string | null
   notes?: string | null
+}
+
+/** A section of test rows on a lab order (e.g. "Hematology"), as grouped by the backend. */
+export interface LabResultGroup {
+  groupId: number
+  groupName: string
+  /** Display order — lower first. */
+  sort: number
+  results: LabTestResult[]
 }
 
 /** A file attached to a lab order — may be a PDF, an image, or any URL. */
@@ -45,5 +52,7 @@ export interface LabResult {
   resultPdfUrl?: string | null
   labOrderPdfUrl?: string | null
   results?: LabTestResult[]
+  /** Same rows as `results`, grouped and sorted by the backend. Preferred for display. */
+  groups?: LabResultGroup[]
   documents?: LabDocument[]
 }

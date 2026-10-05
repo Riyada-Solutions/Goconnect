@@ -30,8 +30,6 @@ function LabOrderDetailScreen() {
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const order = orders.find((o) => o.id === Number(id));
 
-  console.log('[LabOrderDetail]', { id, patientId, ordersCount: orders.length, orderId: Number(id), orderFound: !!order, isError, isLoading });
-
   const meta = order
     ? [
         { icon: "user" as const, label: t("addedBy"), value: order.addedBy ?? "—" },

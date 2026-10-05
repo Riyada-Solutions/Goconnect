@@ -60,9 +60,10 @@ function statusLabel(phase: VisitPhase): string {
 export function VisitInfoCard(p: Props) {
   const { t } = useApp();
   const { colors, visitPhase, rawStatus } = p;
-  // Only allow editing during procedure (not after it ends), and only if user has permission
-  const procedureEditable = visitPhase === "start_procedure" && (p.canEditProcedure ?? true);
-  const showProcedureEditIcon = (p.enableProcedureEdit ?? true) && procedureEditable;
+  // Only allow editing during procedure (not after it ends), only if enabled in
+  // app settings and the user has permission. Drives both the edit icon and the tap.
+  const procedureEditable =
+    visitPhase === "start_procedure" && (p.enableProcedureEdit ?? true) && (p.canEditProcedure ?? true);
 
   return (
     <Animated.View entering={FadeInDown.delay(70).springify()} style={s.section}>
@@ -82,8 +83,10 @@ export function VisitInfoCard(p: Props) {
                   gap: 6,
                 },
               ]}
+              disabled={!procedureEditable}
               onPress={() => {
-                if (procedureEditable) p.onToggleProcedureEdit();
+                Haptics.selectionAsync();
+                p.onToggleProcedureEdit();
               }}
             >
               <Text style={{ color: colors.text }}>
@@ -101,7 +104,7 @@ export function VisitInfoCard(p: Props) {
                     ({calculateDuration(p.procedureStartTimeStr, p.procedureEndTimeStr)})
                   </Text>
                 )}
-                {showProcedureEditIcon && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
+                {procedureEditable && <Feather name="edit-2" size={11} color={colors.textTertiary} />}
               </View>
             </Pressable>
           </View>
@@ -112,11 +115,10 @@ export function VisitInfoCard(p: Props) {
                 s.formInput,
                 { backgroundColor: colors.borderLight, borderColor: colors.border, flexDirection: "column", gap: 6 },
               ]}
+              disabled={!procedureEditable}
               onPress={() => {
-                if (visitPhase !== "completed") {
-                  Haptics.selectionAsync()
-                  p.onToggleProcedureEdit()
-                }
+                Haptics.selectionAsync();
+                p.onToggleProcedureEdit();
               }}
             >
               <Text style={{ color: colors.text }}>

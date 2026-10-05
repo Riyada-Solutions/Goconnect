@@ -1026,23 +1026,25 @@ function VisitDetailScreenInner() {
           />
         </Animated.View>
 
-        {/* ─── Blood Sugar Monitor ─────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(244).springify()} style={s.section}>
-          <BloodSugarForm
-            colors={colors}
-            isReadOnly={isReadOnly}
-            initialExpanded={false}
-            initial={(record as any)?.["blood-sugar"]?.[0] ?? (record as any)?.forms?.["blood-sugar"]?.[0]?.value ?? null}
-            isSaving={submitBloodSugar.isPending}
-            onSave={(data) => {
-              submitBloodSugar.mutate(data, {
-                onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("bloodSugarForm") }),
-                onError: handleMutationError,
-              });
-            }}
-            t={t}
-          />
-        </Animated.View>
+        {/* ─── Blood Sugar Monitor (hidden for now) ────────────────────── */}
+        {false && (
+          <Animated.View entering={FadeInDown.delay(244).springify()} style={s.section}>
+            <BloodSugarForm
+              colors={colors}
+              isReadOnly={isReadOnly}
+              initialExpanded={false}
+              initial={(record as any)?.["blood-sugar"]?.[0] ?? (record as any)?.forms?.["blood-sugar"]?.[0]?.value ?? null}
+              isSaving={submitBloodSugar.isPending}
+              onSave={(data) => {
+                submitBloodSugar.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("bloodSugarForm") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
 
         {/* ─── Consent Form ────────────────────────────────────────────── */}
         {can(RuleActions.Form.ViewConsent) && (

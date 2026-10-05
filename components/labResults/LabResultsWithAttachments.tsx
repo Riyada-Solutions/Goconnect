@@ -6,7 +6,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { Card } from "@/components/common/Card";
 import { useApp } from "@/context/AppContext";
-import type { LabDocument, LabResult, LabTestResult } from "@/data/models/labResult";
+import type { LabDocument, LabResult } from "@/data/models/labResult";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
 import { LabDocumentItem } from "./LabDocumentItem";
@@ -22,7 +22,9 @@ export function LabResultsWithAttachments({ order, onOpenImage }: LabResultsWith
   const { colors } = useTheme();
   const [resultsExpanded, setResultsExpanded] = useState(true);
 
-  const hasResults = (order.results ?? []).length > 0;
+  const groups = order.groups ?? [];
+  const resultCount = groups.reduce((n, g) => n + (g.results?.length ?? 0), 0);
+  const hasResults = resultCount > 0;
   const documents: Array<{ key: string; title: string; doc: LabDocument }> = [];
 
   if (order.resultPdfUrl && can("view_lab_result_pdf")) {
@@ -72,14 +74,14 @@ export function LabResultsWithAttachments({ order, onOpenImage }: LabResultsWith
                 {t("testResults")}
               </Text>
               <View style={s.resultCount}>
-                <Text style={s.countText}>{order.results?.length ?? 0}</Text>
+                <Text style={s.countText}>{resultCount}</Text>
               </View>
             </View>
           </Pressable>
 
           {resultsExpanded && (
             <View style={[s.resultsContent, { backgroundColor: colors.surface }]}>
-              <LabTestsSection results={order.results ?? []} />
+              <LabTestsSection groups={groups} embedded />
             </View>
           )}
         </Animated.View>
