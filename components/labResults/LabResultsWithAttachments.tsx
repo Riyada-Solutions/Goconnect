@@ -20,7 +20,8 @@ interface LabResultsWithAttachmentsProps {
 export function LabResultsWithAttachments({ order, onOpenImage }: LabResultsWithAttachmentsProps) {
   const { t, can } = useApp();
   const { colors } = useTheme();
-  const [resultsExpanded, setResultsExpanded] = useState(true);
+  const [resultsExpanded, setResultsExpanded] = useState(false);
+  const [docsExpanded, setDocsExpanded] = useState(false);
 
   const groups = order.groups ?? [];
   const resultCount = groups.reduce((n, g) => n + (g.results?.length ?? 0), 0);
@@ -40,9 +41,9 @@ export function LabResultsWithAttachments({ order, onOpenImage }: LabResultsWith
   const hasDocuments = documents.length > 0;
   const hasContent = hasResults || hasDocuments;
 
-  const toggleResults = () => {
+  const toggle = (fn: React.Dispatch<React.SetStateAction<boolean>>) => {
     Haptics.selectionAsync();
-    setResultsExpanded(!resultsExpanded);
+    fn((v) => !v);
   };
 
   if (!hasContent) {
@@ -57,11 +58,49 @@ export function LabResultsWithAttachments({ order, onOpenImage }: LabResultsWith
 
   return (
     <View style={s.container}>
-      {/* Test Results Section */}
-      {hasResults && (
+      {hasDocuments && (
         <Animated.View entering={FadeInDown.duration(300)}>
           <Pressable
-            onPress={toggleResults}
+            onPress={() => toggle(setDocsExpanded)}
+            style={[s.sectionHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <View style={s.headerContent}>
+              <Feather
+                name={docsExpanded ? "chevron-down" : "chevron-right"}
+                size={18}
+                color={Colors.primary}
+              />
+              <Text style={[s.sectionTitle, { color: colors.text }]}>
+                {t("labDocuments")}
+              </Text>
+              <View style={s.resultCount}>
+                <Text style={s.countText}>{documents.length}</Text>
+              </View>
+            </View>
+          </Pressable>
+
+          {docsExpanded && (
+            <View style={[s.resultsContent, { backgroundColor: colors.surface }]}>
+              {documents.map((e, idx) => (
+                <View
+                  key={e.key}
+                  style={[
+                    s.documentWrapper,
+                    idx < documents.length - 1 && { borderBottomColor: colors.borderLight, borderBottomWidth: 1 },
+                  ]}
+                >
+                  <LabDocumentItem doc={e.doc} title={e.title} onOpenImage={onOpenImage} />
+                </View>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+      )}
+
+      {hasResults && (
+        <Animated.View entering={FadeInDown.delay(hasDocuments ? 60 : 0).duration(300)}>
+          <Pressable
+            onPress={() => toggle(setResultsExpanded)}
             style={[s.sectionHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <View style={s.headerContent}>
@@ -84,30 +123,6 @@ export function LabResultsWithAttachments({ order, onOpenImage }: LabResultsWith
               <LabTestsSection groups={groups} embedded />
             </View>
           )}
-        </Animated.View>
-      )}
-
-      {/* Attachments Section */}
-      {hasDocuments && (
-        <Animated.View entering={FadeInDown.delay(hasResults ? 60 : 0).duration(300)}>
-          <View style={s.attachmentsSection}>
-            <Text style={[s.attachmentsTitle, { color: colors.textSecondary }]}>
-              {t("labDocuments")}
-            </Text>
-            <View style={s.documentsList}>
-              {documents.map((e, idx) => (
-                <View
-                  key={e.key}
-                  style={[
-                    s.documentWrapper,
-                    idx < documents.length - 1 && { borderBottomColor: colors.borderLight, borderBottomWidth: 1 },
-                  ]}
-                >
-                  <LabDocumentItem doc={e.doc} title={e.title} onOpenImage={onOpenImage} />
-                </View>
-              ))}
-            </View>
-          </View>
         </Animated.View>
       )}
     </View>
@@ -153,9 +168,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  attachmentsSection: { gap: 8 },
-  attachmentsTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  documentsList: { borderRadius: 12, overflow: "hidden" },
   documentWrapper: {},
   emptyCard: {
     padding: 16,

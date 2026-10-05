@@ -46,10 +46,7 @@ export function LabTestsSection({ groups, embedded }: LabTestsSectionProps) {
   const { colors } = useTheme();
   const sorted = groups.filter((g) => g.results?.length).sort((a, b) => a.sort - b.sort);
 
-  // First group starts open; the rest are collapsed like the Flow Sheet.
-  const [open, setOpen] = useState<Record<string, boolean>>(() =>
-    sorted.length ? { [String(sorted[0].groupId)]: true } : {},
-  );
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggle = useCallback((key: string) => setOpen((p) => ({ ...p, [key]: !p[key] })), []);
 
   const body =
