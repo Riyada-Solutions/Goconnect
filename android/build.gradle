@@ -18,6 +18,8 @@ allprojects {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
+    // Notifee ships app.notifee:core as a local Maven repo inside node_modules
+    maven { url "$rootDir/../node_modules/@notifee/react-native/android/libs" }
   }
 }
 

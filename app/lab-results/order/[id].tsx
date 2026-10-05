@@ -75,7 +75,7 @@ function LabOrderDetailScreen() {
             </Card>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(60).duration(300)}>
-            <LabTestsSection results={order.results ?? []} />
+            <LabTestsSection groups={order.groups ?? []} />
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(120).duration(300)}>
             <LabDocumentsSection order={order} />

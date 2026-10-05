@@ -3,22 +3,12 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { useApp } from "@/context/AppContext";
-import type { LabTestResult } from "@/data/models/labResult";
+import type { LabResultGroup, LabTestResult } from "@/data/models/labResult";
 import { useTheme } from "@/hooks/useTheme";
 import { Colors } from "@/theme/colors";
 
 interface LabTestsSectionProps {
-  results: LabTestResult[];
-}
-
-/** Groups rows by `category`, keeping the order the backend sent them in. */
-function groupByCategory(results: LabTestResult[], otherLabel: string) {
-  const groups = new Map<string, LabTestResult[]>();
-  for (const r of results) {
-    const key = r.category?.trim() || otherLabel;
-    groups.set(key, [...(groups.get(key) ?? []), r]);
-  }
-  return [...groups.entries()];
+  groups: LabResultGroup[];
 }
 
 function TestRow({ item }: { item: LabTestResult }) {
@@ -46,21 +36,24 @@ function TestRow({ item }: { item: LabTestResult }) {
   );
 }
 
-export function LabTestsSection({ results }: LabTestsSectionProps) {
+export function LabTestsSection({ groups }: LabTestsSectionProps) {
   const { t } = useApp();
   const { colors } = useTheme();
+  const sorted = groups.filter((g) => g.results?.length).sort((a, b) => a.sort - b.sort);
 
   return (
     <View style={s.section}>
       <Text style={[s.sectionTitle, { color: colors.textSecondary }]}>{t("testResults")}</Text>
       <Card style={s.card}>
-        {results.length === 0 ? (
+        {sorted.length === 0 ? (
           <Text style={[s.empty, { color: colors.textSecondary }]}>{t("noTestResults")}</Text>
         ) : (
-          groupByCategory(results, t("other")).map(([category, rows]) => (
-            <View key={category}>
-              <Text style={[s.category, { color: Colors.primary }]}>{category.toUpperCase()}</Text>
-              {rows.map((r) => (
+          sorted.map((group) => (
+            <View key={group.groupId}>
+              <Text style={[s.category, { color: Colors.primary }]}>
+                {(group.groupName?.trim() || t("other")).toUpperCase()}
+              </Text>
+              {group.results.map((r) => (
                 <TestRow key={r.id} item={r} />
               ))}
             </View>
