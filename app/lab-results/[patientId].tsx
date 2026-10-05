@@ -235,29 +235,24 @@ export default function LabResultsScreen() {
 
                   <RuleGate action="view_lab_result_pdf">
                     <Pressable
-                      onPress={() => openPdf(item.resultPdfUrl, t("viewLabResults"))}
-                      disabled={!item.resultPdfUrl}
+                      onPress={() => openOrder(item.id)}
                       style={[
                         styles.viewBtn,
                         {
-                          backgroundColor: item.resultPdfUrl
-                            ? Colors.primary
-                            : colors.borderLight,
+                          backgroundColor: Colors.primary,
                         },
                       ]}
                     >
                       <Feather
                         name="file-text"
                         size={14}
-                        color={item.resultPdfUrl ? "#fff" : colors.textTertiary}
+                        color="#fff"
                       />
                       <Text
                         style={[
                           styles.viewText,
                           {
-                            color: item.resultPdfUrl
-                              ? "#fff"
-                              : colors.textTertiary,
+                            color: "#fff",
                           },
                         ]}
                         numberOfLines={1}

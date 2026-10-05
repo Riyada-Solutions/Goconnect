@@ -9,8 +9,8 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { ErrorState } from "@/components/common/ErrorState";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { LabDocumentsSection } from "@/components/labResults/LabDocumentsSection";
-import { LabTestsSection } from "@/components/labResults/LabTestsSection";
+import { ZoomableImageModal } from "@/components/common/ZoomableImageModal";
+import { LabResultsWithAttachments } from "@/components/labResults/LabResultsWithAttachments";
 import { LabResultCardSkeleton, ListSkeleton } from "@/components/skeletons";
 import { useApp } from "@/context/AppContext";
 import { useLabResults } from "@/hooks/useLabResults";
@@ -24,10 +24,13 @@ function LabOrderDetailScreen() {
   const { t } = useApp();
   const { colors } = useTheme();
   const { topPad, botPad, horizontal } = useScreenPadding();
+  const [zoomUri, setZoomUri] = React.useState<string | null>(null);
 
   const { data: orders = [], isLoading, isError, refetch } = useLabResults(Number(patientId));
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const order = orders.find((o) => o.id === Number(id));
+
+  console.log('[LabOrderDetail]', { id, patientId, ordersCount: orders.length, orderId: Number(id), orderFound: !!order, isError, isLoading });
 
   const meta = order
     ? [
@@ -75,11 +78,9 @@ function LabOrderDetailScreen() {
             </Card>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(60).duration(300)}>
-            <LabTestsSection results={order.results ?? []} />
+            <LabResultsWithAttachments order={order} onOpenImage={setZoomUri} />
           </Animated.View>
-          <Animated.View entering={FadeInDown.delay(120).duration(300)}>
-            <LabDocumentsSection order={order} />
-          </Animated.View>
+          <ZoomableImageModal uri={zoomUri} onClose={() => setZoomUri(null)} />
         </ScrollView>
       )}
     </View>

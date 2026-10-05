@@ -642,8 +642,19 @@ export async function requestAndSavePushToken(): Promise<string | null> {
       return null
     }
 
-    await messaging.registerDeviceForRemoteMessages()
-    const token = await messaging.getToken()
+    try {
+      await messaging.registerDeviceForRemoteMessages()
+    } catch (regError) {
+      console.warn('⚠️ FCM device registration failed:', regError instanceof Error ? regError.message : String(regError))
+    }
+
+    let token: string
+    try {
+      token = await messaging.getToken()
+    } catch (tokenError) {
+      console.warn('⚠️ FCM getToken failed:', tokenError instanceof Error ? tokenError.message : String(tokenError))
+      return null
+    }
 
     await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, token)
     console.log('✅ FCM token saved')

@@ -44,7 +44,7 @@ const VARIANTS: Record<
     fg: Colors.primary,
   },
   error: { ring: "#FEE2E2", halo: "#FCA5A5", fg: "#DC2626" },
-  search: { ring: "#E0E7FF", halo: "#A5B4FC", fg: "#4F46E5" },
+  search: { ring: `${Colors.primary}12`, halo: `${Colors.primary}24`, fg: Colors.primary },
   success: { ring: "#DCFCE7", halo: "#86EFAC", fg: "#16A34A" },
 };
 
