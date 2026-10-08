@@ -104,6 +104,8 @@ interface AppContextValue {
   isDark: boolean;
   /** Remote app settings (allow_register, allow_guest_mode, upload_media_url, enable_toggle_procedure_button). */
   appSettings: AppSettings;
+  /** True after the first `/settings/app` fetch attempt (success or fallback). */
+  settingsReady: boolean;
   /** Action keys the user is allowed to perform. */
   rules: Set<string>;
   /** True when `action` is in the rules list. Use this to gate buttons/screens. */
@@ -140,6 +142,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("en");
   const [theme, setThemeState] = useState<Theme>("system");
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [rules, setRules] = useState<Set<string>>(new Set());
   // Wildcard mode: backend returns an empty rules array for super-admin /
   // role-less accounts. Treat that as "all actions permitted" so admins can
@@ -214,9 +217,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAppSettings(settings);
         setWebDomain(settings.uploadMediaUrl);
         await AsyncStorage.setItem(STORAGE_KEYS.UPLOAD_MEDIA_URL, settings.uploadMediaUrl);
-        console.log('✅ Settings API success:', { uploadMediaUrl: settings.uploadMediaUrl });
+        console.log('✅ Settings API success:', { uploadMediaUrl: settings.uploadMediaUrl, forceUpdate: settings.forceUpdate });
       } catch (err) {
         console.log('❌ Settings API failed:', err);
+      } finally {
+        setSettingsReady(true);
       }
 
       if (biometricPending) return;
@@ -388,6 +393,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       theme,
       isDark,
       appSettings,
+      settingsReady,
       rules,
       can,
       t,
@@ -401,7 +407,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateWorkspaceSelection,
       clearWorkspaceCaches,
     }),
-    [user, token, isReady, language, theme, isDark, appSettings, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, refreshAppSettings, updateWorkspaceSelection, clearWorkspaceCaches],
+    [user, token, isReady, language, theme, isDark, appSettings, settingsReady, rules, can, t, login, logout, setLanguage, setTheme, updateProfile, refreshUser, refreshAppSettings, updateWorkspaceSelection, clearWorkspaceCaches],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

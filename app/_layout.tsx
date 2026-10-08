@@ -29,7 +29,7 @@ LogBox.ignoreLogs([
 
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { SplashView } from "@/components/common/SplashView";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import { RefreshProvider } from "@/context/RefreshContext";
 import { NotificationBanner } from "@/components/NotificationBanner";
 
@@ -154,6 +154,11 @@ async function loadFonts(): Promise<void> {
 function RootLayoutNav() {
   const [showSplash, setShowSplash] = useState(true);
   const qc = useQueryClient();
+  const { appSettings, settingsReady } = useApp();
+  const forceUpdate = settingsReady && appSettings.forceUpdate;
+  const handleSplashFinish = useCallback(() => {
+    if (!forceUpdate) setShowSplash(false);
+  }, [forceUpdate]);
 
   const handleReconnect = useCallback(async () => {
     registerVisitInvalidator((visitId) => {
@@ -183,7 +188,7 @@ function RootLayoutNav() {
         <Stack.Screen name="lab-results/order/[id]"  options={{ headerShown: false }} />
         <Stack.Screen name="document-viewer"         options={{ headerShown: false }} />
       </Stack>
-      {showSplash && <SplashView onFinish={() => setShowSplash(false)} />}
+      {(showSplash || forceUpdate) && <SplashView onFinish={handleSplashFinish} />}
     </NetworkProvider>
   );
 }

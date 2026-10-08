@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { I18nManager, Pressable, StyleSheet } from "react-native";
 import Animated, {
   Easing,
   interpolateColor,
@@ -50,13 +50,16 @@ export function HRSwitch({
     ),
   }));
 
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: THUMB_OFF + progress.value * (THUMB_ON - THUMB_OFF),
-      },
-    ],
-  }));
+  const thumbStyle = useAnimatedStyle(() => {
+    const translate = THUMB_OFF + progress.value * (THUMB_ON - THUMB_OFF);
+    return {
+      transform: [
+        {
+          translateX: I18nManager.isRTL ? -translate : translate,
+        },
+      ],
+    };
+  });
 
   return (
     <Pressable

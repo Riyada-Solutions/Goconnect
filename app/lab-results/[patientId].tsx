@@ -120,7 +120,6 @@ export default function LabResultsScreen() {
           }
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
-              <Pressable onPress={() => openOrder(item.id)}>
               <Card style={styles.itemCard}>
                 {/* Header row: ID + status */}
                 <View style={styles.headerRow}>
@@ -263,7 +262,6 @@ export default function LabResultsScreen() {
                   </RuleGate>
                 </View>
               </Card>
-              </Pressable>
             </Animated.View>
           )}
           ListEmptyComponent={
