@@ -35,7 +35,8 @@ eas build --platform android --profile production
 # ── Build (APK) — direct install on device, no Play Store ──
 # Output: D:\work\React\waleed\careconnect\nurse\v4\Goconnect\android/app/build/outputs/apk/release
 cd android
-.\gradlew assembleRelease
+.\gradlew assembleRelease PC
+./gradlew assembleRelease MAC
 
 # ── Build (AAB) — upload to Google Play Store ───────────────
 # Output: D:\work\React\waleed\careconnect\nurse\v4\Goconnect\android/app/build/outputs/bundle/release

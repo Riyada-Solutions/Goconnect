@@ -1,8 +1,10 @@
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Dimensions, Platform, StyleSheet, Text, View } from "react-native";
 
 import Logo from "@/assets/svg/logo.svg";
+import { ForceUpdateDialog } from "@/components/common/ForceUpdateDialog";
+import { useApp } from "@/context/AppContext";
 import Animated, {
   Easing,
   FadeIn,
@@ -22,6 +24,9 @@ interface SplashViewProps {
 }
 
 export function SplashView({ onFinish }: SplashViewProps) {
+  const { appSettings, settingsReady } = useApp();
+  const forceUpdate = settingsReady && appSettings.forceUpdate;
+  const [minTimeDone, setMinTimeDone] = useState(false);
   const logoScale = useSharedValue(0.3);
   const logoPulse = useSharedValue(1);
   const barWidth = useSharedValue(0);
@@ -29,10 +34,8 @@ export function SplashView({ onFinish }: SplashViewProps) {
   const finished = useRef(false);
 
   useEffect(() => {
-    // Logo bounces in
     logoScale.value = withSpring(1, { damping: 10, stiffness: 80 });
 
-    // Logo pulses gently
     setTimeout(() => {
       logoPulse.value = withRepeat(
         withSequence(
@@ -44,7 +47,6 @@ export function SplashView({ onFinish }: SplashViewProps) {
       );
     }, 400);
 
-    // Progress bar fills
     setTimeout(() => {
       barWidth.value = withTiming(width - 80, {
         duration: 1800,
@@ -52,33 +54,23 @@ export function SplashView({ onFinish }: SplashViewProps) {
       });
     }, 300);
 
-    // After 2.4s — start fade out
-    const fadeTimer = setTimeout(() => {
-      containerOpacity.value = withTiming(0, { duration: 400 });
-    }, 2400);
+    const minTimer = setTimeout(() => setMinTimeDone(true), 2400);
+    return () => clearTimeout(minTimer);
+  }, [barWidth, logoPulse, logoScale]);
 
-    // After 2.85s — call onFinish
+  useEffect(() => {
+    if (!minTimeDone || !settingsReady || forceUpdate || finished.current) return;
+
+    containerOpacity.value = withTiming(0, { duration: 400 });
     const finishTimer = setTimeout(() => {
       if (!finished.current) {
         finished.current = true;
         onFinish();
       }
-    }, 2850);
+    }, 400);
 
-    // Safety net — force dismiss after 4s no matter what
-    const safetyTimer = setTimeout(() => {
-      if (!finished.current) {
-        finished.current = true;
-        onFinish();
-      }
-    }, 4000);
-
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(finishTimer);
-      clearTimeout(safetyTimer);
-    };
-  }, []);
+    return () => clearTimeout(finishTimer);
+  }, [minTimeDone, settingsReady, forceUpdate, onFinish, containerOpacity]);
 
   const logoStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoScale.value * logoPulse.value }],
@@ -91,46 +83,49 @@ export function SplashView({ onFinish }: SplashViewProps) {
   }));
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 9999 }, containerStyle]}>
-      <LinearGradient
-        colors={["#14D0E8", "#0FB8D0", "#0A8FA6", "#065F74"]}
-        style={styles.container}
-        start={{ x: 0.3, y: 0 }}
-        end={{ x: 0.7, y: 1 }}
-      >
-        {/* Decorative blobs */}
-        <View style={styles.blobTopRight} />
-        <View style={styles.blobBottomLeft} />
-        <View style={styles.blobCenter} />
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+      <Animated.View style={[StyleSheet.absoluteFill, containerStyle]}>
+        <LinearGradient
+          colors={["#14D0E8", "#0FB8D0", "#0A8FA6", "#065F74"]}
+          style={styles.container}
+          start={{ x: 0.3, y: 0 }}
+          end={{ x: 0.7, y: 1 }}
+        >
+          {/* Decorative blobs */}
+          <View style={styles.blobTopRight} />
+          <View style={styles.blobBottomLeft} />
+          <View style={styles.blobCenter} />
 
-        {/* Logo */}
-        <View style={styles.center}>
-          <Animated.View style={[styles.logoWrapper, logoStyle]}>
-            <View style={styles.logoCircle}>
-              <Logo width={56} height={56} />
-            </View>
-            <View style={styles.glowRing} />
+          {/* Logo */}
+          <View style={styles.center}>
+            <Animated.View style={[styles.logoWrapper, logoStyle]}>
+              <View style={styles.logoCircle}>
+                <Logo width={56} height={56} />
+              </View>
+              <View style={styles.glowRing} />
+            </Animated.View>
+
+            {/* App name */}
+            <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+              <Text style={styles.appName}>GoConnect</Text>
+              <Text style={styles.appSub}>KSA Healthcare Platform</Text>
+            </Animated.View>
+          </View>
+
+          {/* Progress bar */}
+          <Animated.View entering={FadeIn.delay(300)} style={styles.progressTrack}>
+            <Animated.View style={[styles.progressBar, barStyle]} />
           </Animated.View>
 
-          {/* App name */}
-          <Animated.View entering={FadeInDown.delay(400).duration(600)}>
-            <Text style={styles.appName}>GoConnect</Text>
-            <Text style={styles.appSub}>KSA Healthcare Platform</Text>
+          <Animated.View entering={FadeInDown.delay(800).duration(500)}>
+            <Text style={styles.tagline}>Secure healthcare data management</Text>
           </Animated.View>
-        </View>
 
-        {/* Progress bar */}
-        <Animated.View entering={FadeIn.delay(300)} style={styles.progressTrack}>
-          <Animated.View style={[styles.progressBar, barStyle]} />
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(800).duration(500)}>
-          <Text style={styles.tagline}>Secure healthcare data management</Text>
-        </Animated.View>
-
-        <View style={{ height: Platform.OS === "web" ? 60 : 40 }} />
-      </LinearGradient>
-    </Animated.View>
+          <View style={{ height: Platform.OS === "web" ? 60 : 40 }} />
+        </LinearGradient>
+      </Animated.View>
+      {forceUpdate ? <ForceUpdateDialog /> : null}
+    </View>
   );
 }
 
