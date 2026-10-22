@@ -47,7 +47,7 @@ export function WorkflowActionButtons({
   reopenLoading,
 }: Props) {
   return (
-    <Animated.View entering={FadeInDown.delay(270).springify()} style={s.actionsRow}>
+    <Animated.View entering={FadeInDown.delay(270).springify()} style={[s.actionsRow, { gap: 8 }]}>
       {phase === "in_progress" && canStartProcedure && (
         <Pressable
           style={[s.mainBtn, { backgroundColor: Colors.primary, opacity: startProcedureLoading ? 0.7 : 1 }]}
@@ -80,8 +80,11 @@ export function WorkflowActionButtons({
           )}
         </Pressable>
       )}
-      {phase === "end_procedure" && (
-        <View style={{ flexDirection: "row", gap: 8, flex: 1 }}>
+      {/* Same as the web: an in-progress visit can be checked out directly
+          (skipping the procedure). Once a procedure has started it must be
+          ended first, so checkout is hidden during `start_procedure`. */}
+      {(phase === "in_progress" || phase === "end_procedure") && (
+        <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
             style={[s.mainBtn, { backgroundColor: "#F59E0B", flex: 1, opacity: checkOutLoading ? 0.7 : 1 }]}
             onPress={() => {

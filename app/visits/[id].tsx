@@ -421,27 +421,31 @@ function VisitDetailScreenInner() {
     if (!(err instanceof OfflineQueuedError)) setVisitPhase(phase);
   }, []);
 
+  // Checkout is allowed from `in_progress`, `end_procedure` and (without SAP)
+  // `reopened`, so on failure roll back to whichever phase it started from.
   const handleCheckOut = useCallback(() => {
+    const prevPhase = visitPhase;
     setShowCheckoutModal(false);
     setVisitPhase("completed");
     checkoutVisitMutation.mutate(undefined, {
       onError: (err) => {
-        revertPhaseUnlessQueued(err, "end_procedure");
+        revertPhaseUnlessQueued(err, prevPhase);
         handleMutationError(err);
       },
     });
-  }, [checkoutVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
+  }, [visitPhase, checkoutVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
 
   const handleCheckOutWithoutSap = useCallback(() => {
+    const prevPhase = visitPhase;
     setShowCheckoutModal(false);
     setVisitPhase("completed");
     checkoutWithoutSapMutation.mutate(undefined, {
       onError: (err) => {
-        revertPhaseUnlessQueued(err, "end_procedure");
+        revertPhaseUnlessQueued(err, prevPhase);
         handleMutationError(err);
       },
     });
-  }, [checkoutWithoutSapMutation, handleMutationError, revertPhaseUnlessQueued]);
+  }, [visitPhase, checkoutWithoutSapMutation, handleMutationError, revertPhaseUnlessQueued]);
 
   const handleCloseVisit = useCallback(() => {
     setVisitPhase("completed");
