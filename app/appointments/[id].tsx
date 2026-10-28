@@ -125,7 +125,20 @@ export default function AppointmentDetailScreen() {
     });
   }, [record, qc, showDialog, t]);
 
-  const handleConfirm = () => {
+  // Every appointment status change asks first.
+  const askFirst = (title: string, message: string, onYes: () => void) =>
+    showDialog({
+      variant: "confirm",
+      title,
+      message,
+      primaryAction: { label: t("yes"), onPress: onYes },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
+
+  const handleConfirm = () =>
+    askFirst(t("confirmAppointmentTitle"), t("confirmAppointmentConfirm"), performConfirm);
+
+  const performConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     confirmMutation.mutate(Number(id), {
       onSuccess: () =>
@@ -134,7 +147,10 @@ export default function AppointmentDetailScreen() {
     });
   };
 
-  const handleCheckIn = () => {
+  const handleCheckIn = () =>
+    askFirst(t("checkInTitle"), t("checkInConfirm"), performCheckIn);
+
+  const performCheckIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     checkInMutation.mutate(Number(id), {
       onSuccess: async (slot: any) => {

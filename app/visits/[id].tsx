@@ -13,7 +13,7 @@ import { useApp } from "@/context/AppContext";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useScreenPadding } from "@/hooks/useScreenPadding";
 import { useSlot } from "@/hooks/useScheduler";
-import { useCheckoutVisit, useCheckoutWithoutSapVisit, useCloseVisit, useEndVisit, useReopenVisit, useSaveProcedureTimes, useStartVisit, useSubmitAllergiesForm, useSubmitBloodSugarForm, useSubmitConsentForHemodialysis, useSubmitConsentForm, useSubmitDoctorProgressNote, useSubmitEnrollmentsChecklist, useSubmitIncidentsForm, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitPatientAssessment, useSubmitPatientResponsibility, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialAssessmentForm, useSubmitSocialWorkerProgressNote, useSubmitVisualTriageChecklist, useVisit } from "@/hooks/useVisits";
+import { useCancelVisit, useCheckoutVisit, useCheckoutWithoutSapVisit, useCloseVisit, useEndVisit, useReopenVisit, useSaveProcedureTimes, useStartVisit, useSubmitAllergiesForm, useSubmitBloodSugarForm, useSubmitConsentForHemodialysis, useSubmitConsentForm, useSubmitDoctorProgressNote, useSubmitEnrollmentsChecklist, useSubmitIncidentsForm, useSubmitInventoryUsage, useSubmitMedicationAdministration, useSubmitMorseFallsRiskAssessment, useSubmitNursingProgressNote, useSubmitPatientAssessment, useSubmitPatientAssessmentNew, useSubmitPatientResponsibility, useSubmitReferral, useSubmitRefusal, useSubmitSariScreening, useSubmitSocialAssessmentForm, useSubmitSocialWorkerProgressNote, useSubmitVisualTriageChecklist, useVisit } from "@/hooks/useVisits";
 import { useTheme } from "@/hooks/useTheme";
 import { FeedbackDialog, useFeedbackDialog } from "@/components/ui/FeedbackDialog";
 import { BackendRule, RuleActions } from "@/data/models/rules";
@@ -26,6 +26,7 @@ import { useVisitTimers } from "@/hooks/useVisitTimers";
 import { DateTimeConverter } from "@/utils/datetime";
 import { PatientCard } from "@/components/common/PatientCard";
 import { VisitDetailTopBar } from "@/components/visits/VisitDetailTopBar";
+import { CancelVisitSheet } from "@/components/visits/visitForms/CancelVisitSheet";
 import { CheckOutConfirmModal } from "@/components/visits/visitForms/CheckOutConfirmModal";
 import { FlowSheetForm } from "@/components/visits/visitForms/FlowSheetForm";
 import { ProgressNoteGroup } from "@/components/visits/visitForms/ProgressNoteGroup";
@@ -46,6 +47,7 @@ import { DialysisOrderForm } from "@/components/visits/visitForms/DialysisOrderF
 import { MARForm } from "@/components/visits/visitForms/MARForm";
 import { PatientMedicationsForm } from "@/components/visits/visitForms/PatientMedicationsForm";
 import { PatientAssessmentForm } from "@/components/visits/visitForms/PatientAssessmentForm";
+import { CONTRAPTIONS_G2_OTHERS, EMPTY_PATIENT_ASSESSMENT_NEW, PatientAssessmentNewForm, type PatientAssessmentNewData } from "@/components/visits/visitForms/PatientAssessmentNewForm";
 import { VisualTriageChecklistForm, type VisualTriageHistoryEntry } from "@/components/visits/visitForms/VisualTriageChecklistForm";
 import { MorseFallScaleSheet } from "@/components/visits/visitForms/MorseFallScaleSheet";
 import { NurseSignatureSheet } from "@/components/visits/NurseSignatureSheet";
@@ -273,6 +275,54 @@ function VisitDetailScreenInner() {
     };
   }, [(record as any)?.["patient-assessment"], (record as any)?.forms?.["patient-assessment"]?.[0]?.value]);
 
+  // `patient-assessment-new` is `[]` before the first save, an object after.
+  // The API stores exactly what we send, so — like the web form — vitals and
+  // pain are prefilled from the flow sheet when nothing has been saved yet.
+  const patientAssessmentNewInitial = useMemo((): PatientAssessmentNewData | null => {
+    const rec = record as any;
+    if (!rec) return null;
+    const raw = rec["patient-assessment-new"] ?? rec.forms?.["patient-assessment-new"]?.[0]?.value;
+    if (raw && !Array.isArray(raw) && typeof raw === "object") {
+      return {
+        ...EMPTY_PATIENT_ASSESSMENT_NEW,
+        ...raw,
+        history: raw.history ?? {},
+        medical_surgical_history: {
+          ...(raw.medical_surgical_history ?? {}),
+          icd_code: Array.isArray(raw.medical_surgical_history?.icd_code) ? raw.medical_surgical_history.icd_code : [],
+          // Show "Others" selected when only the free-text value was saved.
+          ...(!raw.medical_surgical_history?.contraptions_equipment_g2 && raw.medical_surgical_history?.contraptions_equipment_g2_others
+            ? { contraptions_equipment_g2: CONTRAPTIONS_G2_OTHERS }
+            : {}),
+        },
+        assessment: raw.assessment ?? {},
+        patient_information: raw.patient_information ?? {},
+        assessment_signature_signed_at: raw.assessment_signature_signed_at ?? null,
+        assessment_signature_signed_by: raw.assessment_signature_signed_by ?? null,
+      };
+    }
+    const vitals = rec.flowSheet?.vitals ?? {};
+    const pain = rec.flowSheet?.painDetails ?? {};
+    const prefill: Record<string, unknown> = {
+      bp_sys: vitals.bpSystolic,
+      bp_dias: vitals.bpDiastolic,
+      temp: vitals.temperature,
+      spo2: vitals.spo2,
+      respiratory_rate: vitals.rr,
+      pulse_rate: vitals.hr,
+      height: vitals.height,
+      weight: vitals.preWeight,
+      pain_score: rec.flowSheet?.pain,
+      location: pain.location,
+      type_of_pain: pain.painType,
+      duration: pain.frequency,
+    };
+    return {
+      ...EMPTY_PATIENT_ASSESSMENT_NEW,
+      assessment: Object.fromEntries(Object.entries(prefill).filter(([, v]) => v != null && v !== "")),
+    };
+  }, [record]);
+
   // Pre-fill IncidentsForm from patient + visit data when no saved form exists.
   const incidentsInitial = useMemo(() => {
     const rec = record as any;
@@ -322,10 +372,12 @@ function VisitDetailScreenInner() {
   const refetch = () => activeQuery.refetch();
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
 
-  type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
+  type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened" | "cancelled";
   const recordStatus = record?.status as string | undefined;
   const initialPhase: VisitPhase =
-    recordStatus === "completed" ||
+    recordStatus === "cancelled" || recordStatus === "canceled"
+      ? "cancelled"
+      : recordStatus === "completed" ||
     recordStatus === "close" ||
     recordStatus === "closed" ||
     recordStatus === "in_active"
@@ -339,22 +391,24 @@ function VisitDetailScreenInner() {
             : "in_progress";
   const [visitPhase, setVisitPhase] = useState<VisitPhase>(initialPhase);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [showCancelSheet, setShowCancelSheet] = useState(false);
   const [procedureStartTimeStr, setProcedureStartTimeStr] = useState("--:-- --");
   const [procedureEndTimeStr, setProcedureEndTimeStr] = useState("--:-- --");
   const [showProcedureEdit, setShowProcedureEdit] = useState(false);
   const [editProcStart, setEditProcStart] = useState("");
   const [editProcEnd, setEditProcEnd] = useState("");
 
-  // reopened is editable (nurse can update forms); completed is read-only
-  const isReadOnly = visitPhase === "completed";
+  // reopened is editable (nurse can update forms); completed and cancelled are read-only
+  const isReadOnly = visitPhase === "completed" || visitPhase === "cancelled";
 
   // Sync the local phase forward to the server status once the visit loads
   // (the query resolves async, so a visit already in `start_procedure` would
   // otherwise stay stuck at the initial `in_progress`). Forward-only so an
   // optimistic local advance isn't reverted before its mutation round-trips.
   // reopened (4) ranks above completed (3) so it overrides a stale completed phase.
+  // cancelled is terminal, so it outranks everything.
   const PHASE_RANK: Record<VisitPhase, number> = {
-    in_progress: 0, start_procedure: 1, end_procedure: 2, completed: 3, reopened: 4,
+    in_progress: 0, start_procedure: 1, end_procedure: 2, completed: 3, reopened: 4, cancelled: 5,
   };
   useEffect(() => {
     setVisitPhase((prev) => (PHASE_RANK[initialPhase] > PHASE_RANK[prev] ? initialPhase : prev));
@@ -381,10 +435,11 @@ function VisitDetailScreenInner() {
   const checkoutWithoutSapMutation = useCheckoutWithoutSapVisit(numId);
   const closeVisitMutation = useCloseVisit(numId);
   const reopenVisitMutation = useReopenVisit(numId);
+  const cancelVisitMutation = useCancelVisit(numId);
   const saveProcedureTimesMutation = useSaveProcedureTimes(numId);
   const submitInventoryUsageMutation = useSubmitInventoryUsage(numId);
 
-  const handleStartProcedure = useCallback(() => {
+  const performStartProcedure = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setVisitPhase("start_procedure");
     const now = DateTimeConverter.nowAsWallClock();
@@ -392,6 +447,17 @@ function VisitDetailScreenInner() {
     setEditProcStart(DateTimeConverter.time(now));
     startVisitMutation.mutate();
   }, [startVisitMutation]);
+
+  // Every visit status change asks first.
+  const handleStartProcedure = useCallback(() => {
+    showDialog({
+      variant: "confirm",
+      title: t("startProcedureTitle"),
+      message: t("startProcedureConfirm"),
+      primaryAction: { label: t("yes"), onPress: performStartProcedure },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
+  }, [showDialog, t, performStartProcedure]);
 
   const handleEndProcedure = useCallback(() => {
     const meds: any[] = (record as any)?.flowSheet?.dialysisMedications ?? [];
@@ -405,13 +471,25 @@ function VisitDetailScreenInner() {
       });
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setVisitPhase("end_procedure");
-    setShowProcedureEdit(true);
-    const now = DateTimeConverter.nowAsWallClock();
-    setProcedureEndTimeStr(DateTimeConverter.time(now));
-    setEditProcEnd(DateTimeConverter.time(now));
-    endVisitMutation.mutate();
+    showDialog({
+      variant: "confirm",
+      title: t("endProcedureTitle"),
+      message: t("endProcedureConfirm"),
+      primaryAction: {
+        label: t("yes"),
+        destructive: true,
+        onPress: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          setVisitPhase("end_procedure");
+          setShowProcedureEdit(true);
+          const now = DateTimeConverter.nowAsWallClock();
+          setProcedureEndTimeStr(DateTimeConverter.time(now));
+          setEditProcEnd(DateTimeConverter.time(now));
+          endVisitMutation.mutate();
+        },
+      },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
   }, [endVisitMutation, record, showDialog, t]);
 
   // A queued-offline mutation isn't a failure — the request is stored and will
@@ -435,7 +513,7 @@ function VisitDetailScreenInner() {
     });
   }, [visitPhase, checkoutVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
 
-  const handleCheckOutWithoutSap = useCallback(() => {
+  const performCheckOutWithoutSap = useCallback(() => {
     const prevPhase = visitPhase;
     setShowCheckoutModal(false);
     setVisitPhase("completed");
@@ -447,7 +525,38 @@ function VisitDetailScreenInner() {
     });
   }, [visitPhase, checkoutWithoutSapMutation, handleMutationError, revertPhaseUnlessQueued]);
 
-  const handleCloseVisit = useCallback(() => {
+  // Cancelling is irreversible, so it asks before opening the reason sheet.
+  const handleCancelPress = useCallback(() => {
+    showDialog({
+      variant: "confirm",
+      title: t("cancelVisit"),
+      message: t("cancelVisitConfirm"),
+      primaryAction: {
+        label: t("yesCancel"),
+        destructive: true,
+        onPress: () => setShowCancelSheet(true),
+      },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
+  }, [showDialog, t]);
+
+  // Skipping SAP completes the visit without it ever reaching the billing system,
+  // which cannot be undone from the app — so it asks first.
+  const handleCheckOutWithoutSap = useCallback(() => {
+    showDialog({
+      variant: "confirm",
+      title: t("checkOutWithoutSapTitle"),
+      message: t("checkOutWithoutSapConfirm"),
+      primaryAction: {
+        label: t("yes"),
+        destructive: true,
+        onPress: performCheckOutWithoutSap,
+      },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
+  }, [showDialog, t, performCheckOutWithoutSap]);
+
+  const performCloseVisit = useCallback(() => {
     setVisitPhase("completed");
     closeVisitMutation.mutate(undefined, {
       onError: (err) => {
@@ -457,7 +566,18 @@ function VisitDetailScreenInner() {
     });
   }, [closeVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
 
-  const handleReopenVisit = useCallback(() => {
+  // Closing ends the visit workflow, so it asks first.
+  const handleCloseVisit = useCallback(() => {
+    showDialog({
+      variant: "confirm",
+      title: t("closeVisitTitle"),
+      message: t("closeVisitConfirm"),
+      primaryAction: { label: t("yes"), destructive: true, onPress: performCloseVisit },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
+  }, [showDialog, t, performCloseVisit]);
+
+  const performReopenVisit = useCallback(() => {
     setVisitPhase("reopened");
     reopenVisitMutation.mutate(undefined, {
       onError: (err) => {
@@ -466,6 +586,39 @@ function VisitDetailScreenInner() {
       },
     });
   }, [reopenVisitMutation, handleMutationError, revertPhaseUnlessQueued]);
+
+  // Reopening moves a completed visit back into the active workflow, so it asks first.
+  const handleReopenVisit = useCallback(() => {
+    showDialog({
+      variant: "confirm",
+      title: t("reopenVisitTitle"),
+      message: t("reopenVisitConfirm"),
+      primaryAction: { label: t("yes"), destructive: true, onPress: performReopenVisit },
+      secondaryAction: { label: t("no"), onPress: () => {} },
+    });
+  }, [showDialog, t, performReopenVisit]);
+
+  // Cancel can start from any active phase, so on failure roll back to it.
+  // The sheet stays open on error so the reason isn't lost.
+  const handleCancelVisit = useCallback((reason: string) => {
+    const prevPhase = visitPhase;
+    cancelVisitMutation.mutate(reason, {
+      onSuccess: () => {
+        setShowCancelSheet(false);
+        setVisitPhase("cancelled");
+        showDialog({ variant: "success", title: t("canceled"), message: t("visitCanceledMessage") });
+      },
+      onError: (err) => {
+        if (err instanceof OfflineQueuedError) {
+          setShowCancelSheet(false);
+          setVisitPhase("cancelled");
+        } else {
+          setVisitPhase(prevPhase);
+        }
+        handleMutationError(err);
+      },
+    });
+  }, [visitPhase, cancelVisitMutation, handleMutationError, showDialog, t]);
 
   // Collapsible states
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -600,24 +753,31 @@ function VisitDetailScreenInner() {
   };
   const rawNursing      = (progressNotes?.nursing       ?? []).map(normalizeNote);
   const rawDoctorBucket = (progressNotes?.doctor        ?? []).map(normalizeNote);
-  // Social worker rows carry location two different ways depending on when
-  // they were saved: `type` holds the value (e.g. `"on_visit"`), and older
-  // rows only set one boolean per location. Neither sets `location`, which is
-  // what the form actually reads — derive it here, trusting `type` first and
-  // only falling back to the booleans for rows that predate it.
+  // Doctor and social worker rows carry location two different ways depending
+  // on when they were saved: `type` holds the value (e.g. `"on_visit"`), and
+  // older rows only set one boolean per location. Neither sets `location`,
+  // which is what the forms actually read — derive it here, trusting `type`
+  // first and only falling back to the booleans for rows that predate it.
+  const noteLocation = (n: any) =>
+    n.location ??
+    SOCIAL_WORKER_LOCATIONS.find((key) => n.type === key) ??
+    SOCIAL_WORKER_LOCATIONS.find((key) => n[key] === true);
   const normalizeSocialNote = (n: any) => {
     const normalized = normalizeNote(n);
     if (!normalized || typeof normalized !== 'object') return normalized;
-    const location =
-      normalized.location ??
-      SOCIAL_WORKER_LOCATIONS.find((key) => normalized.type === key) ??
-      SOCIAL_WORKER_LOCATIONS.find((key) => normalized[key] === true) ??
-      'in_center';
-    return { ...normalized, location };
+    return { ...normalized, location: noteLocation(normalized) ?? 'in_center' };
+  };
+  // Older doctor notes have no location (`type: "doctor"`) — leave it unset
+  // so the list shows nothing rather than a made-up default.
+  const normalizeDoctorNote = (n: any) => {
+    if (!n || typeof n !== 'object') return n;
+    return { ...n, location: noteLocation(n) };
   };
   const rawSocialBucket = (progressNotes?.socialWorker  ?? []).map(normalizeSocialNote);
   const nursingProgressNotes      = rawNursing;
-  const doctorProgressNotes       = rawDoctorBucket.filter((n: any) => n?.type !== 'social_worker');
+  const doctorProgressNotes       = rawDoctorBucket
+    .filter((n: any) => n?.type !== 'social_worker')
+    .map(normalizeDoctorNote);
   const socialWorkerProgressNotes = [
     ...rawSocialBucket,
     ...rawDoctorBucket.filter((n: any) => n?.type === 'social_worker').map(normalizeSocialNote),
@@ -639,6 +799,7 @@ function VisitDetailScreenInner() {
   const submitConsentForHemodialysis = useSubmitConsentForHemodialysis(numId);
   const submitEnrollmentsChecklist = useSubmitEnrollmentsChecklist(numId);
   const submitPatientAssessment = useSubmitPatientAssessment(numId);
+  const submitPatientAssessmentNew = useSubmitPatientAssessmentNew(numId);
   // preTreatmentVitals now lives inside flowSheet (single source of truth).
   const preTreatmentVitals = (record as any)?.flowSheet?.preTreatmentVitals;
 
@@ -1144,6 +1305,28 @@ function VisitDetailScreenInner() {
           </Animated.View>
         )}
 
+        {/* ─── Patient Assessment (New) ─────────────────────────────────── */}
+        {can(RuleActions.Form.ViewAssessment) && (
+          <Animated.View entering={FadeInDown.delay(266).springify()} style={s.section}>
+            <PatientAssessmentNewForm
+              colors={colors}
+              isReadOnly={isReadOnly || !can(RuleActions.Form.SubmitAssessment)}
+              initialExpanded={false}
+              initial={patientAssessmentNewInitial}
+              isSaving={submitPatientAssessmentNew.isPending}
+              currentUserId={user?.employeeId ?? ""}
+              currentUserName={user?.name}
+              onSave={(data) => {
+                submitPatientAssessmentNew.mutate(data, {
+                  onSuccess: () => showDialog({ variant: "success", title: t("save"), message: t("patientAssessmentNewTitle") }),
+                  onError: handleMutationError,
+                });
+              }}
+              t={t}
+            />
+          </Animated.View>
+        )}
+
         {/* ─── Enrollments Checklist ───────────────────────────────────── */}
         {can(RuleActions.Form.ViewEnrollmentsChecklist) && (
           <Animated.View entering={FadeInDown.delay(268).springify()} style={s.section}>
@@ -1236,28 +1419,32 @@ function VisitDetailScreenInner() {
           colors={colors}
           embeddedInventory={(record as any)?.inventory}
         />
-        {/* {patientName && ( */}
-          <WorkflowActionButtons
-            phase={visitPhase}
-            canStartProcedure={can(RuleActions.Visit.Start)}
-            canEndProcedure={can(RuleActions.Visit.End)}
-            canReopen={(can(BackendRule.Visit.ReopenMy) || can(BackendRule.Visit.ReopenAll)) && recordStatus !== "in_active"}
-            onStartProcedure={handleStartProcedure}
-            onEndProcedure={handleEndProcedure}
-            onCheckOut={() => setShowCheckoutModal(true)}
-            onCheckOutWithoutSap={handleCheckOutWithoutSap}
-            onClose={handleCloseVisit}
-            onReopen={handleReopenVisit}
-            startProcedureLoading={startVisitMutation.isPending}
-            endProcedureLoading={endVisitMutation.isPending}
-            checkOutLoading={checkoutVisitMutation.isPending}
-            checkOutWithoutSapLoading={checkoutWithoutSapMutation.isPending}
-            closeLoading={closeVisitMutation.isPending}
-            reopenLoading={reopenVisitMutation.isPending}
-          />
-        {/* )} */}
       </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Pinned to the bottom like a nav bar; the ScrollView's `botPad`
+          (hasActionBar) keeps the last section clear of it. */}
+      <WorkflowActionButtons
+        phase={visitPhase}
+        canStartProcedure={can(RuleActions.Visit.Start)}
+        canEndProcedure={can(RuleActions.Visit.End)}
+        canReopen={(can(BackendRule.Visit.ReopenMy) || can(BackendRule.Visit.ReopenAll)) && recordStatus !== "in_active"}
+        onStartProcedure={handleStartProcedure}
+        onEndProcedure={handleEndProcedure}
+        onCheckOut={() => setShowCheckoutModal(true)}
+        onCheckOutWithoutSap={handleCheckOutWithoutSap}
+        onClose={handleCloseVisit}
+        onReopen={handleReopenVisit}
+        onCancelVisit={handleCancelPress}
+        cancelLabel={t("cancelVisit")}
+        cancelLoading={cancelVisitMutation.isPending}
+        startProcedureLoading={startVisitMutation.isPending}
+        endProcedureLoading={endVisitMutation.isPending}
+        checkOutLoading={checkoutVisitMutation.isPending}
+        checkOutWithoutSapLoading={checkoutWithoutSapMutation.isPending}
+        closeLoading={closeVisitMutation.isPending}
+        reopenLoading={reopenVisitMutation.isPending}
+      />
 
       <MorseFallScaleSheet
         visible={morseSheetOpen}
@@ -1304,6 +1491,14 @@ function VisitDetailScreenInner() {
         onSave={() => setPhysicianModalOpen(false)}
         onClose={() => setPhysicianModalOpen(false)}
         colors={colors}
+      />
+      <CancelVisitSheet
+        visible={showCancelSheet}
+        onClose={() => setShowCancelSheet(false)}
+        onConfirm={handleCancelVisit}
+        loading={cancelVisitMutation.isPending}
+        colors={colors}
+        t={t}
       />
       <CheckOutConfirmModal
         visible={showCheckoutModal}

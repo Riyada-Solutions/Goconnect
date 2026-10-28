@@ -52,7 +52,7 @@ import {
   buildMorseFallsRiskBody,
   parseMorseFallsRiskResponse,
 } from './models/morseFallsRisk'
-import type { SocialWorkerProgressNoteInput } from './models/socialWorkerProgressNote'
+import { progressNoteLocationBody, type SocialWorkerProgressNoteInput } from './models/socialWorkerProgressNote'
 import type { ReferralInput } from './models/referral'
 import type { DoctorProgressNoteInput, DoctorProgressNoteVitals } from './models/doctorProgressNote'
 import type { RefusalInput } from './models/refusal'
@@ -789,6 +789,13 @@ export async function reopenVisit(visitId: number | string): Promise<Visit> {
   return unwrapVisit(res.data)
 }
 
+/** Cancel the visit → moves to `cancelled`. The backend requires a reason. */
+export async function cancelVisit(visitId: number | string, reason: string): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'cancelled')
+  const res = await offlinePost(`/visits/${visitId}/cancel`, { reason }, String(visitId))
+  return unwrapVisit(res.data)
+}
+
 /**
  * Slug for each individual flow-sheet section. The mobile UI still submits
  * sections one at a time so the backend can persist partial work; we map each
@@ -1243,12 +1250,14 @@ export async function submitDoctorProgressNote(
     return patchMockVisit(payload.visitId, 'in_progress')
   }
   // Wire shape for `/forms/progress-notes` (doctor):
-  //   { type: "doctor", notes, isAddendum, parentNoteId? }
-  // `notes` (plural) carries the text. When `isAddendum` is true the
-  // request must reference the original note via `parentNoteId`.
+  //   { notes, type, on_call, in_center, on_visit, isAddendum, parentNoteId? }
+  // Same location fields as the social-worker note — `type` is the selected
+  // location, not the form kind (the URL decides that). `notes` (plural)
+  // carries the text. When `isAddendum` is true the request must reference
+  // the original note via `parentNoteId`.
   const body: Record<string, unknown> = {
-    type:       'doctor',
     notes:      payload.note,
+    ...progressNoteLocationBody(payload.location),
     isAddendum: payload.isAddendum,
   }
   if (payload.isAddendum && payload.parentNoteId != null) {
@@ -1502,13 +1511,7 @@ export async function submitSocialWorkerProgressNote(
   // `type` is the selected location; the booleans stay in step with it.
   const res = await offlinePost(
     `/visits/${payload.visitId}/forms/social-worker-progress-note`,
-    {
-      notes:     payload.note,
-      type:      payload.location,
-      on_call:   payload.location === 'on_call',
-      in_center: payload.location === 'in_center',
-      on_visit:  payload.location === 'on_visit',
-    },
+    { notes: payload.note, ...progressNoteLocationBody(payload.location) },
     String(payload.visitId),
   )
   return unwrapVisit(res.data)
@@ -1709,4 +1712,52 @@ export async function submitPatientAssessment(
   if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
   const res = await offlinePost(`/visits/${visitId}/forms/patient-assessment`, body, String(visitId))
   return unwrapVisit(res.data)
+}
+
+/**
+ * Patient Assessment (new) — `POST /visits/{id}/forms/patient-assessment-new`.
+ * Every save REPLACES the whole stored form, so `body` must be the complete
+ * form (including any legacy sections read back from the server).
+ */
+export async function submitPatientAssessmentNew(
+  visitId: number | string,
+  body: Record<string, unknown>,
+): Promise<Visit> {
+  if (ENV.USE_MOCK_DATA) return patchMockVisit(visitId, 'in_progress')
+  const res = await offlinePost(`/visits/${visitId}/forms/patient-assessment-new`, body, String(visitId))
+  return unwrapVisit(res.data)
+}
+
+export interface IcdCode {
+  code: string
+  description: string
+}
+
+/**
+ * ICD typeahead — `GET /icd-codes`. `search` matches the start of the code or
+ * anywhere in the description (valid codes only). `codes` resolves exact
+ * codes (retired ones included) to label values already saved on a form.
+ */
+export async function searchIcdCodes(params: {
+  search?: string
+  codes?: string[]
+  page?: number
+  perPage?: number
+}): Promise<Page<IcdCode>> {
+  const page = params.page ?? 1
+  const perPage = params.perPage ?? 20
+  if (ENV.USE_MOCK_DATA) return { items: [], meta: EMPTY_META, hasMore: false }
+  const query: Record<string, unknown> = { page, per_page: perPage }
+  if (params.search) query.search = params.search
+  if (params.codes?.length) query.codes = params.codes
+  // `indexes: false` → `codes[]=N183&codes[]=I10`, the shape the API expects.
+  const res = await apiClient.get('/icd-codes', { params: query, paramsSerializer: { indexes: false } })
+  const parsed = parsePage<any>(res.data, page, perPage)
+  return {
+    ...parsed,
+    items: parsed.items.map((raw) => ({
+      code: String(raw?.code ?? ''),
+      description: String(raw?.description ?? '').trim(),
+    })),
+  }
 }

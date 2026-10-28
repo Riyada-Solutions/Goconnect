@@ -1,3 +1,5 @@
+import type { ProgressNoteLocation } from "./socialWorkerProgressNote"
+
 export interface DoctorProgressNoteVitals {
   temperature?: string
   respiratoryRate?: string
@@ -15,6 +17,8 @@ export interface DoctorProgressNote {
   id: number
   visitId: number
   note: string
+  /** Missing on notes saved before the doctor form sent a location. */
+  location?: ProgressNoteLocation
   vitalsSnapshot?: DoctorProgressNoteVitals
   isAddendum: boolean
   parentNoteId?: number
@@ -25,6 +29,7 @@ export interface DoctorProgressNote {
 export interface DoctorProgressNoteInput {
   visitId: number
   note: string
+  location: ProgressNoteLocation
   isAddendum: boolean
   parentNoteId?: number
 }

@@ -3,7 +3,9 @@ import { cacheService } from '@/data/cache_service'
 import { OfflineQueuedError } from '@/data/offline_api'
 import { useOfflineInfiniteQuery } from './useOfflineInfiniteQuery'
 import { useOfflineQuery } from './useOfflineQuery'
+import { DateTimeConverter } from '@/utils/datetime'
 import {
+  cancelVisit,
   checkoutVisit,
   checkoutWithoutSapVisit,
   closeVisit,
@@ -27,6 +29,7 @@ import {
   submitMorseFallsRiskAssessment,
   submitNursingProgressNote,
   submitPatientAssessment,
+  submitPatientAssessmentNew,
   submitPatientResponsibility,
   submitReferral,
   submitRefusal,
@@ -40,6 +43,7 @@ import type { PatientResponsibilityData } from '@/components/visits/visitForms/P
 import type { ConsentForHemodialysisData } from '@/components/visits/visitForms/ConsentForHemodialysisForm'
 import type { EnrollmentsChecklistData } from '@/components/visits/visitForms/EnrollmentsChecklistForm'
 import type { PatientAssessmentData } from '@/components/visits/visitForms/PatientAssessmentForm'
+import { CONTRAPTIONS_G2_OTHERS, type PatientAssessmentNewData } from '@/components/visits/visitForms/PatientAssessmentNewForm'
 import type { InventoryUsageInput, InventoryUsageMultipleInput, Visit } from '../data/models/visit'
 import type { DoctorProgressNoteInput } from '../data/models/doctorProgressNote'
 import type { MorseFallsRiskAssessmentInput } from '../data/models/morseFallsRisk'
@@ -280,6 +284,18 @@ export const useCloseVisit = (visitId: number) =>
 export const useReopenVisit = (visitId: number) =>
   useVisitStatusMutation(reopenVisit, visitId, 'reopened')
 
+/** Cancel takes a free-text `reason` the backend requires (`{ reason }`). */
+export function useCancelVisit(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, string>({
+    mutationFn: (reason) => cancelVisit(visitId, reason),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+    onError: (err) => {
+      if (err instanceof OfflineQueuedError) void applyOfflineVisitStatus(qc, visitId, 'cancelled')
+    },
+  })
+}
+
 export function useSaveProcedureTimes(visitId: number) {
   const qc = useQueryClient()
   return useMutation<Visit, Error, { startTime?: string; endTime?: string }>({
@@ -431,6 +447,45 @@ export function useSubmitPatientAssessment(visitId: number) {
   const qc = useQueryClient()
   return useMutation<Visit, Error, PatientAssessmentData>({
     mutationFn: (data) => submitPatientAssessment(visitId, serializePatientAssessment(data)),
+    onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
+  })
+}
+
+/**
+ * `patient-assessment-new` replaces the whole stored form on every save, so
+ * the full object is sent back — including legacy sections we don't render
+ * (`social_hostory`, `surgical_history`, `referral`, …) or they'd be deleted.
+ * Blank strings become `null` so numeric fields don't fail validation.
+ */
+function serializePatientAssessmentNew(data: PatientAssessmentNewData): Record<string, unknown> {
+  const clean = (value: unknown): unknown => {
+    if (typeof value === 'string') return value.trim() === '' ? null : value
+    if (Array.isArray(value)) return value.map(clean)
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, clean(v)]))
+    }
+    return value
+  }
+  const body = clean(data) as Record<string, any>
+  // "Others" (g2) isn't an API value — the text in `_g2_others` carries it.
+  if (body.medical_surgical_history?.contraptions_equipment_g2 === CONTRAPTIONS_G2_OTHERS) {
+    body.medical_surgical_history = { ...body.medical_surgical_history, contraptions_equipment_g2: null }
+  }
+  // Same signed_at wire format as the other forms (`YYYY-MM-DD HH:mm:ss`).
+  body.assessment_signature_signed_at = data.assessment_signature_signed_at
+    ? DateTimeConverter.toApiDatetime(data.assessment_signature_signed_at)
+    : null
+  const signedBy = Number(data.assessment_signature_signed_by)
+  body.assessment_signature_signed_by = data.assessment_signature_signed_by == null || data.assessment_signature_signed_by === '' || !Number.isFinite(signedBy)
+    ? null
+    : signedBy
+  return body
+}
+
+export function useSubmitPatientAssessmentNew(visitId: number) {
+  const qc = useQueryClient()
+  return useMutation<Visit, Error, PatientAssessmentNewData>({
+    mutationFn: (data) => submitPatientAssessmentNew(visitId, serializePatientAssessmentNew(data)),
     onSuccess: (visit) => applyVisitUpdate(qc, visit, visitId),
   })
 }

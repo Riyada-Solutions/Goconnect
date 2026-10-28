@@ -14,7 +14,7 @@ import { clock12hTo24h, clock24hTo12h, calculateDuration, formatElapsed } from "
 import { visitDetailStyles as s } from "./visit-detail.styles";
 import { ReadOnlyField } from "./ReadOnlyField";
 
-export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
+export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened" | "cancelled";
 
 interface Props {
   visitId?: number | string;
@@ -51,6 +51,7 @@ interface Props {
 
 function statusLabel(phase: VisitPhase): string {
   if (phase === "completed") return "completed";
+  if (phase === "cancelled") return "cancelled";
   if (phase === "reopened") return "reopened";
   if (phase === "end_procedure") return "end procedure";
   if (phase === "start_procedure") return "start procedure";

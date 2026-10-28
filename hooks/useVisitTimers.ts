@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { DateTimeConverter } from "@/utils/datetime";
 
-export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened";
+export type VisitPhase = "in_progress" | "start_procedure" | "end_procedure" | "completed" | "reopened" | "cancelled";
 
 // Stored timestamps are KSA wall-clock labelled UTC; `instant()` returns the
 // true epoch so `now − start` matches the web view (off-by-3h otherwise).
@@ -45,7 +45,7 @@ export function useVisitTimers(phase: VisitPhase, opts: Opts = {}) {
   const [procedureElapsed, setProcedureElapsed] = useState(0);
 
   // ── Visit timer ─────────────────────────────────────────────────────────
-  const visitActive = phase !== "completed";
+  const visitActive = phase !== "completed" && phase !== "cancelled";
   useEffect(() => {
     if (visitStartMs == null) {
       setVisitElapsed(0);

@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { Card } from "@/components/common/Card";
 import type {
   DoctorProgressNote,
+  DoctorProgressNoteInput,
   DoctorProgressNoteVitals,
 } from "@/data/models/doctorProgressNote";
 import type { NursingProgressNote } from "@/data/models/nursingProgressNote";
@@ -31,7 +32,7 @@ interface Props {
   // Doctor
   doctorVitals?: DoctorProgressNoteVitals;
   doctorNotes: DoctorProgressNote[];
-  onSaveDoctor: (input: { note: string; isAddendum: boolean; parentNoteId?: number }) => void;
+  onSaveDoctor: (input: Omit<DoctorProgressNoteInput, "visitId">) => void;
 
   // Nursing
   nursingNotes: NursingProgressNote[];

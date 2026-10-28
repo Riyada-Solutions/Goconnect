@@ -19,6 +19,7 @@ const ACTION_LABELS: Array<[RegExp, string]> = [
   [/\/forms\/consent-for-hemodialysis$/, 'General Consent for Hemodialysis'],
   [/\/forms\/enrollments-checklist$/, 'Enrollments Checklist'],
   [/\/forms\/patient-assessment$/, 'Patient Assessment'],
+  [/\/forms\/patient-assessment-new$/, 'Patient Assessment (New)'],
   [/\/actions\/patient-medications\//, 'Medication Administration'],
   [/\/patient-inventory\/use-multiple$/, 'Inventory Usage'],
   [/\/patient-inventory\/use$/, 'Inventory Usage'],

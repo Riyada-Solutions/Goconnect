@@ -41,7 +41,8 @@ cd android
 # ── Build (AAB) — upload to Google Play Store ───────────────
 # Output: D:\work\React\waleed\careconnect\nurse\v4\Goconnect\android/app/build/outputs/bundle/release
 cd android
-.\gradlew bundleRelease
+.\gradlew bundleRelease PC
+./gradlew bundleRelease MAC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## iOS

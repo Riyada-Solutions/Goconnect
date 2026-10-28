@@ -5,16 +5,16 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/common/Card";
 import { Colors } from "@/theme/colors";
-import {
-  SOCIAL_WORKER_LOCATIONS,
-  type SocialWorkerLocation,
-  type SocialWorkerProgressNote,
+import type {
+  SocialWorkerLocation,
+  SocialWorkerProgressNote,
 } from "@/data/models/socialWorkerProgressNote";
 
 import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { ProgressNoteItem } from "./ProgressNoteItem";
+import { ProgressNoteLocationPicker, progressNoteLocationLabel } from "./ProgressNoteLocationPicker";
 
 interface Props {
   colors: any;
@@ -48,8 +48,7 @@ export function SocialWorkerProgressNoteForm({
   };
 
   const done = previousNotes.length > 0 || currentNote.trim() !== "";
-  const locationLabel = (loc: SocialWorkerLocation) =>
-    t(LOCATION_LABEL_KEYS[loc] ?? "inCenter");
+  const locationLabel = (loc: SocialWorkerLocation) => progressNoteLocationLabel(loc, t);
 
   const body = (
     <View style={{gap: 14 }} pointerEvents={isReadOnly ? "none" : "auto"}>
@@ -85,19 +84,7 @@ export function SocialWorkerProgressNoteForm({
             )}
           </View>
 
-          {/* Wraps rather than scrolls — three labels no longer fit one row
-              on a narrow phone, and Arabic labels are longer still. */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
-            {SOCIAL_WORKER_LOCATIONS.map((loc) => (
-              <LocationCheckbox
-                key={loc}
-                label={locationLabel(loc)}
-                checked={location === loc}
-                onPress={() => setLocation(loc)}
-                colors={colors}
-              />
-            ))}
-          </View>
+          <ProgressNoteLocationPicker value={location} onChange={setLocation} colors={colors} t={t} />
 
           <View>
             <Text style={[s.formLabel, { color: colors.text }]}>{t("currentProgressNotes")}</Text>
@@ -158,44 +145,5 @@ export function SocialWorkerProgressNoteForm({
       />
       <CollapsibleBody open={open}>{body}</CollapsibleBody>
     </Card>
-  );
-}
-
-/** One translation key per location; keep in step with `SocialWorkerLocation`. */
-const LOCATION_LABEL_KEYS: Record<SocialWorkerLocation, string> = {
-  on_call: "onCall",
-  in_center: "inCenter",
-  on_visit: "onVisit",
-};
-
-function LocationCheckbox({
-  label,
-  checked,
-  onPress,
-  colors,
-}: {
-  label: string;
-  checked: boolean;
-  onPress: () => void;
-  colors: any;
-}) {
-  return (
-    <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <View
-        style={{
-          width: 20,
-          height: 20,
-          borderWidth: 2,
-          borderRadius: 4,
-          borderColor: checked ? Colors.primary : colors.border,
-          backgroundColor: checked ? Colors.primary : "transparent",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {checked && <Feather name="check" size={13} color="#fff" />}
-      </View>
-      <Text style={{ fontFamily: "Inter_500Medium", fontSize: 14, color: colors.text }}>{label}</Text>
-    </Pressable>
   );
 }

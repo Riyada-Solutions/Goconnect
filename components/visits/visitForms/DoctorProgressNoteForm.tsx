@@ -9,12 +9,14 @@ import type {
   DoctorProgressNote,
   DoctorProgressNoteVitals,
 } from "@/data/models/doctorProgressNote";
+import type { ProgressNoteLocation } from "@/data/models/socialWorkerProgressNote";
 
 import { visitDetailStyles as s } from "@/components/visits/visit-detail.styles";
 import { CollapsibleBody } from "../CollapsibleBody";
 import { CollapsibleHeader } from "../CollapsibleHeader";
 import { ReadOnlyField } from "../ReadOnlyField";
 import { ProgressNoteItem } from "./ProgressNoteItem";
+import { ProgressNoteLocationPicker, progressNoteLocationLabel } from "./ProgressNoteLocationPicker";
 
 interface Props {
   colors: any;
@@ -24,7 +26,12 @@ interface Props {
   embedded?: boolean;
   vitals?: DoctorProgressNoteVitals;
   previousNotes: DoctorProgressNote[];
-  onSave: (input: { note: string; isAddendum: boolean; parentNoteId?: number }) => void;
+  onSave: (input: {
+    note: string;
+    location: ProgressNoteLocation;
+    isAddendum: boolean;
+    parentNoteId?: number;
+  }) => void;
   t: (key: any) => string;
 }
 
@@ -41,6 +48,7 @@ export function DoctorProgressNoteForm({
   const [open, setOpen] = useState(initialExpanded ?? false);
   const [currentNote, setCurrentNote] = useState("");
   const [isAddendum, setIsAddendum] = useState(false);
+  const [location, setLocation] = useState<ProgressNoteLocation>("on_call");
 
   const latestNoteId = previousNotes[0]?.id;
   const canAddendum = !!latestNoteId;
@@ -50,6 +58,7 @@ export function DoctorProgressNoteForm({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSave({
       note: currentNote.trim(),
+      location,
       isAddendum: isAddendum && canAddendum,
       parentNoteId: isAddendum && canAddendum ? latestNoteId : undefined,
     });
@@ -87,13 +96,23 @@ export function DoctorProgressNoteForm({
                       Haptics.selectionAsync();
                       // Tolerate the new-shape API where text lives under `notes` not `note`.
                       setCurrentNote(String((n as any).note ?? (n as any).notes ?? ""));
+                      if (n.location) setLocation(n.location);
                     }}
+                    metaBelow={
+                      n.location ? (
+                        <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_400Regular", marginTop: 4 }}>
+                          {progressNoteLocationLabel(n.location, t)}
+                        </Text>
+                      ) : undefined
+                    }
                     colors={colors}
                   />
                 ))}
               </View>
             )}
           </View>
+
+          <ProgressNoteLocationPicker value={location} onChange={setLocation} colors={colors} t={t} />
 
           <View>
             <TextInput
